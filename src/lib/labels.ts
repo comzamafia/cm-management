@@ -71,6 +71,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   ESCALATION: "Escalation",
   CHECKLIST_GENERATED: "Checklist Generated",
   DAILY_DIGEST: "Daily Digest",
+  ANNOUNCEMENT: "Announcement",
 };
 
 export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
@@ -80,6 +81,7 @@ export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
   ESCALATION: "text-red-700",
   CHECKLIST_GENERATED: "text-emerald-600",
   DAILY_DIGEST: "text-slate-600",
+  ANNOUNCEMENT: "text-[#0073ea]",
 };
 
 export function isOverdue(dueAt: Date | null, status: TaskStatus): boolean {

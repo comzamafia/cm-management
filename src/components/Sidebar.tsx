@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 import { NotificationBell, type NotificationItem } from "./NotificationBell";
 
-type NavItem = { href: string; label: string; icon: React.ReactNode };
 
 const I = {
   dashboard: (
@@ -35,6 +34,16 @@ const I = {
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
+  announcements: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l19-9-9 19-2-8-8-2z" />
+    </svg>
+  ),
+  training: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  ),
   notifications: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -42,12 +51,16 @@ const I = {
   ),
 };
 
-const NAV: NavItem[] = [
+type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: number };
+
+const NAV_BASE: Omit<NavItem, "badge">[] = [
   { href: "/dashboard", label: "Dashboard", icon: I.dashboard },
   { href: "/board", label: "Monthly Checklist", icon: I.board },
   { href: "/tasks", label: "Tasks", icon: I.tasks },
   { href: "/checklists", label: "Checklists", icon: I.checklists },
   { href: "/people", label: "People", icon: I.people },
+  { href: "/announcements", label: "Announcements", icon: I.announcements },
+  { href: "/training", label: "Training Hub", icon: I.training },
   { href: "/notifications", label: "Notifications", icon: I.notifications },
 ];
 
@@ -71,11 +84,19 @@ function Logo() {
 
 type SidebarUser = { name: string; roleLabel: string; locationLabel: string };
 
-function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavList({
+  pathname,
+  nav,
+  onNavigate,
+}: {
+  pathname: string;
+  nav: NavItem[];
+  onNavigate?: () => void;
+}) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   return (
     <nav className="flex flex-col gap-0.5">
-      {NAV.map((item) => {
+      {nav.map((item) => {
         const active = isActive(item.href);
         return (
           <Link
@@ -87,7 +108,12 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
             }`}
           >
             <span className={active ? "text-[#0073ea]" : "text-[#9699a6]"}>{item.icon}</span>
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {item.badge != null && item.badge > 0 && (
+              <span className="ml-auto grid h-4.5 min-w-[18px] place-items-center rounded-full bg-[#e2445c] px-1 text-[10px] font-bold text-white leading-none py-0.5">
+                {item.badge > 99 ? "99+" : item.badge}
+              </span>
+            )}
           </Link>
         );
       })}
@@ -118,13 +144,25 @@ export function Sidebar({
   user,
   notifications,
   unreadCount,
+  unreadAnnouncements,
 }: {
   user: SidebarUser;
   notifications: NotificationItem[];
   unreadCount: number;
+  unreadAnnouncements: number;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  const nav: NavItem[] = NAV_BASE.map((item) => ({
+    ...item,
+    badge:
+      item.href === "/notifications"
+        ? unreadCount || undefined
+        : item.href === "/announcements"
+          ? unreadAnnouncements || undefined
+          : undefined,
+  }));
 
   // Close the drawer whenever the route changes.
   useEffect(() => {
@@ -138,9 +176,9 @@ export function Sidebar({
         <div className="px-5 py-5">
           <Logo />
         </div>
-        <div className="px-3 pb-2 pt-1">
+        <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
           <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#9699a6]">Main workspace</p>
-          <NavList pathname={pathname} />
+          <NavList pathname={pathname} nav={nav} />
         </div>
         <div className="mt-auto">
           <UserCard user={user} />
@@ -149,10 +187,14 @@ export function Sidebar({
 
       {/* Mobile top bar: hamburger + logo + bell */}
       <div className="sticky top-0 z-40 flex items-center gap-3 border-b border-[#e6e9ef] bg-white px-4 py-3 lg:hidden print:hidden">
-        <button onClick={() => setOpen(true)} aria-label="Open menu" className="text-[#323338]">
+        <button onClick={() => setOpen(true)} aria-label="Open menu" className="relative text-[#323338]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
           </svg>
+          {/* Total badge dot for mobile */}
+          {(unreadCount + unreadAnnouncements) > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[#e2445c]" />
+          )}
         </button>
         <div className="flex-1">
           <Logo />
@@ -173,9 +215,9 @@ export function Sidebar({
                 </svg>
               </button>
             </div>
-            <div className="px-3 pb-2 pt-1">
+            <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
               <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#9699a6]">Main workspace</p>
-              <NavList pathname={pathname} onNavigate={() => setOpen(false)} />
+              <NavList pathname={pathname} nav={nav} onNavigate={() => setOpen(false)} />
             </div>
             <div className="mt-auto">
               <UserCard user={user} />

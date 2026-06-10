@@ -65,6 +65,16 @@ enum NotificationType {
   ESCALATION
   CHECKLIST_GENERATED
   DAILY_DIGEST
+  ANNOUNCEMENT
+}
+
+enum TrainingCategory {
+  SOP
+  SAFETY
+  SERVICE
+  PRODUCT
+  COMPLIANCE
+  OTHER
 }
 
 model Location {
@@ -80,6 +90,8 @@ model Location {
   tasks              Task[]
   activityLog        ActivityLog[]
   checklistTemplates ChecklistTemplate[]
+  announcements      Announcement[]
+  trainingMaterials  TrainingMaterial[]
 }
 
 model User {
@@ -102,6 +114,9 @@ model User {
   notifications          Notification[]
   checklistsCreated      ChecklistTemplate[]
   categoriesCreated      Category[]
+  announcements          Announcement[]
+  announcementReads      AnnouncementRead[]
+  trainingMaterials      TrainingMaterial[]
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -226,6 +241,54 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read, createdAt])
+}
+
+// Phase 4: Announcements
+model Announcement {
+  id         String   @id @default(cuid())
+  title      String
+  body       String
+  authorId   String
+  locationId String?  // null = company-wide
+  pinned     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  author   User               @relation(fields: [authorId], references: [id])
+  location Location?          @relation(fields: [locationId], references: [id])
+  reads    AnnouncementRead[]
+
+  @@index([locationId, createdAt])
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+}
+
+// Phase 4: Training materials hub
+model TrainingMaterial {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  category    TrainingCategory
+  contentUrl  String?
+  content     String?
+  locationId  String?          // null = company-wide
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  createdBy User      @relation(fields: [createdById], references: [id])
+  location  Location? @relation(fields: [locationId], references: [id])
+
+  @@index([locationId, category])
 }
 
 // Immutable audit trail — heart of the system (Who / What / Where / When).
