@@ -59,10 +59,12 @@ export default async function RootLayout({
                 roleLabel: ROLE_LABEL[user.role],
                 locationLabel,
               }}
+              notifications={notifications}
+              unreadCount={unreadCount}
             />
             <div className="lg:pl-60 print:pl-0">
-              {/* Top bar */}
-              <header className="sticky top-0 z-30 flex h-14 items-center justify-end gap-3 border-b border-[#e6e9ef] bg-white/80 px-4 backdrop-blur lg:px-8 print:hidden">
+              {/* Desktop top bar (mobile uses the sidebar's bar) */}
+              <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-[#e6e9ef] bg-white/80 px-4 backdrop-blur lg:flex lg:px-8 print:hidden">
                 <span className="hidden items-center gap-2 rounded-full bg-[#f6f7fb] px-3 py-1.5 text-xs font-medium text-[#676879] sm:inline-flex">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" />
