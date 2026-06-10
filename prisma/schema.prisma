@@ -1,0 +1,223 @@
+// CM Operational Task Management System — Phase 1 + 2
+// Source of truth for entities. Keep field names stable (dashboard + logs depend on them).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  AREA_MANAGER
+  STORE_MANAGER
+  SHIFT_LEAD
+  EMPLOYEE
+  NEW_HIRE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TaskType {
+  ONE_OFF
+  RECURRING
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  VERIFIED
+  OVERDUE
+}
+
+enum AttachmentType {
+  PHOTO
+  DOC
+  SOP
+  VIDEO
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_NEAR_DUE
+  TASK_OVERDUE
+  ESCALATION
+  CHECKLIST_GENERATED
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  region    String?
+  managerId String?
+  createdAt DateTime @default(now())
+
+  users              User[]              @relation("UserLocation")
+  managedBy          User?               @relation("LocationManager", fields: [managerId], references: [id])
+  tasks              Task[]
+  activityLog        ActivityLog[]
+  checklistTemplates ChecklistTemplate[]
+}
+
+model User {
+  id         String     @id @default(cuid())
+  name       String
+  email      String     @unique
+  role       Role
+  locationId String?
+  phone      String?
+  status     UserStatus @default(ACTIVE)
+  createdAt  DateTime   @default(now())
+
+  location               Location?            @relation("UserLocation", fields: [locationId], references: [id])
+  managesLocations       Location[]           @relation("LocationManager")
+  assignedTasks          Task[]               @relation("Assignee")
+  createdTasks           Task[]               @relation("Assigner")
+  completions            TaskCompletion[]     @relation("CompletedBy")
+  verifications          TaskCompletion[]     @relation("VerifiedBy")
+  activityLog            ActivityLog[]
+  notifications          Notification[]
+  checklistsCreated      ChecklistTemplate[]
+}
+
+model Task {
+  id            String     @id @default(cuid())
+  title         String
+  description   String?
+  type          TaskType   @default(ONE_OFF)
+  priority      Priority   @default(MEDIUM)
+  locationId    String
+  assigneeId    String?
+  assignerId    String
+  department    String?
+  dueAt         DateTime?
+  status        TaskStatus @default(PENDING)
+  proofRequired Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  location    Location         @relation(fields: [locationId], references: [id])
+  assignee    User?            @relation("Assignee", fields: [assigneeId], references: [id])
+  assigner    User             @relation("Assigner", fields: [assignerId], references: [id])
+  attachments Attachment[]
+  completions TaskCompletion[]
+
+  @@index([locationId, status])
+  @@index([assigneeId, status])
+}
+
+model TaskCompletion {
+  id            String    @id @default(cuid())
+  taskId        String
+  completedById String
+  completedAt   DateTime  @default(now())
+  photoUrls     Json
+  locationStamp String?
+  verifiedById  String?
+  verifiedAt    DateTime?
+
+  task        Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  completedBy User  @relation("CompletedBy", fields: [completedById], references: [id])
+  verifiedBy  User? @relation("VerifiedBy", fields: [verifiedById], references: [id])
+}
+
+model Attachment {
+  id        String         @id @default(cuid())
+  taskId    String
+  type      AttachmentType
+  url       String
+  createdAt DateTime       @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+// Phase 2: Recurring Checklists
+model ChecklistTemplate {
+  id               String    @id @default(cuid())
+  name             String
+  frequency        Frequency
+  items            Json      // string[] — each item becomes one Task on generation
+  locationId       String?   // null = apply to all locations
+  autoGenerateHour Int       @default(7)  // 0-23 UTC hour to generate
+  weekDay          Int?      // 0-6 (0=Sun) — WEEKLY only
+  monthDay         Int?      // 1-31 — MONTHLY only
+  priority         Priority  @default(MEDIUM)
+  department       String?
+  proofRequired    Boolean   @default(false)
+  active           Boolean   @default(true)
+  createdById      String
+  createdAt        DateTime  @default(now())
+
+  location     Location?             @relation(fields: [locationId], references: [id])
+  createdBy    User                  @relation(fields: [createdById], references: [id])
+  generations  ChecklistGeneration[]
+}
+
+// Tracks each time a template was run, preventing duplicate daily generates.
+model ChecklistGeneration {
+  id          String   @id @default(cuid())
+  templateId  String
+  locationId  String
+  generatedAt DateTime @default(now())
+  taskIds     Json     // string[] of created Task ids
+
+  template ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, locationId, generatedAt])
+}
+
+// Phase 2: In-app notifications
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  type       NotificationType
+  title      String
+  body       String
+  entityId   String?          // e.g. Task id
+  entityType String?          // e.g. "Task"
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+}
+
+// Immutable audit trail — heart of the system (Who / What / Where / When).
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // e.g. "task.created", "task.status_changed", "task.verified"
+  entity     String   // e.g. "Task"
+  entityId   String
+  locationId String?
+  meta       Json
+  timestamp  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  location Location? @relation(fields: [locationId], references: [id])
+
+  @@index([locationId, timestamp])
+  @@index([userId, timestamp])
+}
