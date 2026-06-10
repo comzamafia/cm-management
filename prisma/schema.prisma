@@ -101,6 +101,23 @@ model User {
   activityLog            ActivityLog[]
   notifications          Notification[]
   checklistsCreated      ChecklistTemplate[]
+  categoriesCreated      Category[]
+}
+
+// Board "groups" — managed categories that tasks are organized under (monday.com style).
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  color       String   @default("#0073ea")
+  position    Int      @default(0)
+  locationId  String? // null = company-wide
+  createdById String
+  createdAt   DateTime @default(now())
+
+  createdBy User   @relation(fields: [createdById], references: [id])
+  tasks     Task[]
+
+  @@index([position])
 }
 
 model Task {
@@ -113,6 +130,9 @@ model Task {
   assigneeId    String?
   assignerId    String
   department    String?
+  categoryId    String?
+  position      Int        @default(0)
+  amount        Float? // optional dollar value (e.g. cash-flow rows)
   dueAt         DateTime?
   status        TaskStatus @default(PENDING)
   proofRequired Boolean    @default(false)
@@ -120,6 +140,7 @@ model Task {
   updatedAt     DateTime   @updatedAt
 
   location    Location         @relation(fields: [locationId], references: [id])
+  category    Category?        @relation(fields: [categoryId], references: [id])
   assignee    User?            @relation("Assignee", fields: [assigneeId], references: [id])
   assigner    User             @relation("Assigner", fields: [assignerId], references: [id])
   attachments Attachment[]
@@ -127,6 +148,7 @@ model Task {
 
   @@index([locationId, status])
   @@index([assigneeId, status])
+  @@index([categoryId, position])
 }
 
 model TaskCompletion {

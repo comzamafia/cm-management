@@ -36,6 +36,7 @@ export async function createTask(input: {
   locationId: string;
   assigneeId?: string;
   department?: string;
+  categoryId?: string;
   dueAt?: string; // ISO
   proofRequired: boolean;
 }): Promise<ActionResult> {
@@ -58,6 +59,7 @@ export async function createTask(input: {
         assigneeId: input.assigneeId || null,
         assignerId: user.id,
         department: input.department?.trim() || null,
+        categoryId: input.categoryId || null,
         dueAt: input.dueAt ? new Date(input.dueAt) : null,
         proofRequired: input.proofRequired,
       },
@@ -210,5 +212,90 @@ export async function assignTask(taskId: string, assigneeId: string): Promise<Ac
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
+  revalidatePath("/board");
+  return { ok: true };
+}
+
+/** Board: add a task into a category with just a title (managers/shift leads). */
+export async function quickAddTask(categoryId: string, title: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!isManager(user.role) && user.role !== "SHIFT_LEAD") {
+    return { ok: false, error: "Only managers/shift leads can create tasks" };
+  }
+  if (!title.trim()) return { ok: false, error: "Title is required" };
+
+  const category = await prisma.category.findUnique({ where: { id: categoryId } });
+  if (!category) return { ok: false, error: "Category not found" };
+
+  // Resolve a location: category scope → user's location → first location.
+  let locationId = category.locationId ?? user.locationId ?? null;
+  if (!locationId) {
+    const loc = await prisma.location.findFirst({ orderBy: { createdAt: "asc" } });
+    if (!loc) return { ok: false, error: "No location available" };
+    locationId = loc.id;
+  }
+  const ids = await scopedLocationIds(user);
+  if (ids !== null && !ids.includes(locationId)) {
+    return { ok: false, error: "Outside your location scope" };
+  }
+
+  const count = await prisma.task.count({ where: { categoryId } });
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.create({
+      data: {
+        title: title.trim(),
+        type: "ONE_OFF",
+        priority: "MEDIUM",
+        locationId: locationId as string,
+        assignerId: user.id,
+        categoryId,
+        position: count,
+        proofRequired: false,
+      },
+    });
+    await logActivity(tx, {
+      userId: user.id,
+      action: "task.created",
+      entity: "Task",
+      entityId: task.id,
+      locationId: locationId as string,
+      meta: { title: task.title, categoryId },
+    });
+  });
+
+  revalidatePath("/board");
+  return { ok: true };
+}
+
+/** Board: set or clear a task's due date. */
+export async function setTaskDue(taskId: string, dueAt: string | null): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!isManager(user.role) && user.role !== "SHIFT_LEAD") {
+    return { ok: false, error: "Only managers/shift leads can change due dates" };
+  }
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!task) return { ok: false, error: "Task not found" };
+  const scope = await scopedLocationIds(user);
+  if (scope !== null && !scope.includes(task.locationId)) {
+    return { ok: false, error: "Outside your location scope" };
+  }
+
+  const next = dueAt ? new Date(dueAt) : null;
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({ where: { id: taskId }, data: { dueAt: next } });
+    await logActivity(tx, {
+      userId: user.id,
+      action: "task.due_changed",
+      entity: "Task",
+      entityId: taskId,
+      locationId: task.locationId,
+      meta: { from: task.dueAt, to: next, title: task.title },
+    });
+  });
+
+  revalidatePath("/board");
+  revalidatePath("/tasks");
   return { ok: true };
 }
