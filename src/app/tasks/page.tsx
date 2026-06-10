@@ -87,8 +87,8 @@ export default async function TasksPage({
         })}
       </div>
 
-      <div className="m-card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="m-card overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="border-b border-[#e6e9ef] bg-[#f9fafc] text-left text-xs font-semibold uppercase tracking-wider text-[#676879]">
             <tr>
               <th className="px-4 py-3">Task</th>

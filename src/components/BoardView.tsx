@@ -84,8 +84,8 @@ export function BoardView({
       )}
 
       {/* View switcher + export */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e6e9ef] print:hidden">
-        <div className="flex flex-wrap items-center gap-1">
+      <div className="flex items-center justify-between gap-2 border-b border-[#e6e9ef] print:hidden">
+        <div className="flex items-center gap-1 overflow-x-auto">
           <ViewTab active={view === "table"} onClick={() => setView("table")} label="Main Table" icon={
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
           } />
@@ -102,9 +102,10 @@ export function BoardView({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           } />
         </div>
-        <button onClick={() => window.print()} className="m-btn-ghost mb-1">
+        <button onClick={() => window.print()} className="m-btn-ghost mb-1 shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Export PDF
+          <span className="hidden sm:inline">Export PDF</span>
+          <span className="sm:hidden">PDF</span>
         </button>
       </div>
 
@@ -200,7 +201,8 @@ function CalendarView({ groups, month }: { groups: BoardGroup[]; month: string }
   ];
 
   return (
-    <div className="m-card p-4">
+    <div className="m-card overflow-x-auto p-4">
+      <div className="min-w-[600px]">
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[#676879]">
         {WEEKDAYS.map((d) => (<div key={d} className="py-1">{d}</div>))}
       </div>
@@ -225,6 +227,7 @@ function CalendarView({ groups, month }: { groups: BoardGroup[]; month: string }
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
@@ -311,7 +314,7 @@ function ViewTab({ active, onClick, label, icon }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+      className={`-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
         active ? "border-[#0073ea] text-[#0073ea]" : "border-transparent text-[#676879] hover:text-[#323338]"
       }`}
     >
@@ -491,47 +494,146 @@ function Group({
       </div>
 
       {open && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-[#eceef3] bg-[#f9fafc] text-left text-xs font-semibold uppercase tracking-wider text-[#676879]">
-              <tr>
-                <th className="px-4 py-2.5">Task</th>
-                <th className="px-4 py-2.5 w-44">Owner</th>
-                <th className="px-4 py-2.5 w-36">Due date</th>
-                <th className="px-4 py-2.5 w-28">Priority</th>
-                <th className="px-4 py-2.5 w-40">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f1f2f5]">
-              {group.tasks.map((t) => (
-                <Row key={t.id} task={t} color={group.color} users={users} canEdit={canEdit} run={run} />
-              ))}
-              {group.tasks.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-4 text-sm text-[#9699a6]">No tasks yet.</td></tr>
-              )}
-              {canEdit && (
-                <tr className="print:hidden">
-                  <td colSpan={5} className="px-4 py-2">
-                    <input
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && newTitle.trim()) {
-                          run(() => quickAddTask(group.id, newTitle));
-                          setNewTitle("");
-                        }
-                      }}
-                      placeholder="+ Add task and press Enter"
-                      className="w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-[#323338] outline-none placeholder:text-[#9699a6] hover:border-[#e6e9ef] focus:border-[#0073ea]"
-                    />
-                  </td>
+        <>
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-sm">
+              <thead className="border-b border-[#eceef3] bg-[#f9fafc] text-left text-xs font-semibold uppercase tracking-wider text-[#676879]">
+                <tr>
+                  <th className="px-4 py-2.5">Task</th>
+                  <th className="px-4 py-2.5 w-44">Owner</th>
+                  <th className="px-4 py-2.5 w-36">Due date</th>
+                  <th className="px-4 py-2.5 w-28">Priority</th>
+                  <th className="px-4 py-2.5 w-40">Status</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[#f1f2f5]">
+                {group.tasks.map((t) => (
+                  <Row key={t.id} task={t} color={group.color} users={users} canEdit={canEdit} run={run} />
+                ))}
+                {group.tasks.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-4 text-sm text-[#9699a6]">No tasks yet.</td></tr>
+                )}
+                {canEdit && (
+                  <tr className="print:hidden">
+                    <td colSpan={5} className="px-4 py-2">
+                      <input
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newTitle.trim()) {
+                            run(() => quickAddTask(group.id, newTitle));
+                            setNewTitle("");
+                          }
+                        }}
+                        placeholder="+ Add task and press Enter"
+                        className="w-full rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-[#323338] outline-none placeholder:text-[#9699a6] hover:border-[#e6e9ef] focus:border-[#0073ea]"
+                      />
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="divide-y divide-[#f1f2f5] sm:hidden">
+            {group.tasks.map((t) => (
+              <TaskCard key={t.id} task={t} color={group.color} users={users} canEdit={canEdit} run={run} />
+            ))}
+            {group.tasks.length === 0 && <p className="px-4 py-4 text-sm text-[#9699a6]">No tasks yet.</p>}
+            {canEdit && (
+              <div className="px-4 py-2.5 print:hidden">
+                <input
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newTitle.trim()) {
+                      run(() => quickAddTask(group.id, newTitle));
+                      setNewTitle("");
+                    }
+                  }}
+                  placeholder="+ Add task and press Enter"
+                  className="w-full rounded-md border border-[#e6e9ef] bg-white px-3 py-2 text-sm text-[#323338] outline-none placeholder:text-[#9699a6] focus:border-[#0073ea]"
+                />
+              </div>
+            )}
+          </div>
+        </>
       )}
     </section>
+  );
+}
+
+type CellProps = {
+  task: BoardTask;
+  users?: UserOpt[];
+  canEdit: boolean;
+  run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+};
+
+function PriorityPill({ priority }: { priority: Priority }) {
+  return (
+    <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-white" style={{ backgroundColor: PRIORITY_HEX[priority] }}>
+      {PRIORITY_LABEL[priority]}
+    </span>
+  );
+}
+
+function OwnerControl({ task, users = [], canEdit, run }: CellProps) {
+  if (!canEdit) return <span className="text-[#676879]">{task.assigneeName ?? "—"}</span>;
+  return (
+    <select
+      value={task.assigneeId ?? ""}
+      onChange={(e) => run(() => assignTask(task.id, e.target.value))}
+      className="w-full rounded-md border border-[#e6e9ef] bg-white px-2 py-1.5 text-sm text-[#323338] outline-none hover:border-[#c3c6d4] focus:border-[#0073ea]"
+    >
+      <option value="">— Unassigned —</option>
+      {users.map((u) => (
+        <option key={u.id} value={u.id}>{u.name}</option>
+      ))}
+    </select>
+  );
+}
+
+function DueControl({ task, canEdit, run }: CellProps) {
+  if (!canEdit)
+    return (
+      <span className={task.overdue ? "font-medium text-[#e2445c]" : "text-[#676879]"}>
+        {task.dueAt ? task.dueAt.slice(0, 10) : "—"}
+      </span>
+    );
+  return (
+    <input
+      type="date"
+      value={task.dueAt ? task.dueAt.slice(0, 10) : ""}
+      onChange={(e) =>
+        run(() => setTaskDue(task.id, e.target.value ? new Date(`${e.target.value}T17:00:00Z`).toISOString() : null))
+      }
+      className={`w-full rounded-md border bg-white px-2 py-1.5 text-sm outline-none focus:border-[#0073ea] ${task.overdue ? "border-[#e2445c] text-[#e2445c]" : "border-[#e6e9ef] text-[#323338]"}`}
+    />
+  );
+}
+
+function StatusControl({ task, canEdit, run }: CellProps) {
+  const display: TaskStatus = task.overdue ? "OVERDUE" : task.status;
+  if (!canEdit)
+    return (
+      <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-white" style={{ backgroundColor: STATUS_HEX[display] }}>
+        {STATUS_LABEL[display]}
+      </span>
+    );
+  return (
+    <select
+      value={task.status}
+      onChange={(e) => run(() => changeTaskStatus(task.id, e.target.value as TaskStatus))}
+      className="w-full cursor-pointer rounded-md border-none px-2.5 py-1.5 text-sm font-semibold text-white outline-none"
+      style={{ backgroundColor: STATUS_HEX[display] }}
+    >
+      {STATUS_OPTIONS.map((s) => (
+        <option key={s} value={s} className="bg-white text-[#323338]">{STATUS_LABEL[s]}</option>
+      ))}
+    </select>
   );
 }
 
@@ -548,7 +650,6 @@ function Row({
   canEdit: boolean;
   run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
 }) {
-  const displayStatus: TaskStatus = task.overdue ? "OVERDUE" : task.status;
   return (
     <tr className="hover:bg-[#f9fafc]">
       <td className="px-4 py-2.5">
@@ -557,70 +658,47 @@ function Row({
           <span className="font-medium text-[#323338]">{task.title}</span>
         </div>
       </td>
-
-      {/* Owner */}
-      <td className="px-4 py-2.5">
-        {canEdit ? (
-          <select
-            value={task.assigneeId ?? ""}
-            onChange={(e) => run(() => assignTask(task.id, e.target.value))}
-            className="w-full rounded-md border border-[#e6e9ef] bg-white px-2 py-1.5 text-sm text-[#323338] outline-none hover:border-[#c3c6d4] focus:border-[#0073ea]"
-          >
-            <option value="">— Unassigned —</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-        ) : (
-          <span className="text-[#676879]">{task.assigneeName ?? "—"}</span>
-        )}
-      </td>
-
-      {/* Due date */}
-      <td className="px-4 py-2.5">
-        {canEdit ? (
-          <input
-            type="date"
-            value={task.dueAt ? task.dueAt.slice(0, 10) : ""}
-            onChange={(e) =>
-              run(() => setTaskDue(task.id, e.target.value ? new Date(`${e.target.value}T17:00:00Z`).toISOString() : null))
-            }
-            className={`w-full rounded-md border bg-white px-2 py-1.5 text-sm outline-none focus:border-[#0073ea] ${task.overdue ? "border-[#e2445c] text-[#e2445c]" : "border-[#e6e9ef] text-[#323338]"}`}
-          />
-        ) : (
-          <span className={task.overdue ? "font-medium text-[#e2445c]" : "text-[#676879]"}>
-            {task.dueAt ? task.dueAt.slice(0, 10) : "—"}
-          </span>
-        )}
-      </td>
-
-      {/* Priority */}
-      <td className="px-4 py-2.5">
-        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-white" style={{ backgroundColor: PRIORITY_HEX[task.priority] }}>
-          {PRIORITY_LABEL[task.priority]}
-        </span>
-      </td>
-
-      {/* Status */}
-      <td className="px-4 py-2.5">
-        {canEdit ? (
-          <select
-            value={task.status}
-            onChange={(e) => run(() => changeTaskStatus(task.id, e.target.value as TaskStatus))}
-            className="w-full cursor-pointer rounded-md border-none px-2.5 py-1.5 text-sm font-semibold text-white outline-none"
-            style={{ backgroundColor: STATUS_HEX[displayStatus] }}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s} className="bg-white text-[#323338]">{STATUS_LABEL[s]}</option>
-            ))}
-          </select>
-        ) : (
-          <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold text-white" style={{ backgroundColor: STATUS_HEX[displayStatus] }}>
-            {STATUS_LABEL[displayStatus]}
-          </span>
-        )}
-      </td>
+      <td className="px-4 py-2.5"><OwnerControl task={task} users={users} canEdit={canEdit} run={run} /></td>
+      <td className="px-4 py-2.5"><DueControl task={task} canEdit={canEdit} run={run} /></td>
+      <td className="px-4 py-2.5"><PriorityPill priority={task.priority} /></td>
+      <td className="px-4 py-2.5"><StatusControl task={task} canEdit={canEdit} run={run} /></td>
     </tr>
+  );
+}
+
+/* Mobile: each task as a stacked card (the table doesn't fit a phone). */
+function TaskCard({
+  task,
+  color,
+  users,
+  canEdit,
+  run,
+}: {
+  task: BoardTask;
+  color: string;
+  users: UserOpt[];
+  canEdit: boolean;
+  run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+}) {
+  return (
+    <div className="space-y-2.5 px-4 py-3">
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 h-5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <span className="flex-1 text-sm font-semibold text-[#323338]">{task.title}</span>
+        <PriorityPill priority={task.priority} />
+      </div>
+      <StatusControl task={task} canEdit={canEdit} run={run} />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#9699a6]">Owner</div>
+          <OwnerControl task={task} users={users} canEdit={canEdit} run={run} />
+        </div>
+        <div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#9699a6]">Due</div>
+          <DueControl task={task} canEdit={canEdit} run={run} />
+        </div>
+      </div>
+    </div>
   );
 }
 
