@@ -51,6 +51,7 @@ export function BoardView({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const [view, setView] = useState<"table" | "kanban">("table");
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
@@ -78,14 +79,140 @@ export function BoardView({
         </div>
       )}
 
-      {/* Groups */}
-      <div className="space-y-5">
-        {groups.map((g) => (
-          <Group key={g.id} group={g} users={users} canEdit={canEdit} run={run} />
-        ))}
+      {/* View switcher */}
+      <div className="flex items-center gap-1 border-b border-[#e6e9ef]">
+        <ViewTab active={view === "table"} onClick={() => setView("table")} label="Main Table" icon={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+        } />
+        <ViewTab active={view === "kanban"} onClick={() => setView("kanban")} label="Kanban" icon={
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
+        } />
       </div>
 
-      {canEdit && <AddCategory run={run} />}
+      {view === "table" ? (
+        <>
+          <div className="space-y-5">
+            {groups.map((g) => (
+              <Group key={g.id} group={g} users={users} canEdit={canEdit} run={run} />
+            ))}
+          </div>
+          {canEdit && <AddCategory run={run} />}
+        </>
+      ) : (
+        <Kanban groups={groups} canEdit={canEdit} run={run} />
+      )}
+    </div>
+  );
+}
+
+function ViewTab({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+        active ? "border-[#0073ea] text-[#0073ea]" : "border-transparent text-[#676879] hover:text-[#323338]"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function initials(name: string): string {
+  return name.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+}
+
+const KANBAN_COLS: TaskStatus[] = ["PENDING", "IN_PROGRESS", "DONE", "VERIFIED"];
+
+function Kanban({
+  groups,
+  canEdit,
+  run,
+}: {
+  groups: BoardGroup[];
+  canEdit: boolean;
+  run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+}) {
+  const tasks = groups.flatMap((g) =>
+    g.tasks.map((t) => ({ ...t, catName: g.name, catColor: g.color })),
+  );
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {KANBAN_COLS.map((status) => {
+        const items = tasks.filter((t) => t.status === status);
+        return (
+          <div key={status} className="rounded-xl bg-[#f1f2f5] p-3">
+            <div className="mb-3 flex items-center gap-2 px-1">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_HEX[status] }} />
+              <span className="text-sm font-bold text-[#323338]">{STATUS_LABEL[status]}</span>
+              <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-[#676879]">{items.length}</span>
+            </div>
+            <div className="space-y-2.5">
+              {items.map((t) => (
+                <KanbanCard key={t.id} task={t} canEdit={canEdit} run={run} />
+              ))}
+              {items.length === 0 && (
+                <div className="rounded-lg border border-dashed border-[#d6dae4] py-6 text-center text-xs text-[#9699a6]">
+                  Nothing here
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function KanbanCard({
+  task,
+  canEdit,
+  run,
+}: {
+  task: BoardTask & { catName: string; catColor: string };
+  canEdit: boolean;
+  run: (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+}) {
+  return (
+    <div className="rounded-lg bg-white p-3 shadow-sm" style={{ borderLeft: `4px solid ${task.catColor}` }}>
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: task.catColor }} />
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-[#676879]">{task.catName}</span>
+      </div>
+      <div className="mb-2.5 text-sm font-semibold text-[#323338]">{task.title}</div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          {task.assigneeName ? (
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-[#0073ea] text-[10px] font-bold text-white" title={task.assigneeName}>
+              {initials(task.assigneeName)}
+            </span>
+          ) : (
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-[#e6e9ef] text-[10px] text-[#9699a6]" title="Unassigned">—</span>
+          )}
+          <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold text-white" style={{ backgroundColor: PRIORITY_HEX[task.priority] }}>
+            {PRIORITY_LABEL[task.priority]}
+          </span>
+        </div>
+        <span className={`text-xs font-medium ${task.overdue ? "text-[#e2445c]" : "text-[#9699a6]"}`}>
+          {task.dueAt ? task.dueAt.slice(5, 10) : "—"}
+        </span>
+      </div>
+
+      {canEdit && (
+        <select
+          value={task.status}
+          onChange={(e) => run(() => changeTaskStatus(task.id, e.target.value as TaskStatus))}
+          className="mt-2.5 w-full cursor-pointer rounded-md border-none px-2 py-1 text-xs font-semibold text-white outline-none"
+          style={{ backgroundColor: STATUS_HEX[task.overdue ? "OVERDUE" : task.status] }}
+        >
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s} className="bg-white text-[#323338]">Move to: {STATUS_LABEL[s]}</option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }
