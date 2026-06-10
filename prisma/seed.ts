@@ -32,7 +32,7 @@ async function main() {
 
   // --- Users ---
   const owner = await prisma.user.create({
-    data: { name: "Olivia Owner", email: "owner@cm.local", role: Role.OWNER, phone: "555-0100" },
+    data: { name: "Olivia Owner", email: "mrdamrongsakn.ca@gmail.com", role: Role.OWNER, phone: "555-0100" },
   });
   const area = await prisma.user.create({
     data: { name: "Aaron Area", email: "area@cm.local", role: Role.AREA_MANAGER, phone: "555-0101" },
