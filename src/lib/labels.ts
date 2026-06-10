@@ -29,19 +29,20 @@ export const TYPE_LABEL: Record<TaskType, string> = {
   RECURRING: "Recurring",
 };
 
+// monday.com-style "labels" — solid color fills, white text.
 export const STATUS_STYLE: Record<TaskStatus, string> = {
-  PENDING: "bg-slate-100 text-slate-700 ring-slate-200",
-  IN_PROGRESS: "bg-blue-100 text-blue-700 ring-blue-200",
-  DONE: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-  VERIFIED: "bg-violet-100 text-violet-700 ring-violet-200",
-  OVERDUE: "bg-red-100 text-red-700 ring-red-200",
+  PENDING: "bg-[#c4c4c4] text-white ring-black/5",
+  IN_PROGRESS: "bg-[#fdab3d] text-white ring-black/5",
+  DONE: "bg-[#00c875] text-white ring-black/5",
+  VERIFIED: "bg-[#a25ddc] text-white ring-black/5",
+  OVERDUE: "bg-[#e2445c] text-white ring-black/5",
 };
 
 export const PRIORITY_STYLE: Record<Priority, string> = {
-  LOW: "bg-slate-100 text-slate-600 ring-slate-200",
-  MEDIUM: "bg-sky-100 text-sky-700 ring-sky-200",
-  HIGH: "bg-amber-100 text-amber-800 ring-amber-200",
-  CRITICAL: "bg-red-100 text-red-700 ring-red-200",
+  LOW: "bg-[#c4c4c4] text-white ring-black/5",
+  MEDIUM: "bg-[#0073ea] text-white ring-black/5",
+  HIGH: "bg-[#fdab3d] text-white ring-black/5",
+  CRITICAL: "bg-[#e2445c] text-white ring-black/5",
 };
 
 export function formatDateTime(d: Date | string | null | undefined): string {

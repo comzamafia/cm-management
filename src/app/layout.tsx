@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Figtree } from "next/font/google";
 import { redirect } from "next/navigation";
 import "./globals.css";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { auth } from "@/auth";
 import { ROLE_LABEL } from "@/lib/labels";
-import { SignOutButton } from "@/components/SignOutButton";
+import { Sidebar } from "@/components/Sidebar";
 import { NotificationBell, type NotificationItem } from "@/components/NotificationBell";
+
+const figtree = Figtree({
+  variable: "--font-figtree",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 export const metadata: Metadata = {
   title: "CM Operations",
@@ -36,51 +42,42 @@ export default async function RootLayout({
     : [];
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const locationLabel = user
+    ? user.location
+      ? user.location.name
+      : "All locations"
+    : "";
+
   return (
-    <html lang="en">
-      <body className="min-h-screen">
-        <header className="bg-slate-900 text-white">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-            <div className="flex items-center gap-6">
-              <Link href="/dashboard" className="text-lg font-semibold">
-                CM<span className="text-emerald-400">Ops</span>
-              </Link>
-              <nav className="flex gap-1 text-sm">
-                <Link href="/dashboard" className="rounded-md px-3 py-1.5 hover:bg-slate-700">
-                  Dashboard
-                </Link>
-                <Link href="/tasks" className="rounded-md px-3 py-1.5 hover:bg-slate-700">
-                  Tasks
-                </Link>
-                <Link href="/checklists" className="rounded-md px-3 py-1.5 hover:bg-slate-700">
-                  Checklists
-                </Link>
-              </nav>
-            </div>
-            <div className="flex items-center gap-3">
-              {user && (
-                <NotificationBell
-                  notifications={notifications}
-                  unreadCount={unreadCount}
-                />
-              )}
-              {user && <SignOutButton />}
-            </div>
-          </div>
-        </header>
+    <html lang="en" className={figtree.variable}>
+      <body className="min-h-screen bg-[#f6f7fb] text-[#323338]">
+        {user ? (
+          <>
+            <Sidebar
+              user={{
+                name: user.name,
+                roleLabel: ROLE_LABEL[user.role],
+                locationLabel,
+              }}
+            />
+            <div className="lg:pl-60">
+              {/* Top bar */}
+              <header className="sticky top-0 z-30 flex h-14 items-center justify-end gap-3 border-b border-[#e6e9ef] bg-white/80 px-4 backdrop-blur lg:px-8">
+                <span className="hidden items-center gap-2 rounded-full bg-[#f6f7fb] px-3 py-1.5 text-xs font-medium text-[#676879] sm:inline-flex">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {locationLabel}
+                </span>
+                <NotificationBell notifications={notifications} unreadCount={unreadCount} />
+              </header>
 
-        {user && (
-          <div className="border-b border-slate-200 bg-white">
-            <div className="mx-auto max-w-6xl px-4 py-1.5 text-xs text-slate-500">
-              Signed in as{" "}
-              <span className="font-medium text-slate-700">{user.name}</span> ·{" "}
-              {ROLE_LABEL[user.role]}
-              {user.location ? ` · ${user.location.name}` : " · All locations"}
+              <main className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">{children}</main>
             </div>
-          </div>
+          </>
+        ) : (
+          <main>{children}</main>
         )}
-
-        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
       </body>
     </html>
   );

@@ -14,6 +14,14 @@ const STATUS_FILTERS: (TaskStatus | "ALL")[] = [
   "OVERDUE",
 ];
 
+const STATUS_HEX: Record<TaskStatus, string> = {
+  PENDING: "#c4c4c4",
+  IN_PROGRESS: "#fdab3d",
+  DONE: "#00c875",
+  VERIFIED: "#a25ddc",
+  OVERDUE: "#e2445c",
+};
+
 export default async function TasksPage({
   searchParams,
 }: {
@@ -21,7 +29,7 @@ export default async function TasksPage({
 }) {
   const user = await getCurrentUser();
   if (!user) {
-    return <div className="text-slate-600">Select a user from the top-right switcher.</div>;
+    return <div className="text-[#676879]">Sign in to view tasks.</div>;
   }
 
   const params = await searchParams;
@@ -46,13 +54,16 @@ export default async function TasksPage({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-slate-900">Tasks</h1>
+        <div>
+          <h1 className="text-[26px] font-bold tracking-tight text-[#323338]">Tasks</h1>
+          <p className="mt-0.5 text-sm text-[#676879]">{tasks.length} item{tasks.length === 1 ? "" : "s"} in view</p>
+        </div>
         {canCreate && (
-          <Link
-            href="/tasks/new"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-          >
-            + New Task
+          <Link href="/tasks/new" className="m-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New Task
           </Link>
         )}
       </div>
@@ -64,10 +75,10 @@ export default async function TasksPage({
             <Link
               key={s}
               href={qs(s)}
-              className={`rounded-full px-3 py-1 text-sm ring-1 ring-inset ${
+              className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 active
-                  ? "bg-slate-900 text-white ring-slate-900"
-                  : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"
+                  ? "bg-[#0073ea] text-white shadow-sm"
+                  : "bg-white text-[#676879] ring-1 ring-inset ring-[#e6e9ef] hover:bg-[#f5f6f8]"
               }`}
             >
               {s === "ALL" ? "All" : STATUS_LABEL[s]}
@@ -76,41 +87,45 @@ export default async function TasksPage({
         })}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="m-card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-[#e6e9ef] bg-[#f9fafc] text-left text-xs font-semibold uppercase tracking-wider text-[#676879]">
             <tr>
-              <th className="px-4 py-2.5">Task</th>
-              <th className="px-4 py-2.5">Location</th>
-              <th className="px-4 py-2.5">Assignee</th>
-              <th className="px-4 py-2.5">Priority</th>
-              <th className="px-4 py-2.5">Due</th>
-              <th className="px-4 py-2.5">Status</th>
+              <th className="px-4 py-3">Task</th>
+              <th className="px-4 py-3">Location</th>
+              <th className="px-4 py-3">Assignee</th>
+              <th className="px-4 py-3">Priority</th>
+              <th className="px-4 py-3">Due</th>
+              <th className="px-4 py-3">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-[#eceef3]">
             {tasks.map((t) => (
-              <tr key={t.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  <Link href={`/tasks/${t.id}`} className="font-medium text-slate-800 hover:underline">
-                    {t.title}
-                  </Link>
-                  {t.proofRequired && (
-                    <span className="ml-2 text-xs text-amber-600" title="Photo proof required">
-                      📷
-                    </span>
-                  )}
+              <tr key={t.id} className="group transition-colors hover:bg-[#f9fafc]">
+                <td className="py-3 pl-0 pr-4">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="h-9 w-1.5 shrink-0 rounded-r"
+                      style={{ backgroundColor: STATUS_HEX[t.derivedStatus] }}
+                    />
+                    <Link href={`/tasks/${t.id}`} className="font-semibold text-[#323338] group-hover:text-[#0073ea]">
+                      {t.title}
+                    </Link>
+                    {t.proofRequired && (
+                      <span className="text-xs text-[#fdab3d]" title="Photo proof required">📷</span>
+                    )}
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{t.location.name}</td>
-                <td className="px-4 py-3 text-slate-600">{t.assignee?.name ?? "—"}</td>
+                <td className="px-4 py-3 text-[#676879]">{t.location.name}</td>
+                <td className="px-4 py-3 text-[#676879]">{t.assignee?.name ?? "—"}</td>
                 <td className="px-4 py-3"><PriorityBadge priority={t.priority} /></td>
-                <td className="px-4 py-3 text-slate-600">{formatDateTime(t.dueAt)}</td>
+                <td className="px-4 py-3 text-[#676879]">{formatDateTime(t.dueAt)}</td>
                 <td className="px-4 py-3"><StatusBadge status={t.derivedStatus} /></td>
               </tr>
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-[#9699a6]">
                   No tasks match this filter.
                 </td>
               </tr>

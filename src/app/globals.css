@@ -1,16 +1,96 @@
 @import "tailwindcss";
 
+/* ───────────────────────────────────────────────
+   CM Operations — monday.com-inspired design system
+   Vibrant labels, clean white cards, soft grey-blue canvas,
+   Figtree typeface (set via next/font in layout.tsx).
+   ─────────────────────────────────────────────── */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* Brand / primary */
+  --m-blue: #0073ea;
+  --m-blue-dark: #0060b9;
+  --m-blue-soft: #e6f1fd;
+
+  /* Status / label palette (monday "labels") */
+  --m-green: #00c875;
+  --m-orange: #fdab3d;
+  --m-red: #e2445c;
+  --m-purple: #a25ddc;
+  --m-grey: #c4c4c4;
+
+  /* Neutrals */
+  --m-bg: #f6f7fb;       /* app canvas */
+  --m-surface: #ffffff;  /* cards */
+  --m-text: #323338;     /* primary text */
+  --m-text-soft: #676879;/* secondary text */
+  --m-line: #e6e9ef;     /* borders */
+
+  --background: var(--m-bg);
+  --foreground: var(--m-text);
 }
 
 html,
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--m-bg);
+  color: var(--m-text);
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-figtree), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Reusable monday-style primitives (used via @apply-free plain classes) */
+.m-card {
+  background: var(--m-surface);
+  border: 1px solid var(--m-line);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(50, 51, 56, 0.04);
+}
+
+.m-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Primary button — monday blue */
+.m-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: var(--m-blue);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 9px 18px;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.m-btn:hover { background: var(--m-blue-dark); }
+.m-btn:active { transform: translateY(1px); }
+
+.m-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--m-line);
+  color: var(--m-text);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 8px 14px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.m-btn-ghost:hover { background: #f5f6f8; border-color: #d0d4dd; }
+
+/* Thin colored accent bar used on cards/rows (monday's left status stripe) */
+.m-stripe { width: 6px; border-radius: 6px 0 0 6px; }
