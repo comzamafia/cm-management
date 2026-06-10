@@ -34,7 +34,7 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-[#323338]">Company Overview</h1>
-          <p className="mt-0.5 text-sm text-[#676879]">Who · What · Where · When — across your locations.</p>
+          <p className="mt-0.5 text-sm text-[#676879]">Track people, departments, and trends across your locations.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <a href="/api/reports?period=weekly" className="m-btn-ghost">
@@ -49,9 +49,9 @@ export default async function DashboardPage() {
       {/* Drill-down navigation */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { href: "/dashboard/who",  emoji: "👤", label: "WHO",  desc: "People & on-time rates", color: "#0073ea" },
-          { href: "/dashboard/what", emoji: "📋", label: "WHAT", desc: "By department", color: "#a25ddc" },
-          { href: "/dashboard/when", emoji: "📅", label: "WHEN", desc: "14-day trend", color: "#00c875" },
+          { href: "/dashboard/who",  emoji: "👤", label: "People",      desc: "People & on-time rates", color: "#0073ea" },
+          { href: "/dashboard/what", emoji: "📋", label: "Departments", desc: "By department", color: "#a25ddc" },
+          { href: "/dashboard/when", emoji: "📅", label: "Trends",      desc: "14-day trend", color: "#00c875" },
         ].map((d) => (
           <Link
             key={d.href}
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
         <div className="m-card flex items-center gap-3 p-4 opacity-80">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#fdab3d1a] text-xl">📍</span>
           <div className="min-w-0">
-            <div className="font-bold text-[#fdab3d]">WHERE</div>
+            <div className="font-bold text-[#fdab3d]">Locations</div>
             <div className="truncate text-xs text-[#676879]">Pick a location below</div>
           </div>
         </div>

@@ -31,7 +31,7 @@ export default async function WhatPage() {
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">← Dashboard</Link>
         <span className="text-slate-300">/</span>
-        <h1 className="text-2xl font-semibold text-slate-900">WHAT — By Department</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Departments</h1>
       </div>
       <p className="text-sm text-slate-500">Which categories are falling behind or performing well.</p>
 

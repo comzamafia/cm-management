@@ -28,7 +28,7 @@ export default async function WhenPage({
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">← Dashboard</Link>
         <span className="text-slate-300">/</span>
-        <h1 className="text-2xl font-semibold text-slate-900">WHEN — Timeline</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Trends</h1>
       </div>
 
       <div className="flex items-center gap-2">

@@ -25,7 +25,7 @@ export default async function WhereLocationPage({ params }: { params: Promise<{ 
       <div className="flex items-center gap-3 text-sm text-slate-500">
         <Link href="/dashboard" className="hover:underline">Dashboard</Link>
         <span>/</span>
-        <span className="text-slate-400">WHERE</span>
+        <span className="text-slate-400">Locations</span>
         <span>/</span>
         <span className="font-medium text-slate-900">{location.name}</span>
       </div>

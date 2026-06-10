@@ -50,7 +50,7 @@ function Logo() {
       </span>
       <span className="flex flex-col leading-none">
         <span className="text-[15px] font-bold text-[#323338]">Operations</span>
-        <span className="mt-0.5 text-[11px] font-medium text-[#676879]">Who · What · Where · When</span>
+        <span className="mt-0.5 text-[11px] font-medium text-[#676879]">Operations Management</span>
       </span>
     </Link>
   );

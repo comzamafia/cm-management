@@ -24,7 +24,7 @@ export default async function WhoPage() {
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">← Dashboard</Link>
         <span className="text-slate-300">/</span>
-        <h1 className="text-2xl font-semibold text-slate-900">WHO — People</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">People</h1>
       </div>
       <p className="text-sm text-slate-500">Completion rate and overdue count per team member.</p>
 

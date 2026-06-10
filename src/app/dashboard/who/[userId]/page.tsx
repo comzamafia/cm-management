@@ -30,7 +30,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
       <div className="flex items-center gap-3 text-sm text-slate-500">
         <Link href="/dashboard" className="hover:underline">Dashboard</Link>
         <span>/</span>
-        <Link href="/dashboard/who" className="hover:underline">WHO</Link>
+        <Link href="/dashboard/who" className="hover:underline">People</Link>
         <span>/</span>
         <span className="text-slate-900 font-medium">{subject.name}</span>
       </div>

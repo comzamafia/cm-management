@@ -17,7 +17,7 @@ const figtree = Figtree({
 
 export const metadata: Metadata = {
   title: "CM Operations",
-  description: "Operational Task Management — Who, What, Where, When.",
+  description: "Operational task management for multi-location teams.",
 };
 
 export default async function RootLayout({
