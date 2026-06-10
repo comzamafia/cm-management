@@ -79,7 +79,7 @@ export function Sidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-[#e6e9ef] bg-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-[#e6e9ef] bg-white lg:flex print:!hidden">
         <div className="px-5 py-5">
           <Logo />
         </div>
@@ -127,7 +127,7 @@ export function Sidebar({
       </aside>
 
       {/* Mobile top strip */}
-      <div className="sticky top-0 z-40 border-b border-[#e6e9ef] bg-white lg:hidden">
+      <div className="sticky top-0 z-40 border-b border-[#e6e9ef] bg-white lg:hidden print:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <Logo />
         </div>

@@ -37,7 +37,9 @@ export default async function BoardPage() {
     );
   }
 
-  const monthLabel = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+  const now = new Date();
+  const monthLabel = now.toLocaleString("en-US", { month: "long", year: "numeric" });
+  const month = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 
   const viewGroups: BoardGroup[] = groups.map((g) => ({
     id: g.category.id,
@@ -58,7 +60,7 @@ export default async function BoardPage() {
   return (
     <div className="space-y-6">
       <Header monthLabel={monthLabel} />
-      <BoardView groups={viewGroups} users={users} totals={totals} canEdit={canEdit} />
+      <BoardView groups={viewGroups} users={users} totals={totals} canEdit={canEdit} month={month} />
     </div>
   );
 }

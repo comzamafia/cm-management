@@ -94,3 +94,11 @@ body {
 
 /* Thin colored accent bar used on cards/rows (monday's left status stripe) */
 .m-stripe { width: 6px; border-radius: 6px 0 0 6px; }
+
+/* Print / Export-PDF: drop app chrome, keep colors, fit the page */
+@media print {
+  @page { margin: 12mm; }
+  body { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .m-card { box-shadow: none !important; break-inside: avoid; }
+}

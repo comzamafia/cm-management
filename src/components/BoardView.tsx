@@ -37,21 +37,25 @@ export type BoardGroup = { id: string; name: string; color: string; tasks: Board
 type UserOpt = { id: string; name: string };
 type Totals = { total: number; pending: number; inProgress: number; done: number; verified: number; overdue: number };
 
+type ViewMode = "table" | "kanban" | "timeline" | "calendar" | "chart";
+
 export function BoardView({
   groups,
   users,
   totals,
   canEdit,
+  month,
 }: {
   groups: BoardGroup[];
   users: UserOpt[];
   totals: Totals;
   canEdit: boolean;
+  month: string; // YYYY-MM
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  const [view, setView] = useState<"table" | "kanban">("table");
+  const [view, setView] = useState<ViewMode>("table");
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
@@ -79,29 +83,227 @@ export function BoardView({
         </div>
       )}
 
-      {/* View switcher */}
-      <div className="flex items-center gap-1 border-b border-[#e6e9ef]">
-        <ViewTab active={view === "table"} onClick={() => setView("table")} label="Main Table" icon={
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
-        } />
-        <ViewTab active={view === "kanban"} onClick={() => setView("kanban")} label="Kanban" icon={
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
-        } />
+      {/* View switcher + export */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#e6e9ef] print:hidden">
+        <div className="flex flex-wrap items-center gap-1">
+          <ViewTab active={view === "table"} onClick={() => setView("table")} label="Main Table" icon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+          } />
+          <ViewTab active={view === "kanban"} onClick={() => setView("kanban")} label="Kanban" icon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="10" y="3" width="6" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg>
+          } />
+          <ViewTab active={view === "timeline"} onClick={() => setView("timeline")} label="Timeline" icon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
+          } />
+          <ViewTab active={view === "calendar"} onClick={() => setView("calendar")} label="Calendar" icon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          } />
+          <ViewTab active={view === "chart"} onClick={() => setView("chart")} label="Chart" icon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          } />
+        </div>
+        <button onClick={() => window.print()} className="m-btn-ghost mb-1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Export PDF
+        </button>
       </div>
 
-      {view === "table" ? (
+      {view === "table" && (
         <>
           <div className="space-y-5">
             {groups.map((g) => (
               <Group key={g.id} group={g} users={users} canEdit={canEdit} run={run} />
             ))}
           </div>
-          {canEdit && <AddCategory run={run} />}
+          <div className="print:hidden">{canEdit && <AddCategory run={run} />}</div>
         </>
-      ) : (
-        <Kanban groups={groups} canEdit={canEdit} run={run} />
       )}
+      {view === "kanban" && <Kanban groups={groups} canEdit={canEdit} run={run} />}
+      {view === "timeline" && <Timeline groups={groups} month={month} />}
+      {view === "calendar" && <CalendarView groups={groups} month={month} />}
+      {view === "chart" && <ChartView groups={groups} totals={totals} />}
     </div>
+  );
+}
+
+/* ── month/date helpers ── */
+function monthParts(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  const monthIndex = m - 1;
+  const daysInMonth = new Date(Date.UTC(y, monthIndex + 1, 0)).getUTCDate();
+  return { year: y, monthIndex, daysInMonth };
+}
+function dueParts(iso: string) {
+  const d = new Date(iso);
+  return { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate() };
+}
+
+/* ── Timeline (Gantt-style) ── */
+function Timeline({ groups, month }: { groups: BoardGroup[]; month: string }) {
+  const { year, monthIndex, daysInMonth } = monthParts(month);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  return (
+    <div className="m-card overflow-x-auto p-4">
+      <div className="min-w-[760px]">
+        <div className="flex border-b border-[#eceef3] pb-1">
+          <div className="w-44 shrink-0" />
+          <div className="flex flex-1">
+            {days.map((d) => (
+              <div key={d} className="flex-1 text-center text-[10px] text-[#9699a6]">{d}</div>
+            ))}
+          </div>
+        </div>
+        {groups.map((g) => (
+          <div key={g.id} className="border-b border-[#f4f5f8] last:border-0">
+            <div className="mt-3 mb-1 text-xs font-bold" style={{ color: g.color }}>{g.name}</div>
+            {g.tasks.map((t) => {
+              const dp = t.dueAt ? dueParts(t.dueAt) : null;
+              const inMonth = dp && dp.y === year && dp.m === monthIndex;
+              const leftPct = inMonth ? ((dp!.d - 0.5) / daysInMonth) * 100 : null;
+              return (
+                <div key={t.id} className="flex items-center py-1">
+                  <div className="w-44 shrink-0 truncate pr-3 text-xs text-[#323338]">{t.title}</div>
+                  <div className="relative h-5 flex-1 rounded bg-[#f5f6f8]">
+                    {leftPct !== null && (
+                      <span
+                        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm"
+                        style={{ left: `${leftPct}%`, backgroundColor: t.overdue ? STATUS_HEX.OVERDUE : g.color }}
+                        title={`${t.title} — due ${dp!.d}`}
+                      >
+                        {dp!.d}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Calendar ── */
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+function CalendarView({ groups, month }: { groups: BoardGroup[]; month: string }) {
+  const { year, monthIndex, daysInMonth } = monthParts(month);
+  const firstWeekday = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+  const tasks = groups.flatMap((g) => g.tasks.map((t) => ({ ...t, catColor: g.color })));
+  const today = new Date();
+  const isToday = (d: number) =>
+    today.getUTCFullYear() === year && today.getUTCMonth() === monthIndex && today.getUTCDate() === d;
+
+  const cells: (number | null)[] = [
+    ...Array(firstWeekday).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div className="m-card p-4">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[#676879]">
+        {WEEKDAYS.map((d) => (<div key={d} className="py-1">{d}</div>))}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} />;
+          const dayTasks = tasks.filter((t) => {
+            const p = t.dueAt ? dueParts(t.dueAt) : null;
+            return p && p.y === year && p.m === monthIndex && p.d === d;
+          });
+          return (
+            <div key={i} className={`min-h-[92px] rounded-lg border p-1.5 ${isToday(d) ? "border-[#0073ea] bg-[#f5f9ff]" : "border-[#eceef3]"}`}>
+              <div className={`mb-1 text-xs font-semibold ${isToday(d) ? "text-[#0073ea]" : "text-[#676879]"}`}>{d}</div>
+              <div className="space-y-1">
+                {dayTasks.slice(0, 3).map((t) => (
+                  <div key={t.id} className="truncate rounded px-1 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: t.overdue ? STATUS_HEX.OVERDUE : t.catColor }} title={t.title}>
+                    {t.title}
+                  </div>
+                ))}
+                {dayTasks.length > 3 && <div className="text-[10px] text-[#9699a6]">+{dayTasks.length - 3} more</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Chart ── */
+function ChartView({ groups, totals }: { groups: BoardGroup[]; totals: Totals }) {
+  const statusData = [
+    { label: "Pending", value: totals.pending, color: STATUS_HEX.PENDING },
+    { label: "In Progress", value: totals.inProgress, color: STATUS_HEX.IN_PROGRESS },
+    { label: "Done", value: totals.done, color: STATUS_HEX.DONE },
+    { label: "Verified", value: totals.verified, color: STATUS_HEX.VERIFIED },
+    { label: "Overdue", value: totals.overdue, color: STATUS_HEX.OVERDUE },
+  ];
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="m-card p-5">
+        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-[#676879]">Status breakdown</h3>
+        <div className="flex items-center gap-6">
+          <Donut data={statusData} total={totals.total} />
+          <ul className="space-y-1.5 text-sm">
+            {statusData.map((s) => (
+              <li key={s.label} className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full" style={{ background: s.color }} />
+                <span className="text-[#323338]">{s.label}</span>
+                <span className="ml-6 font-bold text-[#676879]">{s.value}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div className="m-card p-5">
+        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-[#676879]">Completion by category</h3>
+        <div className="space-y-3">
+          {groups.map((g) => {
+            const total = g.tasks.length;
+            const done = g.tasks.filter((t) => t.status === "DONE" || t.status === "VERIFIED").length;
+            const pct = total ? Math.round((done / total) * 100) : 0;
+            return (
+              <div key={g.id} className="flex items-center gap-3">
+                <span className="w-40 truncate text-sm font-medium text-[#323338]">{g.name}</span>
+                <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#eceef3]">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: g.color }} />
+                </div>
+                <span className="w-10 text-right text-sm font-bold text-[#676879]">{pct}%</span>
+              </div>
+            );
+          })}
+          {groups.length === 0 && <p className="text-sm text-[#9699a6]">No categories yet.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Donut({ data, total }: { data: { label: string; value: number; color: string }[]; total: number }) {
+  const r = 56;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <svg width="140" height="140" viewBox="0 0 140 140" className="shrink-0">
+      <circle cx="70" cy="70" r={r} fill="none" stroke="#eceef3" strokeWidth="16" />
+      {total > 0 &&
+        data.filter((d) => d.value > 0).map((d, i) => {
+          const len = (d.value / total) * c;
+          const el = (
+            <circle
+              key={i}
+              cx="70" cy="70" r={r} fill="none" stroke={d.color} strokeWidth="16"
+              strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset}
+              transform="rotate(-90 70 70)"
+            />
+          );
+          offset += len;
+          return el;
+        })}
+      <text x="70" y="66" textAnchor="middle" style={{ fontSize: 26, fontWeight: 800, fill: "#323338" }}>{total}</text>
+      <text x="70" y="88" textAnchor="middle" style={{ fontSize: 11, fill: "#9699a6" }}>tasks</text>
+    </svg>
   );
 }
 
@@ -308,7 +510,7 @@ function Group({
                 <tr><td colSpan={5} className="px-4 py-4 text-sm text-[#9699a6]">No tasks yet.</td></tr>
               )}
               {canEdit && (
-                <tr>
+                <tr className="print:hidden">
                   <td colSpan={5} className="px-4 py-2">
                     <input
                       value={newTitle}
