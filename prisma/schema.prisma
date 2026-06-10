@@ -63,6 +63,7 @@ enum NotificationType {
   TASK_OVERDUE
   ESCALATION
   CHECKLIST_GENERATED
+  DAILY_DIGEST
 }
 
 model Location {

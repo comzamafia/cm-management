@@ -31,9 +31,39 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Company Overview</h1>
-        <p className="text-sm text-slate-500">Who · What · Where · When — across your locations.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Company Overview</h1>
+          <p className="text-sm text-slate-500">Who · What · Where · When — across your locations.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a href="/api/reports?period=weekly" className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            ↓ Weekly CSV
+          </a>
+          <a href="/api/reports?period=monthly" className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+            ↓ Monthly CSV
+          </a>
+        </div>
+      </div>
+
+      {/* Drill-down navigation */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { href: "/dashboard/who",  emoji: "👤", label: "WHO",  desc: "People & on-time rates" },
+          { href: "/dashboard/what", emoji: "📋", label: "WHAT", desc: "By department" },
+          { href: "/dashboard/when", emoji: "📅", label: "WHEN", desc: "14-day trend" },
+        ].map((d) => (
+          <Link key={d.href} href={d.href} className="rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400 hover:shadow-sm transition-all">
+            <div className="text-lg">{d.emoji}</div>
+            <div className="mt-1 font-semibold text-slate-800">{d.label}</div>
+            <div className="text-xs text-slate-400">{d.desc}</div>
+          </Link>
+        ))}
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="text-lg">📍</div>
+          <div className="mt-1 font-semibold text-slate-500">WHERE</div>
+          <div className="text-xs text-slate-400">Click a location below</div>
+        </div>
       </div>
 
       {/* KPI strip */}
@@ -55,7 +85,7 @@ export default async function DashboardPage() {
           <div className="space-y-3">
             {byLocation.map((l) => (
               <div key={l.location.id} className="flex items-center gap-3">
-                <Link href={`/tasks?locationId=${l.location.id}`} className="w-28 truncate text-sm font-medium text-slate-700 hover:underline">
+                <Link href={`/dashboard/where/${l.location.id}`} className="w-28 truncate text-sm font-medium text-slate-700 hover:underline">
                   {l.location.name}
                 </Link>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
