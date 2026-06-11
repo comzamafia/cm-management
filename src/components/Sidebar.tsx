@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 import { NotificationBell, type NotificationItem } from "./NotificationBell";
+import { LOGO_DATA_URI } from "@/lib/logo";
 
 const I = {
   dashboard: (
@@ -73,7 +74,7 @@ function Logo() {
     <Link href="/dashboard" className="flex items-center gap-3">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
+        <img src={LOGO_DATA_URI} alt="" className="h-8 w-8 object-contain" />
       </div>
       <span className="flex flex-col leading-none">
         <span

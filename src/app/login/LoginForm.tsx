@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { LOGO_DATA_URI } from "@/lib/logo";
 
 export function LoginForm() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export function LoginForm() {
           {/* Logo */}
           <div className="mb-5 flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[#FAF6FA] shadow-inner ring-1 ring-[#E4DDE4]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Chiang Mai Thai Dining" className="h-[72px] w-[72px] object-contain" />
+            <img src={LOGO_DATA_URI} alt="Chiang Mai Thai Dining" className="h-[72px] w-[72px] object-contain" />
           </div>
 
           {/* Brand name */}
