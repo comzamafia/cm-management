@@ -2,13 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createTrainingMaterial, deleteTrainingMaterial } from "@/lib/training";
 import {
-  createTrainingMaterial,
-  deleteTrainingMaterial,
   TRAINING_CATEGORY_LABEL,
   TRAINING_CATEGORY_COLOR,
   type TrainingMaterialItem,
-} from "@/lib/training";
+} from "@/lib/training-meta";
 import { TrainingCategory } from "@prisma/client";
 
 const CATEGORIES = Object.keys(TRAINING_CATEGORY_LABEL) as TrainingCategory[];

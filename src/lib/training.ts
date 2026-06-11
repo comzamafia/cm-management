@@ -4,37 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "./prisma";
 import { getCurrentUser, atLeast } from "./auth";
 import { Role, TrainingCategory } from "@prisma/client";
-
-export type TrainingMaterialItem = {
-  id: string;
-  title: string;
-  description: string | null;
-  category: TrainingCategory;
-  contentUrl: string | null;
-  content: string | null;
-  locationId: string | null;
-  locationName: string | null;
-  createdByName: string;
-  createdAt: Date;
-};
-
-export const TRAINING_CATEGORY_LABEL: Record<TrainingCategory, string> = {
-  SOP: "SOP",
-  SAFETY: "Safety",
-  SERVICE: "Service",
-  PRODUCT: "Product",
-  COMPLIANCE: "Compliance",
-  OTHER: "Other",
-};
-
-export const TRAINING_CATEGORY_COLOR: Record<TrainingCategory, string> = {
-  SOP: "#0073ea",
-  SAFETY: "#e2445c",
-  SERVICE: "#00c875",
-  PRODUCT: "#fdab3d",
-  COMPLIANCE: "#a25ddc",
-  OTHER: "#676879",
-};
+import type { TrainingMaterialItem } from "./training-meta";
 
 export async function getTrainingMaterials(
   category?: TrainingCategory,
