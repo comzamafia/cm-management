@@ -61,28 +61,17 @@ export function LoginForm() {
           }}
         />
 
-        <div className="flex flex-col items-center px-8 pb-8 pt-8">
-          {/* Logo */}
+        <div className="flex flex-col items-center px-8 pb-8 pt-9">
+          {/* Logo (includes brand name + tagline) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={LOGO_DATA_URI}
             alt="Chiang Mai Thai Dining"
-            className="mb-4 h-[150px] w-[150px] object-contain"
+            className="w-[220px] max-w-full object-contain"
           />
 
-          {/* Brand name */}
-          <h1
-            className="text-center text-[28px] font-light tracking-[0.14em] text-[#440E48]"
-            style={{ fontFamily: "var(--font-cormorant), Georgia, serif" }}
-          >
-            CHIANG MAI
-          </h1>
-          <p className="mt-1 text-[10px] font-semibold tracking-[0.25em] text-[#9F4000]">
-            THAI DINING
-          </p>
-
           {/* Divider */}
-          <div className="my-6 flex w-full items-center gap-3">
+          <div className="mb-6 mt-7 flex w-full items-center gap-3">
             <div className="h-px flex-1 bg-[#E4DDE4]" />
             <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#A19BA2]">
               Operations
