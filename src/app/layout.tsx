@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Figtree } from "next/font/google";
+import { IBM_Plex_Sans, Cormorant_Garamond } from "next/font/google";
 import { redirect } from "next/navigation";
 import "./globals.css";
 import { prisma } from "@/lib/prisma";
@@ -10,15 +10,21 @@ import { Sidebar } from "@/components/Sidebar";
 import { NotificationBell, type NotificationItem } from "@/components/NotificationBell";
 import { getUnreadAnnouncementCount } from "@/lib/announcements";
 
-const figtree = Figtree({
-  variable: "--font-figtree",
+const ibmPlex = IBM_Plex_Sans({
+  variable: "--font-ibm",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
   title: "CM Operations",
-  description: "Operational task management for multi-location teams.",
+  description: "Operational task management for Chiang Mai Thai Dining.",
 };
 
 export default async function RootLayout({
@@ -29,7 +35,6 @@ export default async function RootLayout({
   const session = await auth();
   const user = await getCurrentUser();
 
-  // Signed in with Google but email not in the DB → access denied
   if (session && !user) {
     redirect("/access-denied");
   }
@@ -51,8 +56,8 @@ export default async function RootLayout({
     : "";
 
   return (
-    <html lang="en" className={figtree.variable}>
-      <body className="min-h-screen bg-[#f6f7fb] text-[#323338]">
+    <html lang="en" className={`${ibmPlex.variable} ${cormorant.variable}`}>
+      <body className="min-h-screen bg-[#F9F6F9] text-[#140516]">
         {user ? (
           <>
             <Sidebar
@@ -66,11 +71,12 @@ export default async function RootLayout({
               unreadAnnouncements={unreadAnnouncements}
             />
             <div className="lg:pl-60 print:pl-0">
-              {/* Desktop top bar (mobile uses the sidebar's bar) */}
-              <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-[#e6e9ef] bg-white/80 px-4 backdrop-blur lg:flex lg:px-8 print:hidden">
-                <span className="hidden items-center gap-2 rounded-full bg-[#f6f7fb] px-3 py-1.5 text-xs font-medium text-[#676879] sm:inline-flex">
+              {/* Desktop top bar */}
+              <header className="sticky top-0 z-30 hidden h-14 items-center justify-end gap-3 border-b border-[#E4DDE4] bg-white/85 px-4 backdrop-blur lg:flex lg:px-8 print:hidden">
+                <span className="hidden items-center gap-2 rounded-full bg-[#F9F6F9] px-3 py-1.5 text-xs font-medium text-[#726973] sm:inline-flex">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" />
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" />
+                    <circle cx="12" cy="10" r="3" />
                   </svg>
                   {locationLabel}
                 </span>
