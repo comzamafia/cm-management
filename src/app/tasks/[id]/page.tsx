@@ -8,6 +8,7 @@ import { StatusBadge, PriorityBadge } from "@/components/Badge";
 import { TaskActions } from "@/components/TaskActions";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { TaskComments } from "@/components/TaskComments";
+import { DeleteTaskButton } from "@/components/DeleteTaskButton";
 
 const ACTION_LABEL: Record<string, string> = {
   "task.created": "Task created",
@@ -109,11 +110,14 @@ export default async function TaskDetailPage({
           <PriorityBadge priority={task.priority} />
           <StatusBadge status={task.derivedStatus} />
           {manager && (
-            <TaskEditModal
-              task={taskForEdit}
-              users={assignees as { id: string; name: string; role: string }[]}
-              categories={categories}
-            />
+            <>
+              <TaskEditModal
+                task={taskForEdit}
+                users={assignees as { id: string; name: string; role: string }[]}
+                categories={categories}
+              />
+              <DeleteTaskButton taskId={task.id} />
+            </>
           )}
         </div>
       </div>

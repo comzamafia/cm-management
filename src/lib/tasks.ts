@@ -310,6 +310,40 @@ export async function editTask(input: {
   return { ok: true };
 }
 
+/** Permanently delete a task (and its completions, comments, attachments via cascade). Managers only. */
+export async function deleteTask(taskId: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!isManager(user.role)) {
+    return { ok: false, error: "Only managers can delete tasks" };
+  }
+
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!task) return { ok: false, error: "Task not found" };
+
+  const scope = await scopedLocationIds(user);
+  if (scope !== null && !scope.includes(task.locationId)) {
+    return { ok: false, error: "Outside your location scope" };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Log before deletion — entityId is a plain string, no FK to the row.
+    await logActivity(tx, {
+      userId: user.id,
+      action: "task.deleted",
+      entity: "Task",
+      entityId: taskId,
+      locationId: task.locationId,
+      meta: { title: task.title },
+    });
+    await tx.task.delete({ where: { id: taskId } });
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath("/board");
+  return { ok: true };
+}
+
 /** Board: set or clear a task's due date. */
 export async function setTaskDue(taskId: string, dueAt: string | null): Promise<ActionResult> {
   const user = await getCurrentUser();
