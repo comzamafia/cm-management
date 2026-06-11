@@ -209,6 +209,7 @@ model Task {
   attachments Attachment[]
   completions TaskCompletion[]
   comments    Comment[]
+  subtasks    Subtask[]
 
   @@index([locationId, status])
   @@index([assigneeId, status])
@@ -338,6 +339,20 @@ model TrainingMaterial {
   location  Location? @relation(fields: [locationId], references: [id])
 
   @@index([locationId, category])
+}
+
+// Checklist of sub-steps within a task
+model Subtask {
+  id        String   @id @default(cuid())
+  taskId    String
+  title     String
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
 }
 
 // Task discussion thread

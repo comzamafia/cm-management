@@ -344,6 +344,53 @@ export async function deleteTask(taskId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/** Apply one action (status / assign / delete) to many tasks at once. Managers only. */
+export async function bulkTaskAction(input: {
+  ids: string[];
+  action: "status" | "assign" | "delete";
+  status?: TaskStatus;
+  assigneeId?: string | null;
+}): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!isManager(user.role)) return { ok: false, error: "Managers only" };
+  if (input.ids.length === 0) return { ok: false, error: "No tasks selected" };
+
+  const scope = await scopedLocationIds(user);
+  const tasks = await prisma.task.findMany({
+    where: { id: { in: input.ids }, ...(scope ? { locationId: { in: scope } } : {}) },
+  });
+  if (tasks.length === 0) return { ok: false, error: "No tasks in scope" };
+
+  await prisma.$transaction(async (tx) => {
+    for (const t of tasks) {
+      if (input.action === "delete") {
+        await logActivity(tx, {
+          userId: user.id, action: "task.deleted", entity: "Task", entityId: t.id,
+          locationId: t.locationId, meta: { title: t.title, bulk: true },
+        });
+        await tx.task.delete({ where: { id: t.id } });
+      } else if (input.action === "assign") {
+        await tx.task.update({ where: { id: t.id }, data: { assigneeId: input.assigneeId ?? null } });
+        await logActivity(tx, {
+          userId: user.id, action: "task.assigned", entity: "Task", entityId: t.id,
+          locationId: t.locationId, meta: { assigneeId: input.assigneeId ?? null, bulk: true },
+        });
+      } else if (input.action === "status" && input.status) {
+        await tx.task.update({ where: { id: t.id }, data: { status: input.status } });
+        await logActivity(tx, {
+          userId: user.id, action: "task.status_changed", entity: "Task", entityId: t.id,
+          locationId: t.locationId, meta: { from: t.status, to: input.status, bulk: true },
+        });
+      }
+    }
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath("/board");
+  return { ok: true };
+}
+
 /** Board: set or clear a task's due date. */
 export async function setTaskDue(taskId: string, dueAt: string | null): Promise<ActionResult> {
   const user = await getCurrentUser();

@@ -9,6 +9,8 @@ import { TaskActions } from "@/components/TaskActions";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { TaskComments } from "@/components/TaskComments";
 import { DeleteTaskButton } from "@/components/DeleteTaskButton";
+import { TaskSubtasks } from "@/components/TaskSubtasks";
+import { TaskAttachmentsManager } from "@/components/TaskAttachmentsManager";
 
 const ACTION_LABEL: Record<string, string> = {
   "task.created": "Task created",
@@ -44,6 +46,7 @@ export default async function TaskDetailPage({
   if (!task) notFound();
 
   const manager = isManager(user.role);
+  const canEditTask = manager || user.role === "SHIFT_LEAD";
 
   const [assignees, categories] = manager
     ? await Promise.all([
@@ -138,6 +141,13 @@ export default async function TaskDetailPage({
         </dl>
       </div>
 
+      {/* Subtasks checklist */}
+      <TaskSubtasks
+        taskId={task.id}
+        subtasks={task.subtasks.map((s) => ({ id: s.id, title: s.title, done: s.done }))}
+        canManage={canEditTask}
+      />
+
       {/* Actions card */}
       <div className="m-card p-6">
         <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-[#726973]">Actions</h2>
@@ -218,26 +228,12 @@ export default async function TaskDetailPage({
         </div>
       )}
 
-      {/* Attachments */}
-      {task.attachments.length > 0 && (
-        <div className="m-card p-6">
-          <h2 className="mb-4 text-xs font-bold uppercase tracking-wider text-[#726973]">Attachments</h2>
-          <ul className="space-y-1 text-sm">
-            {task.attachments.map((a) => (
-              <li key={a.id}>
-                <a
-                  href={a.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[#440E48] hover:underline"
-                >
-                  [{a.type}] {a.url}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Attachments & SOPs */}
+      <TaskAttachmentsManager
+        taskId={task.id}
+        attachments={task.attachments.map((a) => ({ id: a.id, type: a.type, url: a.url }))}
+        canManage={canEditTask}
+      />
 
       {/* Comments */}
       <TaskComments

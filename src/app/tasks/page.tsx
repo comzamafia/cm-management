@@ -4,11 +4,10 @@ import { Priority, TaskStatus } from "@prisma/client";
 import { getCurrentUser, isManager, locationScopeWhere } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTasks } from "@/lib/queries";
-import { STATUS_LABEL, formatDateTime } from "@/lib/labels";
-import { StatusBadge, PriorityBadge } from "@/components/Badge";
+import { STATUS_LABEL } from "@/lib/labels";
 import { TaskSearchBar } from "@/components/TaskSearchBar";
 import { TaskFilters } from "@/components/TaskFilters";
-import { DeleteTaskButton } from "@/components/DeleteTaskButton";
+import { TaskTable, type TaskRow } from "@/components/TaskTable";
 
 const STATUS_FILTERS: (TaskStatus | "ALL")[] = [
   "ALL",
@@ -18,14 +17,6 @@ const STATUS_FILTERS: (TaskStatus | "ALL")[] = [
   "VERIFIED",
   "OVERDUE",
 ];
-
-const STATUS_HEX: Record<TaskStatus, string> = {
-  PENDING: "#A19BA2",
-  IN_PROGRESS: "#F4A626",
-  DONE: "#1DBA87",
-  VERIFIED: "#440E48",
-  OVERDUE: "#e2445c",
-};
 
 export default async function TasksPage({
   searchParams,
@@ -64,6 +55,17 @@ export default async function TasksPage({
     categoryId,
     q,
   });
+
+  const rows: TaskRow[] = tasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    locationName: t.location.name,
+    assigneeName: t.assignee?.name ?? null,
+    priority: t.priority,
+    derivedStatus: t.derivedStatus,
+    dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+    proofRequired: t.proofRequired,
+  }));
 
   const canCreate = isManager(user.role) || user.role === "SHIFT_LEAD";
   const canManage = isManager(user.role);
@@ -147,69 +149,12 @@ export default async function TasksPage({
         </div>
       </div>
 
-      <div className="m-card overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead className="border-b border-[#E4DDE4] bg-[#F9F6F9] text-left text-xs font-semibold uppercase tracking-wider text-[#726973]">
-            <tr>
-              <th className="px-4 py-3">Task</th>
-              <th className="px-4 py-3">Branch</th>
-              <th className="px-4 py-3">Assignee</th>
-              <th className="px-4 py-3">Priority</th>
-              <th className="px-4 py-3">Due</th>
-              <th className="px-4 py-3">Status</th>
-              {canManage && <th className="px-4 py-3 text-right">Actions</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#F0EBF0]">
-            {tasks.map((t) => (
-              <tr key={t.id} className="group transition-colors hover:bg-[#F9F6F9]">
-                <td className="py-3 pl-0 pr-4">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="h-9 w-1.5 shrink-0 rounded-r"
-                      style={{ backgroundColor: STATUS_HEX[t.derivedStatus] }}
-                    />
-                    <Link href={`/tasks/${t.id}`} className="font-semibold text-[#140516] group-hover:text-[#440E48]">
-                      {t.title}
-                    </Link>
-                    {t.proofRequired && (
-                      <span className="text-xs text-[#F4A626]" title="Photo proof required">📷</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-[#726973]">{t.location.name}</td>
-                <td className="px-4 py-3 text-[#726973]">{t.assignee?.name ?? "—"}</td>
-                <td className="px-4 py-3"><PriorityBadge priority={t.priority} /></td>
-                <td className="px-4 py-3 text-[#726973]">{formatDateTime(t.dueAt)}</td>
-                <td className="px-4 py-3"><StatusBadge status={t.derivedStatus} /></td>
-                {canManage && (
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link
-                        href={`/tasks/${t.id}`}
-                        title="Open / edit"
-                        className="rounded-lg p-1.5 text-[#A19BA2] transition hover:bg-[#F0EBF0] hover:text-[#440E48]"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </Link>
-                      <DeleteTaskButton taskId={t.id} compact />
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
-            {tasks.length === 0 && (
-              <tr>
-                <td colSpan={canManage ? 7 : 6} className="px-4 py-12 text-center text-[#A19BA2]">
-                  {q ? `No tasks matching "${q}".` : "No tasks match this filter."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TaskTable
+        tasks={rows}
+        canManage={canManage}
+        assignees={assignees}
+        emptyMessage={q ? `No tasks matching "${q}".` : "No tasks match this filter."}
+      />
     </div>
   );
 }

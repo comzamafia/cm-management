@@ -67,6 +67,7 @@ export async function getTaskDetail(id: string, user: ScopeUser) {
           include: { user: { select: { id: true, name: true, role: true } } },
           orderBy: { createdAt: "asc" },
         },
+        subtasks: { orderBy: { position: "asc" } },
       },
     }),
     prisma.activityLog.findMany({
