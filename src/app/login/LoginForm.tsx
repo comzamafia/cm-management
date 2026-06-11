@@ -63,10 +63,12 @@ export function LoginForm() {
 
         <div className="flex flex-col items-center px-8 pb-8 pt-8">
           {/* Logo */}
-          <div className="mb-5 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#FAF6FA] shadow-inner ring-1 ring-[#E4DDE4]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_DATA_URI} alt="Chiang Mai Thai Dining" className="h-[100px] w-[100px] object-contain" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={LOGO_DATA_URI}
+            alt="Chiang Mai Thai Dining"
+            className="mb-4 h-[150px] w-[150px] object-contain"
+          />
 
           {/* Brand name */}
           <h1
