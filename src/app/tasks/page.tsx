@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { TaskStatus } from "@prisma/client";
-import { getCurrentUser, isManager } from "@/lib/auth";
+import { Priority, TaskStatus } from "@prisma/client";
+import { getCurrentUser, isManager, locationScopeWhere } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getTasks } from "@/lib/queries";
 import { STATUS_LABEL, formatDateTime } from "@/lib/labels";
 import { StatusBadge, PriorityBadge } from "@/components/Badge";
 import { TaskSearchBar } from "@/components/TaskSearchBar";
+import { TaskFilters } from "@/components/TaskFilters";
 import { DeleteTaskButton } from "@/components/DeleteTaskButton";
 
 const STATUS_FILTERS: (TaskStatus | "ALL")[] = [
@@ -28,7 +30,15 @@ const STATUS_HEX: Record<TaskStatus, string> = {
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; locationId?: string; q?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    locationId?: string;
+    q?: string;
+    mine?: string;
+    assigneeId?: string;
+    priority?: string;
+    categoryId?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   if (!user) {
@@ -40,20 +50,49 @@ export default async function TasksPage({
     ? (params.status as TaskStatus)
     : undefined;
   const q = params.q?.trim() || undefined;
+  const priority = (Object.values(Priority) as string[]).includes(params.priority ?? "")
+    ? (params.priority as Priority)
+    : undefined;
+  const assigneeId = params.mine === "1" ? user.id : params.assigneeId || undefined;
+  const categoryId = params.categoryId || undefined;
 
   const tasks = await getTasks(user, {
     status,
     locationId: params.locationId,
+    assigneeId,
+    priority,
+    categoryId,
     q,
   });
 
   const canCreate = isManager(user.role) || user.role === "SHIFT_LEAD";
   const canManage = isManager(user.role);
+
+  // Options for the filter dropdowns (scope-limited).
+  const scope = await locationScopeWhere(user);
+  const [assignees, categories] = await Promise.all([
+    canManage
+      ? prisma.user.findMany({
+          where: { ...scope, status: "ACTIVE" },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    prisma.category.findMany({
+      where: scope.locationId ? { OR: [{ locationId: { in: scope.locationId.in } }, { locationId: null }] } : {},
+      orderBy: [{ position: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+  ]);
   const qs = (s: string) => {
     const p = new URLSearchParams();
     if (s !== "ALL") p.set("status", s);
     if (params.locationId) p.set("locationId", params.locationId);
     if (q) p.set("q", q);
+    if (params.mine === "1") p.set("mine", "1");
+    if (params.assigneeId) p.set("assigneeId", params.assigneeId);
+    if (params.priority) p.set("priority", params.priority);
+    if (params.categoryId) p.set("categoryId", params.categoryId);
     const str = p.toString();
     return str ? `/tasks?${str}` : "/tasks";
   };
@@ -79,6 +118,14 @@ export default async function TasksPage({
       <div className="space-y-3">
         <Suspense>
           <TaskSearchBar defaultValue={q ?? ""} />
+        </Suspense>
+        <Suspense>
+          <TaskFilters
+            assignees={assignees}
+            categories={categories}
+            showAssignee={canManage}
+            showMine={true}
+          />
         </Suspense>
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((s) => {

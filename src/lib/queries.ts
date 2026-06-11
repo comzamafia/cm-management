@@ -1,4 +1,4 @@
-import { Role, TaskStatus } from "@prisma/client";
+import { Priority, Role, TaskStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { locationScopeWhere } from "./auth";
 import { isOverdue } from "./labels";
@@ -8,7 +8,14 @@ type ScopeUser = { role: Role; locationId: string | null };
 /** Tasks within the user's scope, newest first, with optional filters. */
 export async function getTasks(
   user: ScopeUser,
-  filters: { status?: TaskStatus; locationId?: string; assigneeId?: string; q?: string } = {},
+  filters: {
+    status?: TaskStatus;
+    locationId?: string;
+    assigneeId?: string;
+    priority?: Priority;
+    categoryId?: string;
+    q?: string;
+  } = {},
 ) {
   const scope = await locationScopeWhere(user);
   const tasks = await prisma.task.findMany({
@@ -16,6 +23,8 @@ export async function getTasks(
       ...scope,
       ...(filters.locationId ? { locationId: filters.locationId } : {}),
       ...(filters.assigneeId ? { assigneeId: filters.assigneeId } : {}),
+      ...(filters.priority ? { priority: filters.priority } : {}),
+      ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
       ...(filters.q
         ? {
             OR: [
