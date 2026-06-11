@@ -8,13 +8,20 @@ import { PRIORITY_LABEL, ROLE_LABEL, TYPE_LABEL } from "@/lib/labels";
 
 type LocationOpt = { id: string; name: string };
 type UserOpt = { id: string; name: string; role: keyof typeof ROLE_LABEL; locationId: string | null };
+type CategoryOpt = { id: string; name: string; color: string };
+
+const field =
+  "w-full rounded-xl border border-[#E4DDE4] bg-white px-3 py-2 text-sm text-[#140516] placeholder-[#A19BA2] outline-none transition focus:border-[#440E48] focus:ring-2 focus:ring-[#440E48]/10";
+const labelCls = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#726973]";
 
 export function NewTaskForm({
   locations,
   users,
+  categories,
 }: {
   locations: LocationOpt[];
   users: UserOpt[];
+  categories: CategoryOpt[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -26,19 +33,18 @@ export function NewTaskForm({
   const [priority, setPriority] = useState<Priority>("MEDIUM");
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [assigneeId, setAssigneeId] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [department, setDepartment] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [proofRequired, setProofRequired] = useState(false);
 
-  // Assignees belonging to the chosen location (plus unassigned option).
-  const assignees = users.filter((u) => !locationId || u.locationId === locationId || u.locationId === null);
+  const assignees = users.filter(
+    (u) => !locationId || u.locationId === locationId || u.locationId === null,
+  );
 
   function submit() {
     setError(null);
-    if (!title.trim()) {
-      setError("Title is required");
-      return;
-    }
+    if (!title.trim()) { setError("Title is required"); return; }
     startTransition(async () => {
       const res = await createTask({
         title,
@@ -47,6 +53,7 @@ export function NewTaskForm({
         priority,
         locationId,
         assigneeId: assigneeId || undefined,
+        categoryId: categoryId || undefined,
         department,
         dueAt: dueAt ? new Date(dueAt).toISOString() : undefined,
         proofRequired,
@@ -56,54 +63,42 @@ export function NewTaskForm({
     });
   }
 
-  const field = "w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
-  const labelCls = "mb-1 block text-xs font-medium text-slate-600";
-
   return (
-    <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+    <div className="m-card space-y-5 p-6">
       <div>
         <label className={labelCls}>Title *</label>
-        <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input className={field} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs to be done?" />
       </div>
 
       <div>
         <label className={labelCls}>Description</label>
-        <textarea className={field} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <textarea className={field} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add details…" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Type</label>
           <select className={field} value={type} onChange={(e) => setType(e.target.value as TaskType)}>
-            {Object.entries(TYPE_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
+            {Object.entries(TYPE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
           <label className={labelCls}>Priority</label>
           <select className={field} value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
-            {Object.entries(PRIORITY_LABEL).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
-            ))}
+            {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={labelCls}>Location *</label>
+          <label className={labelCls}>Branch *</label>
           <select
             className={field}
             value={locationId}
-            onChange={(e) => {
-              setLocationId(e.target.value);
-              setAssigneeId("");
-            }}
+            onChange={(e) => { setLocationId(e.target.value); setAssigneeId(""); }}
           >
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{l.name}</option>
-            ))}
+            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </div>
         <div>
@@ -119,29 +114,59 @@ export function NewTaskForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
+          <label className={labelCls}>Category</label>
+          <select className={field} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">— No category —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {categoryId && (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: categories.find((c) => c.id === categoryId)?.color ?? "#ccc" }}
+              />
+              <span className="text-xs text-[#726973]">
+                {categories.find((c) => c.id === categoryId)?.name}
+              </span>
+            </div>
+          )}
+        </div>
+        <div>
           <label className={labelCls}>Department</label>
           <input className={field} value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="e.g. Kitchen" />
         </div>
-        <div>
-          <label className={labelCls}>Due date/time</label>
-          <input type="datetime-local" className={field} value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-        </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-700">
-        <input type="checkbox" checked={proofRequired} onChange={(e) => setProofRequired(e.target.checked)} />
+      <div>
+        <label className={labelCls}>Due date / time</label>
+        <input type="datetime-local" className={field} value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+      </div>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-[#433745] select-none">
+        <input type="checkbox" className="rounded" checked={proofRequired} onChange={(e) => setProofRequired(e.target.checked)} />
         Require photo proof before completion
       </label>
 
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-xl bg-[#FFF0EE] px-4 py-2.5 text-sm font-medium text-[#943B13]">{error}</p>
+      )}
 
-      <div className="flex gap-2">
+      <div className="flex gap-3">
         <button
           onClick={submit}
           disabled={pending}
-          className="rounded-md bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="m-btn disabled:opacity-60"
         >
           {pending ? "Creating…" : "Create Task"}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="m-btn-ghost"
+        >
+          Cancel
         </button>
       </div>
     </div>

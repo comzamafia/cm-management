@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
@@ -73,13 +72,8 @@ function Logo() {
   return (
     <Link href="/dashboard" className="flex items-center gap-3">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
-        <Image
-          src="/logo.png"
-          alt="Chiang Mai Thai Dining"
-          width={32}
-          height={32}
-          className="h-8 w-8 object-contain"
-        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
       </div>
       <span className="flex flex-col leading-none">
         <span
@@ -144,7 +138,10 @@ function NavList({
 function UserCard({ user }: { user: SidebarUser }) {
   return (
     <div className="border-t border-white/10 p-3">
-      <div className="flex items-center gap-3 rounded-lg px-2 py-2">
+      <Link
+        href="/profile"
+        className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-white/8"
+      >
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#F4A626] text-xs font-bold text-[#440E48]">
           {initials(user.name)}
         </span>
@@ -152,7 +149,11 @@ function UserCard({ user }: { user: SidebarUser }) {
           <div className="truncate text-sm font-semibold text-white">{user.name}</div>
           <div className="truncate text-[11px] text-white/50">{user.roleLabel}</div>
         </div>
-      </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-white/30">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </Link>
       <div className="mt-1 px-1">
         <SignOutButton />
       </div>
