@@ -50,6 +50,16 @@ const I = {
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   ),
+  maintenance: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z" />
+    </svg>
+  ),
+  inventory: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="M3.27 6.96 12 12.01l8.73-5.05" /><path d="M12 22.08V12" />
+    </svg>
+  ),
 };
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: number };
@@ -59,6 +69,8 @@ const NAV_BASE: Omit<NavItem, "badge">[] = [
   { href: "/board",         label: "Monthly Checklist", icon: I.board },
   { href: "/tasks",         label: "Tasks",             icon: I.tasks },
   { href: "/checklists",    label: "Checklists",        icon: I.checklists },
+  { href: "/maintenance",   label: "Maintenance",       icon: I.maintenance },
+  { href: "/inventory",     label: "Inventory",         icon: I.inventory },
   { href: "/people",        label: "People",            icon: I.people },
   { href: "/announcements", label: "Announcements",     icon: I.announcements },
   { href: "/training",      label: "Training Hub",      icon: I.training },

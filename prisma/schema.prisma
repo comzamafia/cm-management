@@ -66,6 +66,11 @@ enum NotificationType {
   CHECKLIST_GENERATED
   DAILY_DIGEST
   ANNOUNCEMENT
+  INVENTORY_LOW_STOCK
+  MAINTENANCE_REPORTED
+  MAINTENANCE_ASSIGNED
+  MAINTENANCE_RESOLVED
+  MAINTENANCE_OVERDUE
 }
 
 enum TrainingCategory {
@@ -77,6 +82,39 @@ enum TrainingCategory {
   OTHER
 }
 
+// Phase 5: Inventory
+enum InventoryUnit {
+  EACH
+  KG
+  G
+  L
+  ML
+  BOTTLE
+  BOX
+  PACK
+  CASE
+}
+
+// Phase 5: Maintenance
+enum MaintenanceStatus {
+  OPEN
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum MaintenanceArea {
+  EQUIPMENT
+  REFRIGERATION
+  PLUMBING
+  ELECTRICAL
+  HVAC
+  STRUCTURAL
+  SAFETY
+  OTHER
+}
+
 model Location {
   id        String   @id @default(cuid())
   name      String
@@ -85,13 +123,16 @@ model Location {
   managerId String?
   createdAt DateTime @default(now())
 
-  users              User[]              @relation("UserLocation")
-  managedBy          User?               @relation("LocationManager", fields: [managerId], references: [id])
-  tasks              Task[]
-  activityLog        ActivityLog[]
-  checklistTemplates ChecklistTemplate[]
-  announcements      Announcement[]
-  trainingMaterials  TrainingMaterial[]
+  users               User[]               @relation("UserLocation")
+  managedBy           User?                @relation("LocationManager", fields: [managerId], references: [id])
+  tasks               Task[]
+  activityLog         ActivityLog[]
+  checklistTemplates  ChecklistTemplate[]
+  announcements       Announcement[]
+  trainingMaterials   TrainingMaterial[]
+  inventoryItems      InventoryItem[]
+  inventoryCounts     InventoryCount[]
+  maintenanceRequests MaintenanceRequest[]
 }
 
 model User {
@@ -105,20 +146,25 @@ model User {
   status       UserStatus @default(ACTIVE)
   createdAt    DateTime   @default(now())
 
-  location               Location?            @relation("UserLocation", fields: [locationId], references: [id])
-  managesLocations       Location[]           @relation("LocationManager")
-  assignedTasks          Task[]               @relation("Assignee")
-  createdTasks           Task[]               @relation("Assigner")
-  completions            TaskCompletion[]     @relation("CompletedBy")
-  verifications          TaskCompletion[]     @relation("VerifiedBy")
-  activityLog            ActivityLog[]
-  notifications          Notification[]
-  checklistsCreated      ChecklistTemplate[]
-  categoriesCreated      Category[]
-  announcements          Announcement[]
-  announcementReads      AnnouncementRead[]
-  trainingMaterials      TrainingMaterial[]
-  comments               Comment[]
+  location              Location?            @relation("UserLocation", fields: [locationId], references: [id])
+  managesLocations      Location[]           @relation("LocationManager")
+  assignedTasks         Task[]               @relation("Assignee")
+  createdTasks          Task[]               @relation("Assigner")
+  completions           TaskCompletion[]     @relation("CompletedBy")
+  verifications         TaskCompletion[]     @relation("VerifiedBy")
+  activityLog           ActivityLog[]
+  notifications         Notification[]
+  checklistsCreated     ChecklistTemplate[]
+  categoriesCreated     Category[]
+  announcements         Announcement[]
+  announcementReads     AnnouncementRead[]
+  trainingMaterials     TrainingMaterial[]
+  comments              Comment[]
+  inventoryItemsCreated InventoryItem[]
+  inventoryCounts       InventoryCount[]
+  maintenanceReported   MaintenanceRequest[] @relation("MaintReporter")
+  maintenanceAssigned   MaintenanceRequest[] @relation("MaintAssignee")
+  maintenanceResolved   MaintenanceRequest[] @relation("MaintResolver")
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -199,11 +245,11 @@ model ChecklistTemplate {
   id               String    @id @default(cuid())
   name             String
   frequency        Frequency
-  items            Json      // string[] — each item becomes one Task on generation
-  locationId       String?   // null = apply to all locations
-  autoGenerateHour Int       @default(7)  // 0-23 UTC hour to generate
-  weekDay          Int?      // 0-6 (0=Sun) — WEEKLY only
-  monthDay         Int?      // 1-31 — MONTHLY only
+  items            Json // string[] — each item becomes one Task on generation
+  locationId       String? // null = apply to all locations
+  autoGenerateHour Int       @default(7) // 0-23 UTC hour to generate
+  weekDay          Int? // 0-6 (0=Sun) — WEEKLY only
+  monthDay         Int? // 1-31 — MONTHLY only
   priority         Priority  @default(MEDIUM)
   department       String?
   proofRequired    Boolean   @default(false)
@@ -211,9 +257,9 @@ model ChecklistTemplate {
   createdById      String
   createdAt        DateTime  @default(now())
 
-  location     Location?             @relation(fields: [locationId], references: [id])
-  createdBy    User                  @relation(fields: [createdById], references: [id])
-  generations  ChecklistGeneration[]
+  location    Location?             @relation(fields: [locationId], references: [id])
+  createdBy   User                  @relation(fields: [createdById], references: [id])
+  generations ChecklistGeneration[]
 }
 
 // Tracks each time a template was run, preventing duplicate daily generates.
@@ -222,7 +268,7 @@ model ChecklistGeneration {
   templateId  String
   locationId  String
   generatedAt DateTime @default(now())
-  taskIds     Json     // string[] of created Task ids
+  taskIds     Json // string[] of created Task ids
 
   template ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
@@ -236,8 +282,8 @@ model Notification {
   type       NotificationType
   title      String
   body       String
-  entityId   String?          // e.g. Task id
-  entityType String?          // e.g. "Task"
+  entityId   String? // e.g. Task id
+  entityType String? // e.g. "Task"
   read       Boolean          @default(false)
   createdAt  DateTime         @default(now())
 
@@ -252,7 +298,7 @@ model Announcement {
   title      String
   body       String
   authorId   String
-  locationId String?  // null = company-wide
+  locationId String? // null = company-wide
   pinned     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -283,7 +329,7 @@ model TrainingMaterial {
   category    TrainingCategory
   contentUrl  String?
   content     String?
-  locationId  String?          // null = company-wide
+  locationId  String? // null = company-wide
   createdById String
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -308,12 +354,92 @@ model Comment {
   @@index([taskId, createdAt])
 }
 
+// Phase 5: Inventory — par-levels + periodic snapshot counts
+model InventoryItem {
+  id           String        @id @default(cuid())
+  name         String
+  sku          String?
+  unit         InventoryUnit @default(EACH)
+  category     String? // free text: "Dry goods", "Beverage", "Cleaning"
+  locationId   String
+  parLevel     Float? // target on-hand
+  reorderLevel Float? // at/below this -> low-stock alert
+  currentQty   Float         @default(0) // snapshot from latest submitted count
+  active       Boolean       @default(true)
+  createdById  String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  location  Location             @relation(fields: [locationId], references: [id])
+  createdBy User                 @relation(fields: [createdById], references: [id])
+  lines     InventoryCountLine[]
+
+  @@index([locationId, active])
+}
+
+model InventoryCount {
+  id          String   @id @default(cuid())
+  locationId  String
+  countedById String
+  status      String   @default("SUBMITTED") // DRAFT | SUBMITTED
+  note        String?
+  countedAt   DateTime @default(now())
+
+  location  Location             @relation(fields: [locationId], references: [id])
+  countedBy User                 @relation(fields: [countedById], references: [id])
+  lines     InventoryCountLine[]
+
+  @@index([locationId, countedAt])
+}
+
+model InventoryCountLine {
+  id          String @id @default(cuid())
+  countId     String
+  itemId      String
+  countedQty  Float
+  previousQty Float // currentQty at time of count (for variance)
+
+  count InventoryCount @relation(fields: [countId], references: [id], onDelete: Cascade)
+  item  InventoryItem  @relation(fields: [itemId], references: [id])
+
+  @@index([itemId])
+}
+
+// Phase 5: Maintenance requests
+model MaintenanceRequest {
+  id             String            @id @default(cuid())
+  title          String
+  description    String?
+  area           MaintenanceArea   @default(OTHER)
+  priority       Priority          @default(MEDIUM)
+  status         MaintenanceStatus @default(OPEN)
+  locationId     String
+  reportedById   String
+  assignedToId   String?
+  vendor         String? // external vendor name (optional)
+  photoUrls      Json // before/after photos (same pattern as TaskCompletion)
+  resolutionNote String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  cost           Float?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  location   Location @relation(fields: [locationId], references: [id])
+  reportedBy User     @relation("MaintReporter", fields: [reportedById], references: [id])
+  assignedTo User?    @relation("MaintAssignee", fields: [assignedToId], references: [id])
+  resolvedBy User?    @relation("MaintResolver", fields: [resolvedById], references: [id])
+
+  @@index([locationId, status])
+  @@index([assignedToId, status])
+}
+
 // Immutable audit trail — heart of the system (Who / What / Where / When).
 model ActivityLog {
   id         String   @id @default(cuid())
   userId     String
-  action     String   // e.g. "task.created", "task.status_changed", "task.verified"
-  entity     String   // e.g. "Task"
+  action     String // e.g. "task.created", "task.status_changed", "task.verified"
+  entity     String // e.g. "Task"
   entityId   String
   locationId String?
   meta       Json

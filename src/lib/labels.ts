@@ -1,4 +1,4 @@
-import { Frequency, NotificationType, Priority, Role, TaskStatus, TaskType } from "@prisma/client";
+import { Frequency, InventoryUnit, MaintenanceArea, MaintenanceStatus, NotificationType, Priority, Role, TaskStatus, TaskType } from "@prisma/client";
 
 export const ROLE_LABEL: Record<Role, string> = {
   OWNER: "Owner / Senior Management",
@@ -71,6 +71,11 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   CHECKLIST_GENERATED: "Checklist Generated",
   DAILY_DIGEST: "Daily Digest",
   ANNOUNCEMENT: "Announcement",
+  INVENTORY_LOW_STOCK: "Low Stock",
+  MAINTENANCE_REPORTED: "Maintenance Reported",
+  MAINTENANCE_ASSIGNED: "Maintenance Assigned",
+  MAINTENANCE_RESOLVED: "Maintenance Resolved",
+  MAINTENANCE_OVERDUE: "Maintenance Overdue",
 };
 
 export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
@@ -81,6 +86,61 @@ export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
   CHECKLIST_GENERATED: "text-[#1DBA87]",
   DAILY_DIGEST: "text-[#726973]",
   ANNOUNCEMENT: "text-[#440E48]",
+  INVENTORY_LOW_STOCK: "text-[#9F4000]",
+  MAINTENANCE_REPORTED: "text-[#5B8DD9]",
+  MAINTENANCE_ASSIGNED: "text-[#F4A626]",
+  MAINTENANCE_RESOLVED: "text-[#1DBA87]",
+  MAINTENANCE_OVERDUE: "text-[#e2445c]",
+};
+
+// ---- Phase 5: Maintenance + Inventory ----
+
+export const MAINTENANCE_STATUS_LABEL: Record<MaintenanceStatus, string> = {
+  OPEN: "Open",
+  ACKNOWLEDGED: "Acknowledged",
+  IN_PROGRESS: "In Progress",
+  RESOLVED: "Resolved",
+  CLOSED: "Closed",
+};
+
+export const MAINTENANCE_STATUS_STYLE: Record<MaintenanceStatus, string> = {
+  OPEN: "bg-[#e2445c] text-white ring-black/5",
+  ACKNOWLEDGED: "bg-[#5B8DD9] text-white ring-black/5",
+  IN_PROGRESS: "bg-[#F4A626] text-white ring-black/5",
+  RESOLVED: "bg-[#1DBA87] text-white ring-black/5",
+  CLOSED: "bg-[#440E48] text-white ring-black/5",
+};
+
+export const MAINTENANCE_AREA_LABEL: Record<MaintenanceArea, string> = {
+  EQUIPMENT: "Equipment",
+  REFRIGERATION: "Refrigeration",
+  PLUMBING: "Plumbing",
+  ELECTRICAL: "Electrical",
+  HVAC: "HVAC / Air-con",
+  STRUCTURAL: "Structural",
+  SAFETY: "Safety",
+  OTHER: "Other",
+};
+
+// Allowed forward transitions for a maintenance request (server-enforced).
+export const MAINTENANCE_NEXT: Record<MaintenanceStatus, MaintenanceStatus[]> = {
+  OPEN: ["ACKNOWLEDGED", "IN_PROGRESS"],
+  ACKNOWLEDGED: ["IN_PROGRESS"],
+  IN_PROGRESS: ["RESOLVED"],
+  RESOLVED: ["CLOSED", "IN_PROGRESS"],
+  CLOSED: [],
+};
+
+export const INVENTORY_UNIT_LABEL: Record<InventoryUnit, string> = {
+  EACH: "each",
+  KG: "kg",
+  G: "g",
+  L: "L",
+  ML: "mL",
+  BOTTLE: "bottle",
+  BOX: "box",
+  PACK: "pack",
+  CASE: "case",
 };
 
 // Re-exported from the single source of truth in ./rules.
