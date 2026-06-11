@@ -63,9 +63,9 @@ export function LoginForm() {
 
         <div className="flex flex-col items-center px-8 pb-8 pt-8">
           {/* Logo */}
-          <div className="mb-5 flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[#FAF6FA] shadow-inner ring-1 ring-[#E4DDE4]">
+          <div className="mb-5 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-[#FAF6FA] shadow-inner ring-1 ring-[#E4DDE4]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO_DATA_URI} alt="Chiang Mai Thai Dining" className="h-[72px] w-[72px] object-contain" />
+            <img src={LOGO_DATA_URI} alt="Chiang Mai Thai Dining" className="h-[100px] w-[100px] object-contain" />
           </div>
 
           {/* Brand name */}
