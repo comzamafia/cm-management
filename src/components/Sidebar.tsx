@@ -66,7 +66,6 @@ type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: num
 
 const NAV_BASE: Omit<NavItem, "badge">[] = [
   { href: "/dashboard",     label: "Dashboard",        icon: I.dashboard },
-  { href: "/board",         label: "Monthly Checklist", icon: I.board },
   { href: "/tasks",         label: "Tasks",             icon: I.tasks },
   { href: "/checklists",    label: "Checklists",        icon: I.checklists },
   { href: "/maintenance",   label: "Maintenance",       icon: I.maintenance },
