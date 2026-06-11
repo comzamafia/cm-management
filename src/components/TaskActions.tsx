@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { TaskStatus } from "@prisma/client";
 import { changeTaskStatus } from "@/lib/tasks";
+import { PhotoUploader } from "./PhotoUploader";
 
 // Buttons offered per current (derived) status, mirroring server-side TRANSITIONS.
 const NEXT_ACTIONS: Record<TaskStatus, { to: TaskStatus; label: string }[]> = {
@@ -35,20 +36,17 @@ export function TaskActions({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [photoInput, setPhotoInput] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const actions = NEXT_ACTIONS[status].filter((a) => a.to !== "VERIFIED" || canVerify);
 
   function run(to: TaskStatus) {
     setError(null);
-    const photos =
-      to === "DONE"
-        ? photoInput.split(/[\n,]/).map((s) => s.trim()).filter(Boolean)
-        : undefined;
+    const proof = to === "DONE" ? photos : undefined;
     startTransition(async () => {
-      const res = await changeTaskStatus(taskId, to, photos);
+      const res = await changeTaskStatus(taskId, to, proof);
       if (!res.ok) setError(res.error);
-      else setPhotoInput("");
+      else setPhotos([]);
     });
   }
 
@@ -63,16 +61,10 @@ export function TaskActions({
     <div className="space-y-3">
       {showProof && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">
-            Photo proof required — paste image URL(s), one per line
+          <label className="mb-1.5 block text-xs font-medium text-slate-600">
+            📷 Photo proof required to mark this done
           </label>
-          <textarea
-            value={photoInput}
-            onChange={(e) => setPhotoInput(e.target.value)}
-            rows={2}
-            placeholder="https://…/proof.jpg"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
+          <PhotoUploader value={photos} onChange={setPhotos} disabled={pending} />
         </div>
       )}
       <div className="flex flex-wrap gap-2">
