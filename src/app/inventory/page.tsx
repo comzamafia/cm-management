@@ -2,13 +2,17 @@ import Link from "next/link";
 import { Role } from "@prisma/client";
 import { getCurrentUser, atLeast } from "@/lib/auth";
 import { getInventory } from "@/lib/inventory";
+import { getBohUsage } from "@/lib/boh";
+import { BohUsagePanel, BohUnavailableNotice } from "@/components/BohUsagePanel";
 import { INVENTORY_UNIT_LABEL } from "@/lib/labels";
+
+export const dynamic = "force-dynamic";
 
 export default async function InventoryPage() {
   const user = await getCurrentUser();
   if (!user) return <div className="text-[#726973]">Sign in to view inventory.</div>;
 
-  const items = await getInventory();
+  const [items, bohUsage] = await Promise.all([getInventory(), getBohUsage(7)]);
   const canManage = atLeast(user.role, Role.STORE_MANAGER);
   const lowCount = items.filter((i) => i.low).length;
 
@@ -46,6 +50,10 @@ export default async function InventoryPage() {
         </div>
       </div>
 
+      {/* Kitchen ingredient usage from the BOH system */}
+      {bohUsage ? <BohUsagePanel usage={bohUsage} /> : <BohUnavailableNotice />}
+
+      <h2 className="text-lg font-bold tracking-tight text-[#140516]">Stock on hand</h2>
       {items.length === 0 ? (
         <div className="m-card p-10 text-center text-sm text-[#A19BA2]">
           No items yet.{canManage ? " Add your first item to start tracking stock." : ""}
