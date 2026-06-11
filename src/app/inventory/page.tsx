@@ -31,6 +31,14 @@ export default async function InventoryPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {canManage && (
+            <a
+              href="/api/reports?type=inventory"
+              className="rounded-xl border border-[#E4DDE4] px-3 py-2.5 text-sm font-medium text-[#726973] transition hover:bg-[#F0EBF0]"
+            >
+              ↓ CSV
+            </a>
+          )}
           {items.length > 0 && (
             <Link
               href="/inventory/count"

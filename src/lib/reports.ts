@@ -215,6 +215,55 @@ export async function buildTasksCsv(scope: ScopeUser, period: "weekly" | "monthl
   return [header, ...rows].join("\n");
 }
 
+function csvCell(v: unknown): string {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+export async function buildMaintenanceCsv(scope: ScopeUser) {
+  const locationWhere = await locationScopeWhere(scope);
+  const reqs = await prisma.maintenanceRequest.findMany({
+    where: locationWhere,
+    include: {
+      location: { select: { name: true } },
+      reportedBy: { select: { name: true } },
+      assignedTo: { select: { name: true } },
+      resolvedBy: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const header = "ID,Title,Area,Priority,Status,Location,ReportedBy,AssignedTo,Vendor,Cost,ResolutionNote,ReportedAt,ResolvedAt";
+  const rows = reqs.map((r) =>
+    [
+      r.id, r.title, r.area, r.priority, r.status, r.location.name,
+      r.reportedBy.name, r.assignedTo?.name ?? "", r.vendor ?? "",
+      r.cost ?? "", r.resolutionNote ?? "",
+      r.createdAt.toISOString(), r.resolvedAt?.toISOString() ?? "",
+    ].map(csvCell).join(","),
+  );
+  return [header, ...rows].join("\n");
+}
+
+export async function buildInventoryCsv(scope: ScopeUser) {
+  const locationWhere = await locationScopeWhere(scope);
+  const items = await prisma.inventoryItem.findMany({
+    where: { ...locationWhere, active: true },
+    include: { location: { select: { name: true } } },
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+  });
+
+  const header = "ID,Name,SKU,Category,Unit,Location,CurrentQty,ParLevel,ReorderLevel,LowStock";
+  const rows = items.map((i) =>
+    [
+      i.id, i.name, i.sku ?? "", i.category ?? "", i.unit, i.location.name,
+      i.currentQty, i.parLevel ?? "", i.reorderLevel ?? "",
+      i.reorderLevel != null && i.currentQty <= i.reorderLevel ? "YES" : "",
+    ].map(csvCell).join(","),
+  );
+  return [header, ...rows].join("\n");
+}
+
 // ── Daily Digest ──────────────────────────────────────────────────────────────
 
 export async function buildDigestSummary() {

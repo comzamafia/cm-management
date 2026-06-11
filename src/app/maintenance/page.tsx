@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MaintenanceStatus } from "@prisma/client";
-import { getCurrentUser } from "@/lib/auth";
+import { Role } from "@prisma/client";
+import { getCurrentUser, atLeast } from "@/lib/auth";
 import { getMaintenanceRequests } from "@/lib/maintenance";
 import {
   MAINTENANCE_AREA_LABEL,
@@ -26,6 +27,7 @@ export default async function MaintenancePage({
   const statusFilter = status && validStatuses.includes(status) ? (status as MaintenanceStatus) : undefined;
   const active: string = statusFilter ?? "ALL";
   const requests = await getMaintenanceRequests(statusFilter ? { status: statusFilter } : {});
+  const canExport = atLeast(user.role, Role.STORE_MANAGER);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -34,12 +36,22 @@ export default async function MaintenancePage({
           <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">Maintenance</h1>
           <p className="mt-1 text-sm text-[#726973]">Report and track repair requests across locations.</p>
         </div>
-        <Link
-          href="/maintenance/new"
-          className="rounded-xl bg-[#440E48] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#5A1560]"
-        >
-          + Report issue
-        </Link>
+        <div className="flex items-center gap-2">
+          {canExport && (
+            <a
+              href="/api/reports?type=maintenance"
+              className="rounded-xl border border-[#E4DDE4] px-3 py-2.5 text-sm font-medium text-[#726973] transition hover:bg-[#F0EBF0]"
+            >
+              ↓ CSV
+            </a>
+          )}
+          <Link
+            href="/maintenance/new"
+            className="rounded-xl bg-[#440E48] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#5A1560]"
+          >
+            + Report issue
+          </Link>
+        </div>
       </div>
 
       {/* Status filter */}

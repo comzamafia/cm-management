@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getDashboardData } from "@/lib/queries";
+import { getOpenMaintenanceCount } from "@/lib/maintenance";
+import { getLowStockCount } from "@/lib/inventory";
 import { formatDateTime } from "@/lib/labels";
 
 const ACTION_VERB: Record<string, string> = {
@@ -28,6 +30,10 @@ export default async function DashboardPage() {
   }
 
   const { byLocation, overdueTasks, activity, totals } = await getDashboardData(user);
+  const [openMaintenance, lowStock] = await Promise.all([
+    getOpenMaintenanceCount(),
+    getLowStockCount(),
+  ]);
 
   return (
     <div className="space-y-7">
@@ -77,6 +83,12 @@ export default async function DashboardPage() {
             <div className="truncate text-xs text-[#676879]">Pick a location below</div>
           </div>
         </div>
+      </div>
+
+      {/* Operations tiles — Maintenance + Inventory */}
+      <div className="grid grid-cols-2 gap-3">
+        <OpsTile href="/maintenance" emoji="🔧" label="Open Maintenance" count={openMaintenance} accent="#9F4000" />
+        <OpsTile href="/inventory" emoji="📦" label="Low-stock Items" count={lowStock} accent="#e2445c" />
       </div>
 
       {/* KPI strip */}
@@ -199,4 +211,39 @@ function Kpi({ label, value, color }: { label: string; value: number; color: str
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <div className="py-3 text-sm text-[#9699a6]">{children}</div>;
+}
+
+function OpsTile({
+  href,
+  emoji,
+  label,
+  count,
+  accent,
+}: {
+  href: string;
+  emoji: string;
+  label: string;
+  count: number;
+  accent: string;
+}) {
+  const active = count > 0;
+  return (
+    <Link
+      href={href}
+      className="m-card group flex items-center gap-3 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
+    >
+      <span
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xl"
+        style={{ backgroundColor: `${accent}1a` }}
+      >
+        {emoji}
+      </span>
+      <div className="min-w-0">
+        <div className="text-2xl font-extrabold" style={{ color: active ? accent : "#9699a6" }}>
+          {count}
+        </div>
+        <div className="truncate text-xs font-medium text-[#676879]">{label}</div>
+      </div>
+    </Link>
+  );
 }

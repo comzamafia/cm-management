@@ -27,6 +27,16 @@ export async function getMaintenanceRequests(filters: { status?: MaintenanceStat
   });
 }
 
+/** Count of non-closed requests in scope (for the dashboard tile). */
+export async function getOpenMaintenanceCount(): Promise<number> {
+  const user = await getCurrentUser();
+  if (!user) return 0;
+  const scope = await locationScopeWhere(user);
+  return prisma.maintenanceRequest.count({
+    where: { ...scope, status: { in: ["OPEN", "ACKNOWLEDGED", "IN_PROGRESS"] } },
+  });
+}
+
 export async function getMaintenanceDetail(id: string) {
   const user = await getCurrentUser();
   if (!user) return null;
