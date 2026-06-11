@@ -6,6 +6,7 @@ import { getTasks } from "@/lib/queries";
 import { STATUS_LABEL, formatDateTime } from "@/lib/labels";
 import { StatusBadge, PriorityBadge } from "@/components/Badge";
 import { TaskSearchBar } from "@/components/TaskSearchBar";
+import { DeleteTaskButton } from "@/components/DeleteTaskButton";
 
 const STATUS_FILTERS: (TaskStatus | "ALL")[] = [
   "ALL",
@@ -47,6 +48,7 @@ export default async function TasksPage({
   });
 
   const canCreate = isManager(user.role) || user.role === "SHIFT_LEAD";
+  const canManage = isManager(user.role);
   const qs = (s: string) => {
     const p = new URLSearchParams();
     if (s !== "ALL") p.set("status", s);
@@ -108,6 +110,7 @@ export default async function TasksPage({
               <th className="px-4 py-3">Priority</th>
               <th className="px-4 py-3">Due</th>
               <th className="px-4 py-3">Status</th>
+              {canManage && <th className="px-4 py-3 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-[#F0EBF0]">
@@ -132,11 +135,27 @@ export default async function TasksPage({
                 <td className="px-4 py-3"><PriorityBadge priority={t.priority} /></td>
                 <td className="px-4 py-3 text-[#726973]">{formatDateTime(t.dueAt)}</td>
                 <td className="px-4 py-3"><StatusBadge status={t.derivedStatus} /></td>
+                {canManage && (
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link
+                        href={`/tasks/${t.id}`}
+                        title="Open / edit"
+                        className="rounded-lg p-1.5 text-[#A19BA2] transition hover:bg-[#F0EBF0] hover:text-[#440E48]"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </Link>
+                      <DeleteTaskButton taskId={t.id} compact />
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-[#A19BA2]">
+                <td colSpan={canManage ? 7 : 6} className="px-4 py-12 text-center text-[#A19BA2]">
                   {q ? `No tasks matching "${q}".` : "No tasks match this filter."}
                 </td>
               </tr>

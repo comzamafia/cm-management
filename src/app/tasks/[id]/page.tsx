@@ -116,7 +116,7 @@ export default async function TaskDetailPage({
                 users={assignees as { id: string; name: string; role: string }[]}
                 categories={categories}
               />
-              <DeleteTaskButton taskId={task.id} />
+              <DeleteTaskButton taskId={task.id} redirectTo="/tasks" />
             </>
           )}
         </div>
