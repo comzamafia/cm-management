@@ -6,15 +6,7 @@ import { prisma } from "./prisma";
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
 import { getCurrentUser, isManager, scopedLocationIds } from "./auth";
-
-// Allowed status transitions (server-enforced). OVERDUE is derived, not a manual target.
-const TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  PENDING: ["IN_PROGRESS", "DONE"],
-  IN_PROGRESS: ["DONE", "PENDING"],
-  DONE: ["VERIFIED", "IN_PROGRESS"], // verify, or reopen/reject
-  VERIFIED: [], // terminal
-  OVERDUE: ["IN_PROGRESS", "DONE"],
-};
+import { canTransition, canVerify, deriveStatus, proofMissing } from "./rules";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -108,24 +100,18 @@ export async function changeTaskStatus(
   }
 
   // Effective current status: surface OVERDUE for validation if past due.
-  const effective: TaskStatus =
-    task.dueAt &&
-    task.dueAt.getTime() < Date.now() &&
-    task.status !== "DONE" &&
-    task.status !== "VERIFIED"
-      ? "OVERDUE"
-      : task.status;
+  const effective = deriveStatus(task.status, task.dueAt);
 
-  if (!TRANSITIONS[effective].includes(next)) {
+  if (!canTransition(effective, next)) {
     return { ok: false, error: `Cannot move from ${effective} to ${next}` };
   }
 
-  if (next === "VERIFIED" && !isManager(user.role)) {
+  if (next === "VERIFIED" && !canVerify(user.role)) {
     return { ok: false, error: "Only managers can verify tasks" };
   }
 
   const cleanPhotos = (photoUrls ?? []).map((u) => u.trim()).filter(Boolean);
-  if (next === "DONE" && task.proofRequired && cleanPhotos.length === 0) {
+  if (proofMissing(next, task.proofRequired, cleanPhotos.length)) {
     return { ok: false, error: "Photo proof is required to complete this task" };
   }
 

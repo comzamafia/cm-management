@@ -84,8 +84,5 @@ export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
   ANNOUNCEMENT: "text-[#0073ea]",
 };
 
-export function isOverdue(dueAt: Date | null, status: TaskStatus): boolean {
-  if (!dueAt) return false;
-  if (status === "DONE" || status === "VERIFIED") return false;
-  return dueAt.getTime() < Date.now();
-}
+// Re-exported from the single source of truth in ./rules.
+export { isOverdue, deriveStatus } from "./rules";
