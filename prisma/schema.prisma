@@ -118,6 +118,7 @@ model User {
   announcements          Announcement[]
   announcementReads      AnnouncementRead[]
   trainingMaterials      TrainingMaterial[]
+  comments               Comment[]
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -161,6 +162,7 @@ model Task {
   assigner    User             @relation("Assigner", fields: [assignerId], references: [id])
   attachments Attachment[]
   completions TaskCompletion[]
+  comments    Comment[]
 
   @@index([locationId, status])
   @@index([assigneeId, status])
@@ -290,6 +292,20 @@ model TrainingMaterial {
   location  Location? @relation(fields: [locationId], references: [id])
 
   @@index([locationId, category])
+}
+
+// Task discussion thread
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([taskId, createdAt])
 }
 
 // Immutable audit trail — heart of the system (Who / What / Where / When).

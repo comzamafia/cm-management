@@ -29,19 +29,18 @@ export const TYPE_LABEL: Record<TaskType, string> = {
   RECURRING: "Recurring",
 };
 
-// monday.com-style "labels" — solid color fills, white text.
 export const STATUS_STYLE: Record<TaskStatus, string> = {
-  PENDING: "bg-[#c4c4c4] text-white ring-black/5",
-  IN_PROGRESS: "bg-[#fdab3d] text-white ring-black/5",
-  DONE: "bg-[#00c875] text-white ring-black/5",
-  VERIFIED: "bg-[#a25ddc] text-white ring-black/5",
+  PENDING: "bg-[#A19BA2] text-white ring-black/5",
+  IN_PROGRESS: "bg-[#F4A626] text-white ring-black/5",
+  DONE: "bg-[#1DBA87] text-white ring-black/5",
+  VERIFIED: "bg-[#440E48] text-white ring-black/5",
   OVERDUE: "bg-[#e2445c] text-white ring-black/5",
 };
 
 export const PRIORITY_STYLE: Record<Priority, string> = {
-  LOW: "bg-[#c4c4c4] text-white ring-black/5",
-  MEDIUM: "bg-[#0073ea] text-white ring-black/5",
-  HIGH: "bg-[#fdab3d] text-white ring-black/5",
+  LOW: "bg-[#A19BA2] text-white ring-black/5",
+  MEDIUM: "bg-[#5B8DD9] text-white ring-black/5",
+  HIGH: "bg-[#F4A626] text-white ring-black/5",
   CRITICAL: "bg-[#e2445c] text-white ring-black/5",
 };
 
@@ -75,13 +74,13 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
 };
 
 export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
-  TASK_ASSIGNED: "text-blue-600",
-  TASK_NEAR_DUE: "text-amber-600",
-  TASK_OVERDUE: "text-red-600",
-  ESCALATION: "text-red-700",
-  CHECKLIST_GENERATED: "text-emerald-600",
-  DAILY_DIGEST: "text-slate-600",
-  ANNOUNCEMENT: "text-[#0073ea]",
+  TASK_ASSIGNED: "text-[#5B8DD9]",
+  TASK_NEAR_DUE: "text-[#F4A626]",
+  TASK_OVERDUE: "text-[#e2445c]",
+  ESCALATION: "text-[#9F4000]",
+  CHECKLIST_GENERATED: "text-[#1DBA87]",
+  DAILY_DIGEST: "text-[#726973]",
+  ANNOUNCEMENT: "text-[#440E48]",
 };
 
 // Re-exported from the single source of truth in ./rules.

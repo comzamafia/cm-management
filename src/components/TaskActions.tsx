@@ -5,7 +5,6 @@ import { TaskStatus } from "@prisma/client";
 import { changeTaskStatus } from "@/lib/tasks";
 import { PhotoUploader } from "./PhotoUploader";
 
-// Buttons offered per current (derived) status, mirroring server-side TRANSITIONS.
 const NEXT_ACTIONS: Record<TaskStatus, { to: TaskStatus; label: string }[]> = {
   PENDING: [
     { to: "IN_PROGRESS", label: "Start" },
@@ -51,7 +50,12 @@ export function TaskActions({
   }
 
   if (actions.length === 0) {
-    return <p className="text-sm text-slate-500">No further actions — this task is verified.</p>;
+    return (
+      <p className="flex items-center gap-2 text-sm font-medium text-[#1DBA87]">
+        <span className="inline-block h-2 w-2 rounded-full bg-[#1DBA87]" />
+        This task is verified — no further actions needed.
+      </p>
+    );
   }
 
   const showProof =
@@ -61,8 +65,8 @@ export function TaskActions({
     <div className="space-y-3">
       {showProof && (
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-600">
-            📷 Photo proof required to mark this done
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#726973]">
+            Photo proof required to mark done
           </label>
           <PhotoUploader value={photos} onChange={setPhotos} disabled={pending} />
         </div>
@@ -73,17 +77,21 @@ export function TaskActions({
             key={a.to}
             disabled={pending}
             onClick={() => run(a.to)}
-            className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
-              a.to === "DONE" || a.to === "VERIFIED"
-                ? "bg-emerald-600 text-white hover:bg-emerald-500"
-                : "bg-slate-200 text-slate-800 hover:bg-slate-300"
+            className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all disabled:opacity-50 ${
+              a.to === "VERIFIED"
+                ? "bg-[#440E48] text-white hover:bg-[#5a1260]"
+                : a.to === "DONE"
+                ? "bg-[#1DBA87] text-white hover:bg-[#18a377]"
+                : "bg-[#F0EBF0] text-[#440E48] hover:bg-[#E4DDE4]"
             }`}
           >
             {a.label}
           </button>
         ))}
       </div>
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+      {error && (
+        <p className="rounded-xl bg-[#FFF0EE] px-4 py-2.5 text-sm font-medium text-[#943B13]">{error}</p>
+      )}
     </div>
   );
 }

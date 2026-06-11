@@ -254,6 +254,62 @@ export async function quickAddTask(categoryId: string, title: string): Promise<A
   return { ok: true };
 }
 
+export async function editTask(input: {
+  id: string;
+  title: string;
+  description?: string;
+  priority: Priority;
+  assigneeId?: string;
+  categoryId?: string;
+  department?: string;
+  dueAt?: string | null;
+  proofRequired: boolean;
+}): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!isManager(user.role) && user.role !== "SHIFT_LEAD") {
+    return { ok: false, error: "Only managers/shift leads can edit tasks" };
+  }
+  if (!input.title.trim()) return { ok: false, error: "Title is required" };
+
+  const task = await prisma.task.findUnique({ where: { id: input.id } });
+  if (!task) return { ok: false, error: "Task not found" };
+
+  const scope = await scopedLocationIds(user);
+  if (scope !== null && !scope.includes(task.locationId)) {
+    return { ok: false, error: "Outside your location scope" };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({
+      where: { id: input.id },
+      data: {
+        title: input.title.trim(),
+        description: input.description?.trim() || null,
+        priority: input.priority,
+        assigneeId: input.assigneeId || null,
+        categoryId: input.categoryId || null,
+        department: input.department?.trim() || null,
+        dueAt: input.dueAt ? new Date(input.dueAt) : null,
+        proofRequired: input.proofRequired,
+      },
+    });
+    await logActivity(tx, {
+      userId: user.id,
+      action: "task.edited",
+      entity: "Task",
+      entityId: input.id,
+      locationId: task.locationId,
+      meta: { title: input.title.trim() },
+    });
+  });
+
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${input.id}`);
+  revalidatePath("/board");
+  return { ok: true };
+}
+
 /** Board: set or clear a task's due date. */
 export async function setTaskDue(taskId: string, dueAt: string | null): Promise<ActionResult> {
   const user = await getCurrentUser();
