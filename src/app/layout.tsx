@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import "./globals.css";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { auth } from "@/auth";
+import { getSession, clearSession } from "@/lib/session";
 import { ROLE_LABEL } from "@/lib/labels";
 import { Sidebar } from "@/components/Sidebar";
 import { NotificationBell, type NotificationItem } from "@/components/NotificationBell";
@@ -32,11 +32,15 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
   const user = await getCurrentUser();
 
-  if (session && !user) {
-    redirect("/access-denied");
+  // Valid session token but user deleted from DB — clear stale cookie
+  if (!user) {
+    const session = await getSession();
+    if (session) {
+      await clearSession();
+      redirect("/login");
+    }
   }
 
   const notifications: NotificationItem[] = user

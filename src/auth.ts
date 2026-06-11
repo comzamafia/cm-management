@@ -1,10 +1,5 @@
-import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
-
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [Google],
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
-});
+// NextAuth removed — authentication is now handled via cookie-based JWT.
+// See: src/lib/session.ts  (JWT helpers)
+//      src/app/api/auth/login/route.ts  (login)
+//      src/app/api/auth/logout/route.ts (logout)
+export {};

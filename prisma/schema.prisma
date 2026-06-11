@@ -95,14 +95,15 @@ model Location {
 }
 
 model User {
-  id         String     @id @default(cuid())
-  name       String
-  email      String     @unique
-  role       Role
-  locationId String?
-  phone      String?
-  status     UserStatus @default(ACTIVE)
-  createdAt  DateTime   @default(now())
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String?
+  role         Role
+  locationId   String?
+  phone        String?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
 
   location               Location?            @relation("UserLocation", fields: [locationId], references: [id])
   managesLocations       Location[]           @relation("LocationManager")

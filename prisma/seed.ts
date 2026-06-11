@@ -1,4 +1,5 @@
 import { PrismaClient, Role, Priority, TaskStatus, TaskType, AttachmentType, NotificationType } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -8,6 +9,8 @@ function daysFromNow(d: number): Date {
 
 async function main() {
   console.log("Resetting data…");
+  // Default password for all seeded users — change via People page after first login.
+  const defaultHash = await bcrypt.hash("chiangmai2024", 12);
   // Order matters for FK constraints.
   await prisma.notification.deleteMany();
   await prisma.activityLog.deleteMany();
@@ -32,28 +35,28 @@ async function main() {
 
   // --- Users ---
   const owner = await prisma.user.create({
-    data: { name: "Olivia Owner", email: "mrdamrongsakn.ca@gmail.com", role: Role.OWNER, phone: "555-0100" },
+    data: { name: "Olivia Owner", email: "mrdamrongsakn.ca@gmail.com", role: Role.OWNER, phone: "555-0100", passwordHash: defaultHash },
   });
   const area = await prisma.user.create({
-    data: { name: "Aaron Area", email: "area@cm.local", role: Role.AREA_MANAGER, phone: "555-0101" },
+    data: { name: "Aaron Area", email: "area@cm.local", role: Role.AREA_MANAGER, phone: "555-0101", passwordHash: defaultHash },
   });
   const mgrDowntown = await prisma.user.create({
-    data: { name: "Mia Manager", email: "mia@cm.local", role: Role.STORE_MANAGER, locationId: downtown.id, phone: "555-0102" },
+    data: { name: "Mia Manager", email: "mia@cm.local", role: Role.STORE_MANAGER, locationId: downtown.id, phone: "555-0102", passwordHash: defaultHash },
   });
   const mgrMiss = await prisma.user.create({
-    data: { name: "Marco Manager", email: "marco@cm.local", role: Role.STORE_MANAGER, locationId: mississauga.id, phone: "555-0103" },
+    data: { name: "Marco Manager", email: "marco@cm.local", role: Role.STORE_MANAGER, locationId: mississauga.id, phone: "555-0103", passwordHash: defaultHash },
   });
   const lead = await prisma.user.create({
-    data: { name: "Liam Lead", email: "liam@cm.local", role: Role.SHIFT_LEAD, locationId: downtown.id, phone: "555-0104" },
+    data: { name: "Liam Lead", email: "liam@cm.local", role: Role.SHIFT_LEAD, locationId: downtown.id, phone: "555-0104", passwordHash: defaultHash },
   });
   const emp1 = await prisma.user.create({
-    data: { name: "Emma Employee", email: "emma@cm.local", role: Role.EMPLOYEE, locationId: downtown.id, phone: "555-0105" },
+    data: { name: "Emma Employee", email: "emma@cm.local", role: Role.EMPLOYEE, locationId: downtown.id, phone: "555-0105", passwordHash: defaultHash },
   });
   const emp2 = await prisma.user.create({
-    data: { name: "Noah Employee", email: "noah@cm.local", role: Role.EMPLOYEE, locationId: mississauga.id, phone: "555-0106" },
+    data: { name: "Noah Employee", email: "noah@cm.local", role: Role.EMPLOYEE, locationId: mississauga.id, phone: "555-0106", passwordHash: defaultHash },
   });
   const hire = await prisma.user.create({
-    data: { name: "Nina NewHire", email: "nina@cm.local", role: Role.NEW_HIRE, locationId: downtown.id, phone: "555-0107" },
+    data: { name: "Nina NewHire", email: "nina@cm.local", role: Role.NEW_HIRE, locationId: downtown.id, phone: "555-0107", passwordHash: defaultHash },
   });
 
   // Assign location managers.

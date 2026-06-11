@@ -1,11 +1,14 @@
 "use client";
 
-import { signOut } from "next-auth/react";
-
 export function SignOutButton() {
+  async function handleSignOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
+
   return (
     <button
-      onClick={() => signOut({ callbackUrl: "/login" })}
+      onClick={handleSignOut}
       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white/50 transition-all hover:bg-white/10 hover:text-white/90"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

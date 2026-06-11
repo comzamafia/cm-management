@@ -1,19 +1,18 @@
-import { auth } from "@/auth";
+import { getSession } from "./session";
 import { Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { scopedLocationIdsFor } from "./rules";
 
-// Re-export the pure RBAC helpers so existing `@/lib/auth` imports keep working.
-// The logic itself lives in ./rules (unit-tested, no NextAuth/Prisma deps).
+// Re-export pure RBAC helpers — logic lives in ./rules (unit-tested, no DB deps).
 export { RANK, rankOf, atLeast, isManager } from "./rules";
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 export async function getCurrentUser() {
-  const session = await auth();
-  if (!session?.user?.email) return null;
+  const session = await getSession();
+  if (!session?.userId) return null;
   return prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: session.userId },
     include: { location: true },
   });
 }
