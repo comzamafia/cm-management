@@ -2,24 +2,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TaskStatus } from "@prisma/client";
-import { STATUS_LABEL } from "@/lib/labels";
+
+export type CalendarKind = "task" | "maintenance" | "checklist";
 
 export type CalendarItem = {
   id: string;
   title: string;
   dueAt: string; // ISO
-  status: TaskStatus;
-  locationName: string;
-  assigneeName: string | null;
+  color: string; // hex background
+  href: string;
+  kind: CalendarKind;
+  hint?: string; // tooltip suffix (e.g. status / assignee)
 };
 
-const STATUS_HEX: Record<TaskStatus, string> = {
-  PENDING: "#A19BA2",
-  IN_PROGRESS: "#F4A626",
-  DONE: "#1DBA87",
-  VERIFIED: "#440E48",
-  OVERDUE: "#e2445c",
+const KIND_ICON: Record<CalendarKind, string> = {
+  task: "",
+  maintenance: "🔧 ",
+  checklist: "📋 ",
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -34,7 +33,15 @@ function shiftMonth(month: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export function CalendarClient({ month, items }: { month: string; items: CalendarItem[] }) {
+export function CalendarClient({
+  month,
+  items,
+  legend,
+}: {
+  month: string;
+  items: CalendarItem[];
+  legend: { label: string; color: string }[];
+}) {
   const router = useRouter();
   const [year, month1] = month.split("-").map(Number);
   const monthIndex = month1 - 1;
@@ -107,12 +114,12 @@ export function CalendarClient({ month, items }: { month: string; items: Calenda
                     {dayItems.slice(0, 4).map((it) => (
                       <Link
                         key={it.id}
-                        href={`/tasks/${it.id}`}
-                        title={`${it.title} · ${STATUS_LABEL[it.status]}${it.assigneeName ? " · " + it.assigneeName : ""}`}
+                        href={it.href}
+                        title={`${KIND_ICON[it.kind]}${it.title}${it.hint ? " · " + it.hint : ""}`}
                         className="block truncate rounded px-1 py-0.5 text-[10px] font-semibold text-white hover:brightness-110"
-                        style={{ backgroundColor: STATUS_HEX[it.status] }}
+                        style={{ backgroundColor: it.color }}
                       >
-                        {it.title}
+                        {KIND_ICON[it.kind]}{it.title}
                       </Link>
                     ))}
                     {dayItems.length > 4 && (
@@ -127,13 +134,15 @@ export function CalendarClient({ month, items }: { month: string; items: Calenda
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-[#726973]">
-        {(Object.keys(STATUS_HEX) as TaskStatus[]).map((s) => (
-          <span key={s} className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_HEX[s] }} />
-            {STATUS_LABEL[s]}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#726973]">
+        {legend.map((l) => (
+          <span key={l.label} className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: l.color }} />
+            {l.label}
           </span>
         ))}
+        <span className="inline-flex items-center gap-1">🔧 Maintenance</span>
+        <span className="inline-flex items-center gap-1">📋 Checklist</span>
       </div>
     </div>
   );
