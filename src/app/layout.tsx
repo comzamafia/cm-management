@@ -67,6 +67,7 @@ export default async function RootLayout({
             <Sidebar
               user={{
                 name: user.name,
+                role: user.role,
                 roleLabel: ROLE_LABEL[user.role],
                 locationLabel,
               }}

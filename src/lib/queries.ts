@@ -85,6 +85,54 @@ export async function getTaskDetail(id: string, user: ScopeUser) {
   });
 }
 
+/** Personal work for the signed-in user: their assigned tasks + quick counts. */
+export async function getMyWork(user: { id: string }) {
+  const tasks = await prisma.task.findMany({
+    where: { assigneeId: user.id },
+    include: { location: { select: { name: true } } },
+  });
+
+  const withDerived = tasks.map((t) => ({
+    ...t,
+    derivedStatus: isOverdue(t.dueAt, t.status) ? ("OVERDUE" as TaskStatus) : t.status,
+  }));
+
+  // Actionable = not yet closed.
+  const open = withDerived.filter(
+    (t) => t.derivedStatus !== "DONE" && t.derivedStatus !== "VERIFIED",
+  );
+
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+  const endToday = new Date(startToday.getTime() + 86400000);
+  const dueToday = open.filter(
+    (t) => t.dueAt && t.dueAt >= startToday && t.dueAt < endToday,
+  ).length;
+
+  // Overdue first, then by soonest due date.
+  const rank = (s: TaskStatus) => (s === "OVERDUE" ? 0 : s === "IN_PROGRESS" ? 1 : 2);
+  const list = open
+    .sort((a, b) => {
+      const r = rank(a.derivedStatus) - rank(b.derivedStatus);
+      if (r !== 0) return r;
+      return (a.dueAt?.getTime() ?? Infinity) - (b.dueAt?.getTime() ?? Infinity);
+    })
+    .slice(0, 8);
+
+  return {
+    tasks: list,
+    counts: {
+      open: open.length,
+      overdue: open.filter((t) => t.derivedStatus === "OVERDUE").length,
+      inProgress: open.filter((t) => t.derivedStatus === "IN_PROGRESS").length,
+      dueToday,
+      doneThisCycle: withDerived.filter(
+        (t) => t.derivedStatus === "DONE" || t.derivedStatus === "VERIFIED",
+      ).length,
+    },
+  };
+}
+
 /** Company / scoped overview metrics for the dashboard. */
 export async function getDashboardData(user: ScopeUser) {
   const scope = await locationScopeWhere(user);

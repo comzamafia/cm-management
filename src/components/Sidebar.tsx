@@ -74,15 +74,24 @@ const I = {
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: number };
 
-const NAV_BASE: Omit<NavItem, "badge">[] = [
+// Role gating: each item lists the roles that may see it. `null` = everyone.
+// People / Checklists / Inventory / Projects are management tools and are
+// hidden from front-line staff (Employee / New Hire).
+const RANK: Record<string, number> = {
+  NEW_HIRE: 0, EMPLOYEE: 1, SHIFT_LEAD: 2, STORE_MANAGER: 3, AREA_MANAGER: 4, OWNER: 5,
+};
+
+type NavDef = Omit<NavItem, "badge"> & { minRank?: number };
+
+const NAV_BASE: NavDef[] = [
   { href: "/dashboard",     label: "Dashboard",        icon: I.dashboard },
-  { href: "/projects",      label: "Projects",          icon: I.projects },
   { href: "/tasks",         label: "Tasks",             icon: I.tasks },
   { href: "/calendar",      label: "Calendar",          icon: I.calendar },
-  { href: "/checklists",    label: "Checklists",        icon: I.checklists },
+  { href: "/projects",      label: "Projects",          icon: I.projects,      minRank: RANK.SHIFT_LEAD },
+  { href: "/checklists",    label: "Checklists",        icon: I.checklists,    minRank: RANK.SHIFT_LEAD },
   { href: "/maintenance",   label: "Maintenance",       icon: I.maintenance },
-  { href: "/inventory",     label: "Inventory",         icon: I.inventory },
-  { href: "/people",        label: "People",            icon: I.people },
+  { href: "/inventory",     label: "Inventory",         icon: I.inventory,     minRank: RANK.SHIFT_LEAD },
+  { href: "/people",        label: "People",            icon: I.people,        minRank: RANK.STORE_MANAGER },
   { href: "/announcements", label: "Announcements",     icon: I.announcements },
   { href: "/training",      label: "Training Hub",      icon: I.training },
   { href: "/notifications", label: "Notifications",     icon: I.notifications },
@@ -114,7 +123,7 @@ function Logo() {
   );
 }
 
-type SidebarUser = { name: string; roleLabel: string; locationLabel: string };
+type SidebarUser = { name: string; role: string; roleLabel: string; locationLabel: string };
 
 function NavList({
   pathname,
@@ -199,8 +208,13 @@ export function Sidebar({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const nav: NavItem[] = NAV_BASE.map((item) => ({
-    ...item,
+  const myRank = RANK[user.role] ?? 0;
+  const nav: NavItem[] = NAV_BASE.filter(
+    (item) => item.minRank == null || myRank >= item.minRank,
+  ).map((item) => ({
+    href: item.href,
+    label: item.label,
+    icon: item.icon,
     badge:
       item.href === "/notifications"
         ? unreadCount || undefined
