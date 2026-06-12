@@ -1,4 +1,4 @@
-import { PrismaClient, Role, Priority, TaskStatus, TaskType, AttachmentType, NotificationType } from "@prisma/client";
+import { PrismaClient, Role, Priority, ProjectStatus, TaskStatus, TaskType, AttachmentType, NotificationType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -18,6 +18,7 @@ async function main() {
   await prisma.taskCompletion.deleteMany();
   await prisma.attachment.deleteMany();
   await prisma.task.deleteMany();
+  await prisma.project.deleteMany();
   await prisma.checklistTemplate.deleteMany();
   await prisma.user.deleteMany();
   await prisma.location.deleteMany();
@@ -138,6 +139,75 @@ async function main() {
     await prisma.attachment.create({
       data: { taskId: sanitize.id, type: AttachmentType.SOP, url: "https://example.com/sop/restroom-sanitation.pdf" },
     });
+  }
+
+  // --- Projects (monday "Customer Projects" board) ---
+  type ProjectSeed = {
+    name: string;
+    client: string;
+    status: ProjectStatus;
+    priority: Priority;
+    color: string;
+    locationId: string;
+    ownerId: string;
+    budget: number;
+    startAt: Date;
+    dueAt: Date;
+  };
+  const projectSeeds: ProjectSeed[] = [
+    { name: "Patio Renovation",        client: "In-house",            status: "IN_PROGRESS", priority: "HIGH",     color: "#440E48", locationId: downtown.id,    ownerId: mgrDowntown.id, budget: 24000, startAt: daysFromNow(-14), dueAt: daysFromNow(20) },
+    { name: "New POS Rollout",         client: "SquareTech",          status: "IN_PROGRESS", priority: "CRITICAL", color: "#F4A626", locationId: mississauga.id, ownerId: mgrMiss.id,     budget: 12500, startAt: daysFromNow(-7),  dueAt: daysFromNow(7)  },
+    { name: "Summer Menu Launch",      client: "Marketing",           status: "NOT_STARTED", priority: "MEDIUM",   color: "#1DBA87", locationId: downtown.id,    ownerId: area.id,        budget: 8000,  startAt: daysFromNow(10),  dueAt: daysFromNow(45) },
+    { name: "Loyalty App Integration", client: "Bloom Loyalty",       status: "ON_HOLD",     priority: "MEDIUM",   color: "#5B8DD9", locationId: northYork.id,   ownerId: area.id,        budget: 18000, startAt: daysFromNow(-30), dueAt: daysFromNow(-2) },
+    { name: "Kitchen Equipment Upgrade", client: "ChefSupply Co.",    status: "COMPLETED",   priority: "HIGH",     color: "#9F4000", locationId: mississauga.id, ownerId: mgrMiss.id,     budget: 32000, startAt: daysFromNow(-60), dueAt: daysFromNow(-10) },
+  ];
+
+  let projPos = 0;
+  for (const ps of projectSeeds) {
+    const project = await prisma.project.create({
+      data: {
+        name: ps.name,
+        client: ps.client,
+        status: ps.status,
+        priority: ps.priority,
+        color: ps.color,
+        locationId: ps.locationId,
+        ownerId: ps.ownerId,
+        budget: ps.budget,
+        startAt: ps.startAt,
+        dueAt: ps.dueAt,
+        position: projPos++,
+        createdById: owner.id,
+      },
+    });
+    await prisma.activityLog.create({
+      data: { userId: owner.id, action: "project.created", entity: "Project", entityId: project.id, locationId: project.locationId, meta: { name: project.name, client: project.client } },
+    });
+
+    // Give each project a couple of tasks so progress bars aren't empty.
+    const taskStatuses: TaskStatus[] =
+      ps.status === "COMPLETED" ? ["VERIFIED", "DONE", "DONE"]
+      : ps.status === "IN_PROGRESS" ? ["DONE", "IN_PROGRESS", "PENDING"]
+      : ["PENDING", "PENDING"];
+    let i = 0;
+    for (const st of taskStatuses) {
+      await prisma.task.create({
+        data: {
+          title: `${ps.name} — milestone ${++i}`,
+          description: `Work item for the ${ps.name} project.`,
+          type: "ONE_OFF",
+          priority: ps.priority,
+          locationId: ps.locationId,
+          assigneeId: ps.ownerId,
+          assignerId: owner.id,
+          department: "Projects",
+          projectId: project.id,
+          dueAt: daysFromNow(i * 5 - 5),
+          status: st,
+          proofRequired: false,
+        },
+      });
+    }
   }
 
   // --- Checklist Templates ---

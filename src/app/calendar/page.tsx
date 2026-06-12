@@ -1,6 +1,6 @@
 import { getCurrentUser, locationScopeWhere, scopedLocationIds } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isOverdue, STATUS_LABEL } from "@/lib/labels";
+import { isOverdue, STATUS_LABEL, MAINTENANCE_STATUS_LABEL, FREQUENCY_LABEL } from "@/lib/labels";
 import { TaskStatus } from "@prisma/client";
 import { CalendarClient, type CalendarItem } from "@/components/CalendarClient";
 
@@ -52,7 +52,7 @@ export default async function CalendarPage({
     }),
     prisma.maintenanceRequest.findMany({
       where: { ...scope, status: { not: "CLOSED" }, createdAt: { gte: from, lt: to } },
-      select: { id: true, title: true, createdAt: true, priority: true },
+      select: { id: true, title: true, createdAt: true, priority: true, status: true, assignedTo: { select: { name: true } } },
     }),
     prisma.checklistTemplate.findMany({
       where: {
@@ -77,6 +77,8 @@ export default async function CalendarPage({
       href: `/tasks/${t.id}`,
       kind: "task",
       hint: STATUS_LABEL[status] + (t.assignee ? ` · ${t.assignee.name}` : ""),
+      statusLabel: STATUS_LABEL[status],
+      assigneeName: t.assignee?.name ?? null,
     });
   }
 
@@ -90,6 +92,8 @@ export default async function CalendarPage({
       href: `/maintenance/${r.id}`,
       kind: "maintenance",
       hint: `${r.priority} · reported`,
+      statusLabel: MAINTENANCE_STATUS_LABEL[r.status],
+      assigneeName: r.assignedTo?.name ?? null,
     });
   }
 
@@ -117,6 +121,8 @@ export default async function CalendarPage({
         href: "/checklists",
         kind: "checklist",
         hint: "recurring checklist",
+        statusLabel: `${FREQUENCY_LABEL[tpl.frequency]} checklist`,
+        assigneeName: null,
       });
     }
   }

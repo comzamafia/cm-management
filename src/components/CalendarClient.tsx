@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export type CalendarKind = "task" | "maintenance" | "checklist";
 
@@ -13,12 +14,20 @@ export type CalendarItem = {
   href: string;
   kind: CalendarKind;
   hint?: string; // tooltip suffix (e.g. status / assignee)
+  statusLabel?: string; // human status (e.g. "In Progress")
+  assigneeName?: string | null; // who is responsible
 };
 
 const KIND_ICON: Record<CalendarKind, string> = {
   task: "",
   maintenance: "🔧 ",
   checklist: "📋 ",
+};
+
+const KIND_LABEL: Record<CalendarKind, string> = {
+  task: "Task",
+  maintenance: "Maintenance",
+  checklist: "Checklist",
 };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -64,6 +73,18 @@ export function CalendarClient({
     }
   }
 
+  // Selected day for the detail panel. Defaults to today when viewing the
+  // current month; resets whenever the month changes.
+  const [selected, setSelected] = useState<number | null>(null);
+  useEffect(() => {
+    const t = new Date();
+    setSelected(
+      t.getFullYear() === year && t.getMonth() === monthIndex ? t.getDate() : null,
+    );
+  }, [month, year, monthIndex]);
+
+  const selectedItems = selected != null ? byDay.get(selected) ?? [] : [];
+
   const cells: (number | null)[] = [
     ...Array(firstWeekday).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
@@ -100,11 +121,15 @@ export function CalendarClient({
             {cells.map((d, i) => {
               if (d === null) return <div key={i} />;
               const dayItems = byDay.get(d) ?? [];
+              const isSelected = selected === d;
               return (
-                <div
+                <button
                   key={i}
-                  className={`min-h-[104px] rounded-lg border p-1.5 ${
-                    isToday(d) ? "border-[#440E48] bg-[#FAF6FA]" : "border-[#EEEAEE]"
+                  type="button"
+                  onClick={() => setSelected(d)}
+                  aria-pressed={isSelected}
+                  className={`min-h-[104px] rounded-lg border p-1.5 text-left transition-shadow hover:border-[#440E48] ${
+                    isSelected ? "border-[#440E48] ring-2 ring-[#440E48]/30" : isToday(d) ? "border-[#440E48] bg-[#FAF6FA]" : "border-[#EEEAEE]"
                   }`}
                 >
                   <div className={`mb-1 text-xs font-semibold ${isToday(d) ? "text-[#440E48]" : "text-[#726973]"}`}>
@@ -115,6 +140,7 @@ export function CalendarClient({
                       <Link
                         key={it.id}
                         href={it.href}
+                        onClick={(e) => e.stopPropagation()}
                         title={`${KIND_ICON[it.kind]}${it.title}${it.hint ? " · " + it.hint : ""}`}
                         className="block truncate rounded px-1 py-0.5 text-[10px] font-semibold text-white hover:brightness-110"
                         style={{ backgroundColor: it.color }}
@@ -123,15 +149,68 @@ export function CalendarClient({
                       </Link>
                     ))}
                     {dayItems.length > 4 && (
-                      <div className="text-[10px] text-[#A19BA2]">+{dayItems.length - 4} more</div>
+                      <div className="text-[10px] font-medium text-[#A19BA2]">+{dayItems.length - 4} more</div>
                     )}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         </div>
       </div>
+
+      {/* Day detail panel */}
+      {selected != null && (
+        <div className="m-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-[#140516]">
+              {new Date(year, monthIndex, selected).toLocaleDateString("en-US", {
+                weekday: "long", month: "long", day: "numeric",
+              })}
+            </h2>
+            <span className="rounded-full bg-[#f3eef3] px-2.5 py-0.5 text-xs font-semibold text-[#726973]">
+              {selectedItems.length} {selectedItems.length === 1 ? "item" : "items"}
+            </span>
+          </div>
+          {selectedItems.length === 0 ? (
+            <p className="py-4 text-center text-sm text-[#A19BA2]">Nothing scheduled this day.</p>
+          ) : (
+            <ul className="space-y-2">
+              {selectedItems.map((it) => (
+                <li key={it.id}>
+                  <Link
+                    href={it.href}
+                    className="flex items-start gap-3 rounded-lg border border-[#EEEAEE] p-3 transition-colors hover:bg-[#FAF6FA]"
+                  >
+                    <span className="mt-0.5 h-9 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: it.color }} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-[#140516]">
+                        {KIND_ICON[it.kind]}{it.title}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#726973]">
+                        <span className="font-medium text-[#A19BA2]">{KIND_LABEL[it.kind]}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                          {it.assigneeName ?? "Unassigned"}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          {new Date(it.dueAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    </div>
+                    {it.statusLabel && (
+                      <span className="shrink-0 self-center rounded-full px-2.5 py-1 text-xs font-semibold text-white" style={{ backgroundColor: it.color }}>
+                        {it.statusLabel}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#726973]">

@@ -57,8 +57,11 @@ export async function deleteAttachment(attachmentId: string): Promise<ActionResu
     include: { task: { select: { id: true, locationId: true } } },
   });
   if (!att) return { ok: false, error: "Attachment not found" };
+  // This action is for task attachments only; project files use removeProjectFile.
+  if (!att.task) return { ok: false, error: "Not a task attachment" };
+  const task = att.task;
   const scope = await scopedLocationIds(user);
-  if (scope !== null && !scope.includes(att.task.locationId)) return { ok: false, error: "Out of scope" };
+  if (scope !== null && !scope.includes(task.locationId)) return { ok: false, error: "Out of scope" };
 
   await prisma.$transaction(async (tx) => {
     await tx.attachment.delete({ where: { id: attachmentId } });
@@ -66,12 +69,12 @@ export async function deleteAttachment(attachmentId: string): Promise<ActionResu
       userId: user.id,
       action: "task.attachment_removed",
       entity: "Task",
-      entityId: att.task.id,
-      locationId: att.task.locationId,
+      entityId: task.id,
+      locationId: task.locationId,
       meta: { type: att.type },
     });
   });
 
-  revalidatePath(`/tasks/${att.task.id}`);
+  revalidatePath(`/tasks/${task.id}`);
   return { ok: true };
 }

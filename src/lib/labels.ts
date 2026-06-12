@@ -1,4 +1,4 @@
-import { Frequency, InventoryUnit, MaintenanceArea, MaintenanceStatus, NotificationType, Priority, Role, TaskStatus, TaskType } from "@prisma/client";
+import { Frequency, InventoryUnit, MaintenanceArea, MaintenanceStatus, NotificationType, Priority, ProjectStatus, Role, TaskStatus, TaskType } from "@prisma/client";
 
 export const ROLE_LABEL: Record<Role, string> = {
   OWNER: "Owner / Senior Management",
@@ -43,6 +43,42 @@ export const PRIORITY_STYLE: Record<Priority, string> = {
   HIGH: "bg-[#F4A626] text-white ring-black/5",
   CRITICAL: "bg-[#e2445c] text-white ring-black/5",
 };
+
+// ---- Projects (monday "Customer Projects" style) ----
+
+export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
+  NOT_STARTED: "Not Started",
+  IN_PROGRESS: "Working on it",
+  ON_HOLD: "Stuck",
+  COMPLETED: "Done",
+  CANCELLED: "Cancelled",
+};
+
+// Hex used inline for the monday-style colored status cells.
+export const PROJECT_STATUS_HEX: Record<ProjectStatus, string> = {
+  NOT_STARTED: "#A19BA2",
+  IN_PROGRESS: "#F4A626",
+  ON_HOLD: "#e2445c",
+  COMPLETED: "#1DBA87",
+  CANCELLED: "#726973",
+};
+
+export const PROJECT_STATUS_STYLE: Record<ProjectStatus, string> = {
+  NOT_STARTED: "bg-[#A19BA2] text-white ring-black/5",
+  IN_PROGRESS: "bg-[#F4A626] text-white ring-black/5",
+  ON_HOLD: "bg-[#e2445c] text-white ring-black/5",
+  COMPLETED: "bg-[#1DBA87] text-white ring-black/5",
+  CANCELLED: "bg-[#726973] text-white ring-black/5",
+};
+
+// Order projects are grouped/shown in on the board.
+export const PROJECT_STATUS_ORDER: ProjectStatus[] = [
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "ON_HOLD",
+  "COMPLETED",
+  "CANCELLED",
+];
 
 export function formatDateTime(d: Date | string | null | undefined): string {
   if (!d) return "—";

@@ -45,6 +45,16 @@ enum TaskStatus {
   OVERDUE
 }
 
+// Projects (monday.com "Customer Projects" style) — a project groups related tasks
+// for a client/initiative, with an owner, timeline, and budget.
+enum ProjectStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
 enum AttachmentType {
   PHOTO
   DOC
@@ -133,6 +143,7 @@ model Location {
   inventoryItems      InventoryItem[]
   inventoryCounts     InventoryCount[]
   maintenanceRequests MaintenanceRequest[]
+  projects            Project[]
 }
 
 model User {
@@ -165,6 +176,8 @@ model User {
   maintenanceReported   MaintenanceRequest[] @relation("MaintReporter")
   maintenanceAssigned   MaintenanceRequest[] @relation("MaintAssignee")
   maintenanceResolved   MaintenanceRequest[] @relation("MaintResolver")
+  projectsOwned         Project[]            @relation("ProjectOwner")
+  projectsCreated       Project[]            @relation("ProjectCreator")
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -183,6 +196,35 @@ model Category {
   @@index([position])
 }
 
+// A project groups related tasks for a client/initiative (monday "Customer Projects").
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  client      String? // customer / account name
+  status      ProjectStatus @default(NOT_STARTED)
+  priority    Priority      @default(MEDIUM)
+  color       String        @default("#440E48")
+  locationId  String
+  ownerId     String?
+  budget      Float? // planned budget in dollars
+  startAt     DateTime?
+  dueAt       DateTime?
+  position    Int           @default(0)
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  location    Location     @relation(fields: [locationId], references: [id])
+  owner       User?        @relation("ProjectOwner", fields: [ownerId], references: [id])
+  createdBy   User         @relation("ProjectCreator", fields: [createdById], references: [id])
+  tasks       Task[]
+  attachments Attachment[]
+
+  @@index([locationId, status])
+  @@index([status, position])
+}
+
 model Task {
   id            String     @id @default(cuid())
   title         String
@@ -194,6 +236,7 @@ model Task {
   assignerId    String
   department    String?
   categoryId    String?
+  projectId     String?
   position      Int        @default(0)
   amount        Float? // optional dollar value (e.g. cash-flow rows)
   dueAt         DateTime?
@@ -204,6 +247,7 @@ model Task {
 
   location    Location         @relation(fields: [locationId], references: [id])
   category    Category?        @relation(fields: [categoryId], references: [id])
+  project     Project?         @relation(fields: [projectId], references: [id])
   assignee    User?            @relation("Assignee", fields: [assigneeId], references: [id])
   assigner    User             @relation("Assigner", fields: [assignerId], references: [id])
   attachments Attachment[]
@@ -214,6 +258,7 @@ model Task {
   @@index([locationId, status])
   @@index([assigneeId, status])
   @@index([categoryId, position])
+  @@index([projectId, position])
 }
 
 model TaskCompletion {
@@ -233,12 +278,17 @@ model TaskCompletion {
 
 model Attachment {
   id        String         @id @default(cuid())
-  taskId    String
+  taskId    String?
+  projectId String?
   type      AttachmentType
   url       String
+  name      String?
   createdAt DateTime       @default(now())
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 // Phase 2: Recurring Checklists

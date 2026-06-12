@@ -19,6 +19,11 @@ const I = {
       <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
     </svg>
   ),
+  projects: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v3" /><path d="M2 13h20" /><rect x="2" y="7" width="20" height="13" rx="2" />
+    </svg>
+  ),
   tasks: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
@@ -71,6 +76,7 @@ type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: num
 
 const NAV_BASE: Omit<NavItem, "badge">[] = [
   { href: "/dashboard",     label: "Dashboard",        icon: I.dashboard },
+  { href: "/projects",      label: "Projects",          icon: I.projects },
   { href: "/tasks",         label: "Tasks",             icon: I.tasks },
   { href: "/calendar",      label: "Calendar",          icon: I.calendar },
   { href: "/checklists",    label: "Checklists",        icon: I.checklists },
