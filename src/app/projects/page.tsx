@@ -10,7 +10,7 @@ export default async function ProjectsPage() {
     return <div className="text-[#726973]">Sign in to view projects.</div>;
   }
 
-  const { rows, users, totals } = await getProjects(user);
+  const { rows, users, locations, totals } = await getProjects(user);
   const canEdit = isManager(user.role) || user.role === "SHIFT_LEAD";
 
   return (
@@ -30,7 +30,7 @@ export default async function ProjectsPage() {
         </span>
       </div>
 
-      <ProjectsView rows={rows} users={users} totals={totals} canEdit={canEdit} />
+      <ProjectsView rows={rows} users={users} locations={locations} totals={totals} canEdit={canEdit} />
     </div>
   );
 }

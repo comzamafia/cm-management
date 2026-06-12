@@ -8,7 +8,6 @@ import {
   assignProjectOwner,
   setProjectPriority,
   setProjectTimeline,
-  setProjectBudget,
   setProjectClient,
   renameProject,
   deleteProject,
@@ -44,6 +43,7 @@ const TASK_STATUS_HEX: Record<TaskStatus, string> = {
 const TASK_STATUS_OPTIONS: TaskStatus[] = ["PENDING", "IN_PROGRESS", "DONE", "VERIFIED"];
 
 type UserOpt = { id: string; name: string };
+type LocationOpt = { id: string; name: string };
 type Totals = {
   total: number;
   notStarted: number;
@@ -51,16 +51,12 @@ type Totals = {
   onHold: number;
   completed: number;
   cancelled: number;
-  budget: number;
+  overdue: number;
 };
 type ViewMode = "table" | "kanban" | "timeline" | "portfolio";
 type Action = () => Promise<{ ok: boolean; error?: string }>;
-type Filters = { q: string; ownerId: string; priority: string; status: string };
+type Filters = { q: string; ownerId: string; priority: string; status: string; locationId: string };
 
-function money(n: number | null | undefined): string {
-  if (n == null) return "—";
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-}
 function initials(name: string): string {
   return name.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
@@ -75,11 +71,13 @@ function fmtRange(start: string | null, due: string | null): string {
 export function ProjectsView({
   rows,
   users,
+  locations,
   totals,
   canEdit,
 }: {
   rows: ProjectRow[];
   users: UserOpt[];
+  locations: LocationOpt[];
   totals: Totals;
   canEdit: boolean;
 }) {
@@ -87,7 +85,8 @@ export function ProjectsView({
   const [, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("table");
-  const [filters, setFilters] = useState<Filters>({ q: "", ownerId: "", priority: "", status: "" });
+  const [filters, setFilters] = useState<Filters>({ q: "", ownerId: "", priority: "", status: "", locationId: "" });
+  const multiLoc = locations.length > 1;
 
   const run = (fn: Action) =>
     startTransition(async () => {
@@ -104,11 +103,12 @@ export function ProjectsView({
       if (filters.ownerId && r.ownerId !== filters.ownerId) return false;
       if (filters.priority && r.priority !== filters.priority) return false;
       if (filters.status && r.status !== filters.status) return false;
+      if (filters.locationId && r.locationId !== filters.locationId) return false;
       return true;
     });
   }, [rows, filters]);
 
-  const filterActive = filters.q || filters.ownerId || filters.priority || filters.status;
+  const filterActive = filters.q || filters.ownerId || filters.priority || filters.status || filters.locationId;
 
   return (
     <div className="space-y-6">
@@ -119,7 +119,7 @@ export function ProjectsView({
         <Kpi label="Working on it" value={totals.inProgress} color="#F4A626" />
         <Kpi label="Stuck" value={totals.onHold} color="#e2445c" />
         <Kpi label="Done" value={totals.completed} color="#1DBA87" />
-        <Kpi label="Total Budget" value={money(totals.budget)} color="#9F4000" />
+        <Kpi label="Overdue" value={totals.overdue} color="#9F4000" />
       </div>
 
       {err && (
@@ -139,6 +139,10 @@ export function ProjectsView({
             className="w-full rounded-lg border border-[#E4DDE4] bg-white py-2 pl-9 pr-3 text-sm text-[#140516] outline-none focus:border-[#440E48]"
           />
         </div>
+        {multiLoc && (
+          <FilterSelect value={filters.locationId} onChange={(v) => setFilters((f) => ({ ...f, locationId: v }))} label="Location"
+            options={locations.map((l) => ({ value: l.id, label: l.name }))} />
+        )}
         <FilterSelect value={filters.ownerId} onChange={(v) => setFilters((f) => ({ ...f, ownerId: v }))} label="Owner"
           options={users.map((u) => ({ value: u.id, label: u.name }))} />
         <FilterSelect value={filters.priority} onChange={(v) => setFilters((f) => ({ ...f, priority: v }))} label="Priority"
@@ -146,7 +150,7 @@ export function ProjectsView({
         <FilterSelect value={filters.status} onChange={(v) => setFilters((f) => ({ ...f, status: v }))} label="Status"
           options={PROJECT_STATUS_ORDER.map((s) => ({ value: s, label: PROJECT_STATUS_LABEL[s] }))} />
         {filterActive && (
-          <button onClick={() => setFilters({ q: "", ownerId: "", priority: "", status: "" })} className="m-btn-ghost">
+          <button onClick={() => setFilters({ q: "", ownerId: "", priority: "", status: "", locationId: "" })} className="m-btn-ghost">
             Clear
           </button>
         )}
@@ -178,10 +182,10 @@ export function ProjectsView({
         </button>
       </div>
 
-      {view === "table" && <TableView rows={filtered} users={users} canEdit={canEdit} run={run} />}
-      {view === "kanban" && <KanbanView rows={filtered} canEdit={canEdit} run={run} />}
+      {view === "table" && <TableView rows={filtered} users={users} canEdit={canEdit} run={run} showLocation={multiLoc} />}
+      {view === "kanban" && <KanbanView rows={filtered} canEdit={canEdit} run={run} showLocation={multiLoc} />}
       {view === "timeline" && <TimelineView rows={filtered} />}
-      {view === "portfolio" && <PortfolioView rows={filtered} totals={totals} />}
+      {view === "portfolio" && <PortfolioView rows={filtered} />}
     </div>
   );
 }
@@ -207,11 +211,13 @@ function TableView({
   users,
   canEdit,
   run,
+  showLocation,
 }: {
   rows: ProjectRow[];
   users: UserOpt[];
   canEdit: boolean;
   run: (fn: Action) => void;
+  showLocation: boolean;
 }) {
   return (
     <div className="space-y-5">
@@ -219,7 +225,7 @@ function TableView({
         const group = rows.filter((r) => r.status === status);
         if (group.length === 0 && status === "CANCELLED") return null;
         return (
-          <Group key={status} status={status} rows={group} users={users} canEdit={canEdit} run={run} />
+          <Group key={status} status={status} rows={group} users={users} canEdit={canEdit} run={run} showLocation={showLocation} />
         );
       })}
       {rows.length === 0 && (
@@ -237,18 +243,21 @@ function Group({
   users,
   canEdit,
   run,
+  showLocation,
 }: {
   status: ProjectStatus;
   rows: ProjectRow[];
   users: UserOpt[];
   canEdit: boolean;
   run: (fn: Action) => void;
+  showLocation: boolean;
 }) {
   const [open, setOpen] = useState(true);
   const [newName, setNewName] = useState("");
   const color = PROJECT_STATUS_HEX[status];
-  const budget = rows.reduce((s, r) => s + (r.budget ?? 0), 0);
-  const COLSPAN = canEdit ? 10 : 9;
+  const taskTotal = rows.reduce((s, r) => s + r.taskTotal, 0);
+  const taskDone = rows.reduce((s, r) => s + r.taskDone, 0);
+  const COLSPAN = canEdit ? 9 : 8;
 
   return (
     <section className="m-card overflow-hidden">
@@ -260,7 +269,7 @@ function Group({
         </button>
         <h2 className="text-base font-bold" style={{ color }}>{PROJECT_STATUS_LABEL[status]}</h2>
         <span className="rounded-full bg-[#f3eef3] px-2 py-0.5 text-xs font-semibold text-[#726973]">{rows.length}</span>
-        <span className="ml-auto text-xs font-bold text-[#726973]">{money(budget)}</span>
+        <span className="ml-auto text-xs font-bold text-[#726973]">{taskDone}/{taskTotal} tasks done</span>
       </div>
 
       {open && (
@@ -276,7 +285,6 @@ function Group({
                   <th className="px-4 py-2.5 w-40">Status</th>
                   <th className="px-4 py-2.5 w-28">Priority</th>
                   <th className="px-4 py-2.5 w-44">Timeline</th>
-                  <th className="px-4 py-2.5 w-24">Budget</th>
                   <th className="px-4 py-2.5 w-20">Files</th>
                   <th className="px-4 py-2.5 w-32">Progress</th>
                   {canEdit && <th className="px-2 py-2.5 w-8" />}
@@ -284,7 +292,7 @@ function Group({
               </thead>
               <tbody className="divide-y divide-[#f3eef3]">
                 {rows.map((p) => (
-                  <Row key={p.id} p={p} color={color} users={users} canEdit={canEdit} run={run} colSpan={COLSPAN} />
+                  <Row key={p.id} p={p} color={color} users={users} canEdit={canEdit} run={run} colSpan={COLSPAN} showLocation={showLocation} />
                 ))}
                 {rows.length === 0 && (
                   <tr><td colSpan={COLSPAN} className="px-4 py-4 text-sm text-[#A19BA2]">No projects here.</td></tr>
@@ -314,7 +322,7 @@ function Group({
           {/* Mobile cards */}
           <div className="divide-y divide-[#f3eef3] sm:hidden">
             {rows.map((p) => (
-              <ProjectCard key={p.id} p={p} color={color} users={users} canEdit={canEdit} run={run} />
+              <ProjectCard key={p.id} p={p} color={color} users={users} canEdit={canEdit} run={run} showLocation={showLocation} />
             ))}
             {rows.length === 0 && <p className="px-4 py-4 text-sm text-[#A19BA2]">No projects here.</p>}
             {canEdit && (
@@ -347,6 +355,7 @@ function Row({
   canEdit,
   run,
   colSpan,
+  showLocation,
 }: {
   p: ProjectRow;
   color: string;
@@ -354,6 +363,7 @@ function Row({
   canEdit: boolean;
   run: (fn: Action) => void;
   colSpan: number;
+  showLocation: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -372,6 +382,12 @@ function Row({
             </button>
             <span className="h-7 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
             <NameCell p={p} canEdit={canEdit} run={run} />
+            {showLocation && p.locationName && (
+              <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f0ebf0] px-1.5 py-0.5 text-[10px] font-semibold text-[#726973]" title="Location">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                {p.locationName}
+              </span>
+            )}
             {p.taskTotal > 0 && (
               <span className="ml-1 shrink-0 rounded-full bg-[#f3eef3] px-1.5 py-0.5 text-[10px] font-semibold text-[#726973]">{p.taskTotal}</span>
             )}
@@ -382,7 +398,6 @@ function Row({
         <td className="px-4 py-2.5"><StatusCell p={p} canEdit={canEdit} run={run} /></td>
         <td className="px-4 py-2.5"><PriorityCell p={p} canEdit={canEdit} run={run} /></td>
         <td className="px-4 py-2.5"><TimelineCell p={p} canEdit={canEdit} run={run} /></td>
-        <td className="px-4 py-2.5"><BudgetCell p={p} canEdit={canEdit} run={run} /></td>
         <td className="px-4 py-2.5"><FilesCell p={p} canEdit={canEdit} run={run} /></td>
         <td className="px-4 py-2.5"><ProgressCell p={p} /></td>
         {canEdit && (
@@ -663,24 +678,6 @@ function TimelineCell({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; ru
   );
 }
 
-function BudgetCell({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run: (fn: Action) => void }) {
-  if (!canEdit) return <span className="font-medium text-[#140516]">{money(p.budget)}</span>;
-  return (
-    <input
-      type="number"
-      min={0}
-      step={100}
-      defaultValue={p.budget ?? ""}
-      onBlur={(e) => {
-        const v = e.target.value === "" ? null : Number(e.target.value);
-        if (v !== p.budget) run(() => setProjectBudget(p.id, v));
-      }}
-      placeholder="—"
-      className="w-full rounded-md border border-[#E4DDE4] bg-white px-2 py-1.5 text-sm text-[#140516] outline-none hover:border-[#A19BA2] focus:border-[#440E48]"
-    />
-  );
-}
-
 function ProgressCell({ p }: { p: ProjectRow }) {
   return (
     <div className="flex items-center gap-2">
@@ -701,12 +698,14 @@ function ProjectCard({
   users,
   canEdit,
   run,
+  showLocation,
 }: {
   p: ProjectRow;
   color: string;
   users: UserOpt[];
   canEdit: boolean;
   run: (fn: Action) => void;
+  showLocation: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -715,20 +714,17 @@ function ProjectCard({
         <span className="mt-0.5 h-5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
         <div className="flex-1">
           <NameCell p={p} canEdit={canEdit} run={run} />
-          {p.client && <div className="text-xs text-[#A19BA2]">{p.client}</div>}
+          <div className="flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
+            {p.client && <span>{p.client}</span>}
+            {showLocation && p.locationName && <span>· 📍 {p.locationName}</span>}
+          </div>
         </div>
         <PriorityCell p={p} canEdit={canEdit} run={run} />
       </div>
       <StatusCell p={p} canEdit={canEdit} run={run} />
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#A19BA2]">Owner</div>
-          <OwnerCell p={p} users={users} canEdit={canEdit} run={run} />
-        </div>
-        <div>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#A19BA2]">Budget</div>
-          <BudgetCell p={p} canEdit={canEdit} run={run} />
-        </div>
+      <div>
+        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#A19BA2]">Owner</div>
+        <OwnerCell p={p} users={users} canEdit={canEdit} run={run} />
       </div>
       <div>
         <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[#A19BA2]">Timeline</div>
@@ -747,7 +743,7 @@ function ProjectCard({
 }
 
 /* ── Kanban by status ── */
-function KanbanView({ rows, canEdit, run }: { rows: ProjectRow[]; canEdit: boolean; run: (fn: Action) => void }) {
+function KanbanView({ rows, canEdit, run, showLocation }: { rows: ProjectRow[]; canEdit: boolean; run: (fn: Action) => void; showLocation: boolean }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {PROJECT_STATUS_ORDER.filter((s) => s !== "CANCELLED").map((status) => {
@@ -761,7 +757,7 @@ function KanbanView({ rows, canEdit, run }: { rows: ProjectRow[]; canEdit: boole
             </div>
             <div className="space-y-2.5">
               {items.map((p) => (
-                <KanbanCard key={p.id} p={p} canEdit={canEdit} run={run} />
+                <KanbanCard key={p.id} p={p} canEdit={canEdit} run={run} showLocation={showLocation} />
               ))}
               {items.length === 0 && (
                 <div className="rounded-lg border border-dashed border-[#D0CDD0] py-6 text-center text-xs text-[#A19BA2]">
@@ -776,11 +772,15 @@ function KanbanView({ rows, canEdit, run }: { rows: ProjectRow[]; canEdit: boole
   );
 }
 
-function KanbanCard({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run: (fn: Action) => void }) {
+function KanbanCard({ p, canEdit, run, showLocation }: { p: ProjectRow; canEdit: boolean; run: (fn: Action) => void; showLocation: boolean }) {
   return (
     <div className="rounded-lg bg-white p-3 shadow-sm" style={{ borderLeft: `4px solid ${p.color}` }}>
       <div className="mb-1 text-sm font-semibold text-[#140516]">{p.name}</div>
-      {p.client && <div className="mb-2 text-[11px] text-[#A19BA2]">{p.client}</div>}
+      {(p.client || (showLocation && p.locationName)) && (
+        <div className="mb-2 text-[11px] text-[#A19BA2]">
+          {[p.client, showLocation ? p.locationName : null].filter(Boolean).join(" · ")}
+        </div>
+      )}
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           {p.ownerName ? (
@@ -792,7 +792,7 @@ function KanbanCard({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run:
             {PRIORITY_LABEL[p.priority]}
           </span>
         </div>
-        <span className="text-xs font-bold text-[#726973]">{money(p.budget)}</span>
+        <span className="text-xs font-bold text-[#726973]">{p.taskDone}/{p.taskTotal}</span>
       </div>
       <ProgressCell p={p} />
       {canEdit && (
@@ -912,7 +912,7 @@ function monthTicks(start: Date, end: Date): { label: string; widthPct: number }
 }
 
 /* ── Portfolio (charts) ── */
-function PortfolioView({ rows, totals }: { rows: ProjectRow[]; totals: Totals }) {
+function PortfolioView({ rows }: { rows: ProjectRow[] }) {
   const statusData = useMemo(
     () =>
       PROJECT_STATUS_ORDER.map((s) => ({
@@ -922,11 +922,10 @@ function PortfolioView({ rows, totals }: { rows: ProjectRow[]; totals: Totals })
       })).filter((d) => d.value > 0),
     [rows],
   );
-  const byBudget = useMemo(
-    () => [...rows].filter((r) => (r.budget ?? 0) > 0).sort((a, b) => (b.budget ?? 0) - (a.budget ?? 0)).slice(0, 6),
+  const byProgress = useMemo(
+    () => [...rows].filter((r) => r.taskTotal > 0).sort((a, b) => b.progress - a.progress).slice(0, 6),
     [rows],
   );
-  const maxBudget = byBudget[0]?.budget ?? 0;
   const shownTotal = rows.length;
 
   return (
@@ -949,18 +948,18 @@ function PortfolioView({ rows, totals }: { rows: ProjectRow[]; totals: Totals })
       </div>
 
       <div className="m-card p-5">
-        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-[#726973]">Top budgets</h3>
+        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-[#726973]">Task progress by project</h3>
         <div className="space-y-3">
-          {byBudget.map((p) => (
+          {byProgress.map((p) => (
             <div key={p.id} className="flex items-center gap-3">
               <span className="w-40 truncate text-sm font-medium text-[#140516]">{p.name}</span>
               <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#eee]">
-                <div className="h-full rounded-full" style={{ width: `${maxBudget ? ((p.budget ?? 0) / maxBudget) * 100 : 0}%`, backgroundColor: p.color }} />
+                <div className="h-full rounded-full" style={{ width: `${p.progress}%`, backgroundColor: p.progress === 100 ? "#1DBA87" : p.color }} />
               </div>
-              <span className="w-20 text-right text-sm font-bold text-[#726973]">{money(p.budget)}</span>
+              <span className="w-16 text-right text-sm font-bold text-[#726973]">{p.taskDone}/{p.taskTotal}</span>
             </div>
           ))}
-          {byBudget.length === 0 && <p className="text-sm text-[#A19BA2]">No budgets set.</p>}
+          {byProgress.length === 0 && <p className="text-sm text-[#A19BA2]">No tasks in projects yet.</p>}
         </div>
       </div>
     </div>

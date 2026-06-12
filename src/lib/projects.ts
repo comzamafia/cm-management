@@ -17,12 +17,13 @@ type ScopeUser = { role: Role; locationId: string | null };
 export async function getProjects(user: ScopeUser) {
   const scope = await locationScopeWhere(user);
 
-  const [projects, users] = await Promise.all([
+  const [projects, users, locations] = await Promise.all([
     prisma.project.findMany({
       where: scope,
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
       include: {
         owner: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
         tasks: {
           orderBy: [{ position: "asc" }, { dueAt: "asc" }],
           select: {
@@ -45,6 +46,11 @@ export async function getProjects(user: ScopeUser) {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    prisma.location.findMany({
+      where: scope.locationId ? { id: scope.locationId } : {},
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const rows = projects.map((p) => {
@@ -62,6 +68,8 @@ export async function getProjects(user: ScopeUser) {
       color: p.color,
       ownerId: p.ownerId,
       ownerName: p.owner?.name ?? null,
+      locationId: p.locationId,
+      locationName: p.location?.name ?? null,
       budget: p.budget,
       startAt: p.startAt ? p.startAt.toISOString() : null,
       dueAt: p.dueAt ? p.dueAt.toISOString() : null,
@@ -96,10 +104,10 @@ export async function getProjects(user: ScopeUser) {
     onHold: rows.filter((r) => r.status === "ON_HOLD").length,
     completed: rows.filter((r) => r.status === "COMPLETED").length,
     cancelled: rows.filter((r) => r.status === "CANCELLED").length,
-    budget: rows.reduce((sum, r) => sum + (r.budget ?? 0), 0),
+    overdue: rows.filter((r) => r.overdue).length,
   };
 
-  return { rows, users, totals };
+  return { rows, users, locations, totals };
 }
 
 export type ProjectRow = Awaited<ReturnType<typeof getProjects>>["rows"][number];
