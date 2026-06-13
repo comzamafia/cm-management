@@ -208,7 +208,7 @@ async function ManagementOverview({ user }: { user: { role: import("@prisma/clie
           { href: "/dashboard/who",  emoji: "👤", label: "People",      desc: "On-time rates", color: "#440E48" },
           { href: "/dashboard/what", emoji: "📋", label: "Departments", desc: "By department", color: "#9F4000" },
           { href: "/dashboard/when", emoji: "📅", label: "Trends",      desc: "14-day trend", color: "#1DBA87" },
-          { href: "/projects",       emoji: "🗂️", label: "Projects",    desc: "Customer projects", color: "#F4A626" },
+          { href: "/projects",       emoji: "🗂️", label: "Projects",    desc: "Project board", color: "#F4A626" },
         ].map((d) => (
           <Link key={d.href} href={d.href} className="m-card group flex items-center gap-3 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xl" style={{ backgroundColor: `${d.color}1a` }}>{d.emoji}</span>

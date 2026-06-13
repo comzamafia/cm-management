@@ -17,7 +17,7 @@ export default async function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">Customer Projects</h1>
+          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">Projects</h1>
           <p className="mt-0.5 text-sm text-[#726973]">
             Track every client project — owner, timeline, budget, and status in one board.
           </p>
