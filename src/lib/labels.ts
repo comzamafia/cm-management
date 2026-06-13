@@ -1,4 +1,4 @@
-import { Frequency, InventoryUnit, MaintenanceArea, MaintenanceStatus, NotificationType, Priority, ProjectStatus, Role, TaskStatus, TaskType } from "@prisma/client";
+import { ComplianceCategory, ComplianceInterval, Frequency, InventoryUnit, MaintenanceArea, MaintenanceStatus, NotificationType, Priority, ProjectStatus, Role, TaskStatus, TaskType } from "@prisma/client";
 
 export const ROLE_LABEL: Record<Role, string> = {
   OWNER: "Owner / Senior Management",
@@ -112,6 +112,8 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   MAINTENANCE_ASSIGNED: "Maintenance Assigned",
   MAINTENANCE_RESOLVED: "Maintenance Resolved",
   MAINTENANCE_OVERDUE: "Maintenance Overdue",
+  COMPLIANCE_DUE_SOON: "Compliance Due Soon",
+  COMPLIANCE_OVERDUE: "Compliance Overdue",
 };
 
 export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
@@ -127,6 +129,8 @@ export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
   MAINTENANCE_ASSIGNED: "text-[#F4A626]",
   MAINTENANCE_RESOLVED: "text-[#1DBA87]",
   MAINTENANCE_OVERDUE: "text-[#e2445c]",
+  COMPLIANCE_DUE_SOON: "text-[#F4A626]",
+  COMPLIANCE_OVERDUE: "text-[#e2445c]",
 };
 
 // ---- Phase 5: Maintenance + Inventory ----
@@ -178,6 +182,78 @@ export const INVENTORY_UNIT_LABEL: Record<InventoryUnit, string> = {
   PACK: "pack",
   CASE: "case",
 };
+
+// ---- Compliance / preventive-maintenance schedules ----
+
+export const COMPLIANCE_CATEGORY_LABEL: Record<ComplianceCategory, string> = {
+  PEST_CONTROL: "Pest Control",
+  GREASE_TRAP: "Grease Trap",
+  HOOD_CLEANING: "Hood Cleaning",
+  FIRE_SAFETY: "Fire Safety",
+  HVAC: "HVAC / Air-con",
+  EQUIPMENT: "Equipment Service",
+  SANITATION: "Sanitation",
+  LICENSE_PERMIT: "License / Permit",
+  OTHER: "Other",
+};
+
+export const COMPLIANCE_INTERVAL_LABEL: Record<ComplianceInterval, string> = {
+  MONTHLY: "Monthly",
+  QUARTERLY: "Quarterly",
+  SEMI_ANNUAL: "Semi-annual",
+  ANNUAL: "Annual",
+};
+
+// Number of months each interval advances the next due date.
+export const COMPLIANCE_INTERVAL_MONTHS: Record<ComplianceInterval, number> = {
+  MONTHLY: 1,
+  QUARTERLY: 3,
+  SEMI_ANNUAL: 6,
+  ANNUAL: 12,
+};
+
+export type ComplianceStatus = "UPCOMING" | "DUE_SOON" | "OVERDUE";
+
+export const COMPLIANCE_STATUS_LABEL: Record<ComplianceStatus, string> = {
+  UPCOMING: "Upcoming",
+  DUE_SOON: "Due Soon",
+  OVERDUE: "Overdue",
+};
+
+export const COMPLIANCE_STATUS_HEX: Record<ComplianceStatus, string> = {
+  UPCOMING: "#1DBA87",
+  DUE_SOON: "#F4A626",
+  OVERDUE: "#e2445c",
+};
+
+/** Advance a date by N calendar months (keeps day-of-month where possible). */
+export function addMonths(date: Date, months: number): Date {
+  const d = new Date(date);
+  const targetMonth = d.getUTCMonth() + months;
+  const result = new Date(Date.UTC(d.getUTCFullYear(), targetMonth, 1, d.getUTCHours(), d.getUTCMinutes()));
+  // Clamp the day to the last day of the target month (e.g. Jan 31 + 1mo → Feb 28).
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(d.getUTCDate(), lastDay));
+  return result;
+}
+
+export function computeNextDue(lastServiceDate: Date, interval: ComplianceInterval): Date {
+  return addMonths(lastServiceDate, COMPLIANCE_INTERVAL_MONTHS[interval]);
+}
+
+/** Whole days from the start of today (UTC) until the due date. Negative = overdue. */
+export function complianceDaysUntil(nextDueDate: Date, now: Date = new Date()): number {
+  const startToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const due = Date.UTC(nextDueDate.getUTCFullYear(), nextDueDate.getUTCMonth(), nextDueDate.getUTCDate());
+  return Math.round((due - startToday) / 86400000);
+}
+
+export function deriveComplianceStatus(nextDueDate: Date, now: Date = new Date()): ComplianceStatus {
+  const days = complianceDaysUntil(nextDueDate, now);
+  if (days < 0) return "OVERDUE";
+  if (days <= 7) return "DUE_SOON";
+  return "UPCOMING";
+}
 
 // Re-exported from the single source of truth in ./rules.
 export { isOverdue, deriveStatus } from "./rules";

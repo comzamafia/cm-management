@@ -81,6 +81,8 @@ enum NotificationType {
   MAINTENANCE_ASSIGNED
   MAINTENANCE_RESOLVED
   MAINTENANCE_OVERDUE
+  COMPLIANCE_DUE_SOON
+  COMPLIANCE_OVERDUE
 }
 
 enum TrainingCategory {
@@ -125,6 +127,26 @@ enum MaintenanceArea {
   OTHER
 }
 
+// Recurring compliance / preventive-maintenance services (anniversary-based).
+enum ComplianceCategory {
+  PEST_CONTROL
+  GREASE_TRAP
+  HOOD_CLEANING
+  FIRE_SAFETY
+  HVAC
+  EQUIPMENT
+  SANITATION
+  LICENSE_PERMIT
+  OTHER
+}
+
+enum ComplianceInterval {
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
 model Location {
   id        String   @id @default(cuid())
   name      String
@@ -144,6 +166,7 @@ model Location {
   inventoryCounts     InventoryCount[]
   maintenanceRequests MaintenanceRequest[]
   projects            Project[]
+  complianceSchedules ComplianceSchedule[]
 }
 
 model User {
@@ -178,6 +201,8 @@ model User {
   maintenanceResolved   MaintenanceRequest[] @relation("MaintResolver")
   projectsOwned         Project[]            @relation("ProjectOwner")
   projectsCreated       Project[]            @relation("ProjectCreator")
+  complianceAssigned    ComplianceSchedule[] @relation("ComplianceAssignee")
+  complianceCreated     ComplianceSchedule[] @relation("ComplianceCreator")
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -237,6 +262,7 @@ model Task {
   department    String?
   categoryId    String?
   projectId     String?
+  complianceScheduleId String?
   position      Int        @default(0)
   amount        Float? // optional dollar value (e.g. cash-flow rows)
   dueAt         DateTime?
@@ -248,6 +274,8 @@ model Task {
   location    Location         @relation(fields: [locationId], references: [id])
   category    Category?        @relation(fields: [categoryId], references: [id])
   project     Project?         @relation(fields: [projectId], references: [id])
+  complianceSchedule ComplianceSchedule? @relation("ComplianceTasks", fields: [complianceScheduleId], references: [id])
+  currentOfSchedule  ComplianceSchedule? @relation("ComplianceCurrentTask")
   assignee    User?            @relation("Assignee", fields: [assigneeId], references: [id])
   assigner    User             @relation("Assigner", fields: [assignerId], references: [id])
   attachments Attachment[]
@@ -259,6 +287,7 @@ model Task {
   @@index([assigneeId, status])
   @@index([categoryId, position])
   @@index([projectId, position])
+  @@index([complianceScheduleId])
 }
 
 model TaskCompletion {
@@ -497,6 +526,41 @@ model MaintenanceRequest {
 
   @@index([locationId, status])
   @@index([assignedToId, status])
+}
+
+// Recurring compliance service schedule — spawns a Task each cycle and rolls the
+// next due date forward from the last completed service date (anniversary-based).
+model ComplianceSchedule {
+  id            String             @id @default(cuid())
+  name          String
+  category      ComplianceCategory @default(OTHER)
+  interval      ComplianceInterval @default(QUARTERLY)
+  locationId    String
+  assigneeId    String?
+  vendor        String?
+  vendorContact String?
+  priority      Priority           @default(HIGH)
+  estimatedCost Float?
+  lastCost      Float?
+  notes         String?
+  lastServiceDate DateTime
+  nextDueDate     DateTime
+  remindersSent Json               @default("[]") // day-thresholds already alerted this cycle
+  lastOverdueAlert DateTime?       // last overdue reminder, to throttle repeats
+  active        Boolean            @default(true)
+  currentTaskId String?            @unique
+  createdById   String
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  location    Location @relation(fields: [locationId], references: [id])
+  assignee    User?    @relation("ComplianceAssignee", fields: [assigneeId], references: [id])
+  createdBy   User     @relation("ComplianceCreator", fields: [createdById], references: [id])
+  currentTask Task?    @relation("ComplianceCurrentTask", fields: [currentTaskId], references: [id])
+  tasks       Task[]   @relation("ComplianceTasks")
+
+  @@index([locationId, active])
+  @@index([nextDueDate])
 }
 
 // Immutable audit trail — heart of the system (Who / What / Where / When).

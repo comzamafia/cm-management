@@ -7,6 +7,7 @@ import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
 import { getCurrentUser, isManager, scopedLocationIds } from "./auth";
 import { canTransition, canVerify, deriveStatus, proofMissing } from "./rules";
+import { rollScheduleOnTaskDone } from "./compliance";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -151,6 +152,11 @@ export async function changeTaskStatus(
       meta: { from: task.status, to: next, title: task.title, photos: cleanPhotos.length },
     });
   });
+
+  // If this task is the open cycle of a compliance schedule, roll it forward.
+  if ((next === "DONE" || next === "VERIFIED") && task.complianceScheduleId) {
+    await rollScheduleOnTaskDone(task.id, new Date(), user.id);
+  }
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);

@@ -1,4 +1,4 @@
-import { PrismaClient, Role, Priority, ProjectStatus, TaskStatus, TaskType, AttachmentType, NotificationType } from "@prisma/client";
+import { PrismaClient, Role, Priority, ProjectStatus, TaskStatus, TaskType, AttachmentType, NotificationType, ComplianceCategory, ComplianceInterval } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -18,6 +18,7 @@ async function main() {
   await prisma.taskCompletion.deleteMany();
   await prisma.attachment.deleteMany();
   await prisma.task.deleteMany();
+  await prisma.complianceSchedule.deleteMany();
   await prisma.project.deleteMany();
   await prisma.checklistTemplate.deleteMany();
   await prisma.user.deleteMany();
@@ -208,6 +209,56 @@ async function main() {
         },
       });
     }
+  }
+
+  // --- Compliance Schedules (recurring preventive maintenance) ---
+  function addMonths(date: Date, months: number): Date {
+    const d = new Date(date);
+    const day = d.getUTCDate();
+    d.setUTCMonth(d.getUTCMonth() + months, 1);
+    const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    d.setUTCDate(Math.min(day, lastDay));
+    return d;
+  }
+  const INTERVAL_MONTHS: Record<ComplianceInterval, number> = {
+    MONTHLY: 1, QUARTERLY: 3, SEMI_ANNUAL: 6, ANNUAL: 12,
+  };
+  type ComplianceSeed = {
+    name: string; category: ComplianceCategory; interval: ComplianceInterval;
+    locationId: string; assigneeId: string; vendor: string; vendorContact: string;
+    priority: Priority; estimatedCost: number; lastServiceDaysAgo: number;
+  };
+  const complianceSeeds: ComplianceSeed[] = [
+    { name: "Grease Trap Cleaning", category: "GREASE_TRAP", interval: "MONTHLY", locationId: mississauga.id, assigneeId: mgrMiss.id, vendor: "DrainPro Services", vendorContact: "416-555-0199", priority: "HIGH", estimatedCost: 250, lastServiceDaysAgo: 40 },
+    { name: "Pest Control Visit", category: "PEST_CONTROL", interval: "QUARTERLY", locationId: downtown.id, assigneeId: mgrDowntown.id, vendor: "PestAway Co.", vendorContact: "pestaway@example.com", priority: "HIGH", estimatedCost: 180, lastServiceDaysAgo: 85 },
+    { name: "Kitchen Hood Cleaning", category: "HOOD_CLEANING", interval: "SEMI_ANNUAL", locationId: downtown.id, assigneeId: lead.id, vendor: "HoodMasters", vendorContact: "647-555-0123", priority: "CRITICAL", estimatedCost: 600, lastServiceDaysAgo: 175 },
+    { name: "Fire Extinguisher Inspection", category: "FIRE_SAFETY", interval: "ANNUAL", locationId: mississauga.id, assigneeId: mgrMiss.id, vendor: "SafeGuard Fire", vendorContact: "905-555-0150", priority: "CRITICAL", estimatedCost: 320, lastServiceDaysAgo: 360 },
+  ];
+  for (const cs of complianceSeeds) {
+    const lastServiceDate = daysFromNow(-cs.lastServiceDaysAgo);
+    const nextDueDate = addMonths(lastServiceDate, INTERVAL_MONTHS[cs.interval]);
+    const schedule = await prisma.complianceSchedule.create({
+      data: {
+        name: cs.name, category: cs.category, interval: cs.interval,
+        locationId: cs.locationId, assigneeId: cs.assigneeId,
+        vendor: cs.vendor, vendorContact: cs.vendorContact,
+        priority: cs.priority, estimatedCost: cs.estimatedCost,
+        lastServiceDate, nextDueDate, createdById: owner.id,
+      },
+    });
+    const task = await prisma.task.create({
+      data: {
+        title: `[${cs.category}] ${cs.name}`,
+        description: `Recurring ${cs.interval.toLowerCase()} compliance service. Vendor: ${cs.vendor}.`,
+        type: "RECURRING", priority: cs.priority, locationId: cs.locationId,
+        assignerId: owner.id, assigneeId: cs.assigneeId, department: "Compliance",
+        complianceScheduleId: schedule.id, dueAt: nextDueDate, proofRequired: false,
+      },
+    });
+    await prisma.complianceSchedule.update({ where: { id: schedule.id }, data: { currentTaskId: task.id } });
+    await prisma.activityLog.create({
+      data: { userId: owner.id, action: "compliance.created", entity: "ComplianceSchedule", entityId: schedule.id, locationId: cs.locationId, meta: { name: cs.name } },
+    });
   }
 
   // --- Checklist Templates ---

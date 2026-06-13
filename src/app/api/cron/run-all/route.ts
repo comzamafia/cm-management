@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateDueChecklists } from "@/lib/checklists";
 import { runOverdueChecks } from "@/lib/overdue";
 import { runMaintenanceSla } from "@/lib/maintenance-sla";
+import { runComplianceReminders } from "@/lib/compliance";
 import { sendDailyDigest } from "@/lib/digest";
 import { checkCronAuth } from "@/lib/cron-auth";
 
@@ -28,7 +29,10 @@ export async function GET(req: Request) {
   // 3. Escalate maintenance requests that breached their priority SLA.
   const maintenance = await runMaintenanceSla(now);
 
-  // 4. Send the daily digest to owners / area managers.
+  // 4. Send multi-step advance + overdue reminders for compliance schedules.
+  const compliance = await runComplianceReminders(now);
+
+  // 5. Send the daily digest to owners / area managers.
   const digest = await sendDailyDigest();
 
   return NextResponse.json({
@@ -37,6 +41,7 @@ export async function GET(req: Request) {
     generated,
     overdue,
     maintenance,
+    compliance,
     digest: { sent: digest.sent, skipped: digest.skipped },
   });
 }
