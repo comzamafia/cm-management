@@ -133,6 +133,113 @@ export async function getMyWork(user: { id: string }) {
   };
 }
 
+/**
+ * Manager/Owner landing dashboard (mockup layout): today's operational tasks,
+ * weekly recurring planner, upcoming items, category counts, and today's
+ * completion count. All scoped to the user's locations. Read-only.
+ */
+export async function getManagerDashboard(user: { id: string; role: Role; locationId: string | null }) {
+  const scope = await locationScopeWhere(user);
+  const scopeIds = scope.locationId?.in ?? null; // null = all locations
+
+  const now = new Date();
+  const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
+  const endToday = new Date(startToday.getTime() + 86400000);
+  // Monday → Sunday of the current week (local).
+  const monday = new Date(startToday);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday); d.setDate(monday.getDate() + i); return d;
+  });
+  const weekEnd = new Date(weekDates[6]); weekEnd.setHours(23, 59, 59, 999);
+  const col = (d: Date) => (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+
+  const [completedToday, todayRaw, templates, weekTasks, upcomingRaw, categories] = await Promise.all([
+    prisma.taskCompletion.count({ where: { completedById: user.id, completedAt: { gte: startToday } } }),
+    // Today's operational tasks across scope: due today, still open.
+    prisma.task.findMany({
+      where: { ...scope, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: startToday, lt: endToday } },
+      include: { category: { select: { name: true, color: true } }, location: { select: { name: true } }, assignee: { select: { name: true } } },
+      orderBy: [{ priority: "desc" }, { dueAt: "asc" }],
+      take: 12,
+    }),
+    prisma.checklistTemplate.findMany({
+      where: {
+        active: true,
+        ...(scopeIds === null ? {} : { OR: [{ locationId: { in: scopeIds } }, { locationId: null }] }),
+      },
+      select: { id: true, name: true, frequency: true, weekDay: true, monthDay: true },
+      orderBy: { createdAt: "asc" },
+      take: 8,
+    }),
+    // One-off tasks scheduled within this week (for the "Scheduled" planner rows).
+    prisma.task.findMany({
+      where: { ...scope, type: "ONE_OFF", dueAt: { gte: monday, lte: weekEnd } },
+      select: { id: true, title: true, dueAt: true },
+      orderBy: { dueAt: "asc" },
+      take: 8,
+    }),
+    prisma.task.findMany({
+      where: { ...scope, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: endToday } },
+      include: { location: { select: { name: true } } },
+      orderBy: { dueAt: "asc" },
+      take: 6,
+    }),
+    prisma.category.findMany({
+      where: scopeIds === null ? {} : { OR: [{ locationId: { in: scopeIds } }, { locationId: null }] },
+      select: { id: true, name: true, color: true, _count: { select: { tasks: true } } },
+      orderBy: { position: "asc" },
+    }),
+  ]);
+
+  const todayTasks = todayRaw.map((t) => ({
+    id: t.id,
+    title: t.title,
+    status: isOverdue(t.dueAt, t.status) ? ("OVERDUE" as TaskStatus) : t.status,
+    priority: t.priority,
+    categoryName: t.category?.name ?? null,
+    categoryColor: t.category?.color ?? null,
+    locationName: t.location.name,
+    assigneeName: t.assignee?.name ?? null,
+    dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+    proofRequired: t.proofRequired,
+  }));
+
+  // Weekly planner rows from recurring templates + scheduled one-offs.
+  type Cadence = "DAILY" | "WEEKLY" | "SCHEDULED";
+  const plannerRows: { label: string; cadence: Cadence; days: number[] }[] = [];
+  for (const tpl of templates) {
+    if (tpl.frequency === "DAILY") {
+      plannerRows.push({ label: tpl.name, cadence: "DAILY", days: [0, 1, 2, 3, 4, 5, 6] });
+    } else if (tpl.frequency === "WEEKLY" && tpl.weekDay != null) {
+      plannerRows.push({ label: tpl.name, cadence: "WEEKLY", days: [(tpl.weekDay + 6) % 7] });
+    } else if (tpl.frequency === "MONTHLY" && tpl.monthDay != null) {
+      const hit = weekDates.find((d) => d.getDate() === tpl.monthDay);
+      if (hit) plannerRows.push({ label: tpl.name, cadence: "SCHEDULED", days: [col(hit)] });
+    }
+  }
+  for (const t of weekTasks) {
+    if (!t.dueAt) continue;
+    plannerRows.push({ label: t.title, cadence: "SCHEDULED", days: [col(new Date(t.dueAt))] });
+  }
+  const dayCounts = weekDates.map((_, i) => plannerRows.filter((r) => r.days.includes(i)).length);
+
+  const upcoming = upcomingRaw.map((t) => ({
+    id: t.id,
+    title: t.title,
+    locationName: t.location.name,
+    dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+  }));
+
+  return {
+    completedToday,
+    todayTasks,
+    planner: { weekDates: weekDates.map((d) => d.toISOString()), rows: plannerRows.slice(0, 12), dayCounts },
+    upcoming,
+    categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks })),
+  };
+}
+
 /** Company / scoped overview metrics for the dashboard. */
 export async function getDashboardData(user: ScopeUser) {
   const scope = await locationScopeWhere(user);
