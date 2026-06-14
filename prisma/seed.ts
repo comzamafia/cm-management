@@ -212,18 +212,6 @@ async function main() {
     }
   }
 
-  // --- Task Categories (board groups + dashboard "Task Categories" card) ---
-  await prisma.category.createMany({
-    data: [
-      { name: "Admin", color: "#5B8DD9", position: 0, createdById: owner.id },
-      { name: "Ordering", color: "#F4A626", position: 1, createdById: owner.id },
-      { name: "Guest Service", color: "#1DBA87", position: 2, createdById: owner.id },
-      { name: "Compliance", color: "#9F4000", position: 3, createdById: owner.id },
-      { name: "Uploads", color: "#A25DDC", position: 4, createdById: owner.id },
-      { name: "Weekly Admin", color: "#440E48", position: 5, createdById: owner.id },
-    ],
-  });
-
   // --- Compliance Schedules (recurring preventive maintenance) ---
   function addMonths(date: Date, months: number): Date {
     const d = new Date(date);

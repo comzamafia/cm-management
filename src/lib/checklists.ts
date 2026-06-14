@@ -50,6 +50,19 @@ export async function createChecklistTemplate(input: {
   return { ok: true };
 }
 
+/** Materialize today's due checklist tasks now (managers). Used by the dashboard. */
+export async function generateNow(): Promise<ActionResult & { tasksCreated?: number }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!isManager(user.role) && user.role !== "SHIFT_LEAD")
+    return { ok: false, error: "Managers only" };
+
+  const res = await generateDueChecklists(new Date(), true);
+  revalidatePath("/dashboard");
+  revalidatePath("/tasks");
+  return { ok: true, tasksCreated: res.tasksCreated };
+}
+
 export async function toggleTemplate(id: string): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in" };

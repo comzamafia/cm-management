@@ -154,12 +154,12 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
   const weekEnd = new Date(weekDates[6]); weekEnd.setHours(23, 59, 59, 999);
   const col = (d: Date) => (d.getDay() + 6) % 7; // Mon=0 … Sun=6
 
-  const [completedToday, todayRaw, templates, weekTasks, upcomingRaw, categories] = await Promise.all([
+  const [completedToday, todayRaw, templates, weekTasks, upcomingRaw, categories, genToday, users] = await Promise.all([
     prisma.taskCompletion.count({ where: { completedById: user.id, completedAt: { gte: startToday } } }),
     // Today's operational tasks across scope: due today, still open.
     prisma.task.findMany({
       where: { ...scope, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: startToday, lt: endToday } },
-      include: { category: { select: { name: true, color: true } }, location: { select: { name: true } }, assignee: { select: { name: true } } },
+      include: { category: { select: { name: true, color: true } }, location: { select: { name: true } }, assignee: { select: { id: true, name: true } } },
       orderBy: [{ priority: "desc" }, { dueAt: "asc" }],
       take: 12,
     }),
@@ -168,7 +168,7 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
         active: true,
         ...(scopeIds === null ? {} : { OR: [{ locationId: { in: scopeIds } }, { locationId: null }] }),
       },
-      select: { id: true, name: true, frequency: true, weekDay: true, monthDay: true },
+      select: { id: true, name: true, frequency: true, weekDay: true, monthDay: true, items: true },
       orderBy: { createdAt: "asc" },
       take: 8,
     }),
@@ -190,6 +190,15 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
       select: { id: true, name: true, color: true, _count: { select: { tasks: true } } },
       orderBy: { position: "asc" },
     }),
+    prisma.checklistGeneration.findMany({
+      where: { generatedAt: { gte: startToday } },
+      select: { templateId: true },
+    }),
+    prisma.user.findMany({
+      where: { ...scope, status: "ACTIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   const todayTasks = todayRaw.map((t) => ({
@@ -200,6 +209,7 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
     categoryName: t.category?.name ?? null,
     categoryColor: t.category?.color ?? null,
     locationName: t.location.name,
+    assigneeId: t.assignee?.id ?? null,
     assigneeName: t.assignee?.name ?? null,
     dueAt: t.dueAt ? t.dueAt.toISOString() : null,
     proofRequired: t.proofRequired,
@@ -231,12 +241,29 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
     dueAt: t.dueAt ? t.dueAt.toISOString() : null,
   }));
 
+  // Checklist items that *should* be done today but haven't been generated yet.
+  const genIds = new Set(genToday.map((g) => g.templateId));
+  const utcDay = now.getUTCDay();
+  const utcDate = now.getUTCDate();
+  const dueToday = (tpl: { frequency: string; weekDay: number | null; monthDay: number | null }) =>
+    tpl.frequency === "DAILY" ||
+    (tpl.frequency === "WEEKLY" && tpl.weekDay === utcDay) ||
+    (tpl.frequency === "MONTHLY" && tpl.monthDay === utcDate);
+  const pendingChecklists: { key: string; title: string; templateName: string }[] = [];
+  for (const tpl of templates) {
+    if (genIds.has(tpl.id) || !dueToday(tpl)) continue;
+    const items = (tpl.items as string[]) ?? [];
+    items.forEach((item, i) => pendingChecklists.push({ key: `${tpl.id}-${i}`, title: item, templateName: tpl.name }));
+  }
+
   return {
     completedToday,
     todayTasks,
+    pendingChecklists: pendingChecklists.slice(0, 8),
     planner: { weekDates: weekDates.map((d) => d.toISOString()), rows: plannerRows.slice(0, 12), dayCounts },
     upcoming,
     categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks })),
+    users,
   };
 }
 
