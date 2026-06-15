@@ -101,6 +101,15 @@ export function NotificationBell({
                         View
                       </Link>
                     )}
+                    {n.entityType === "Message" && (
+                      <Link
+                        href="/channels"
+                        onClick={() => { setOpen(false); if (!n.read) handleMarkOne(n.id); }}
+                        className="text-xs text-blue-400 hover:underline"
+                      >
+                        View
+                      </Link>
+                    )}
                     {!n.read && (
                       <button
                         onClick={() => handleMarkOne(n.id)}

@@ -83,6 +83,7 @@ enum NotificationType {
   MAINTENANCE_OVERDUE
   COMPLIANCE_DUE_SOON
   COMPLIANCE_OVERDUE
+  MENTION
 }
 
 enum TrainingCategory {
@@ -167,6 +168,7 @@ model Location {
   maintenanceRequests MaintenanceRequest[]
   projects            Project[]
   complianceSchedules ComplianceSchedule[]
+  messages            Message[]
 }
 
 model User {
@@ -204,6 +206,7 @@ model User {
   projectsCreated       Project[]            @relation("ProjectCreator")
   complianceAssigned    ComplianceSchedule[] @relation("ComplianceAssignee")
   complianceCreated     ComplianceSchedule[] @relation("ComplianceCreator")
+  messages              Message[]
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -569,6 +572,22 @@ model ComplianceSchedule {
 
   @@index([locationId, active])
   @@index([nextDueDate])
+}
+
+// Branch discussion channel message. locationId null = company-wide channel.
+// Replaces scattered WhatsApp groups with one accountable, searchable place.
+model Message {
+  id         String   @id @default(cuid())
+  locationId String?
+  userId     String
+  body       String
+  mentions   Json     @default("[]") // userId[] @-mentioned in this message
+  createdAt  DateTime @default(now())
+
+  location Location? @relation(fields: [locationId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+
+  @@index([locationId, createdAt])
 }
 
 // Immutable audit trail — heart of the system (Who / What / Where / When).
