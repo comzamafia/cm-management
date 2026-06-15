@@ -144,14 +144,18 @@ export async function generateDueChecklists(
 
       await prisma.$transaction(async (tx) => {
         for (const item of items) {
+          // Single-task templates (name === item) don't need the "[name]" prefix.
+          const title = item === tpl.name ? item : `[${tpl.name}] ${item}`;
           const task = await tx.task.create({
             data: {
-              title: `[${tpl.name}] ${item}`,
+              title,
               description: `Auto-generated from checklist template "${tpl.name}"`,
               type: "RECURRING",
               priority: tpl.priority,
               locationId: loc.id,
               assignerId,
+              assigneeId: tpl.assigneeId ?? null,
+              categoryId: tpl.categoryId ?? null,
               department: tpl.department,
               dueAt,
               proofRequired: tpl.proofRequired,

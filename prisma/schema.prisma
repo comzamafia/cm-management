@@ -188,7 +188,8 @@ model User {
   verifications         TaskCompletion[]     @relation("VerifiedBy")
   activityLog           ActivityLog[]
   notifications         Notification[]
-  checklistsCreated     ChecklistTemplate[]
+  checklistsCreated     ChecklistTemplate[]  @relation("ChecklistCreator")
+  checklistsAssigned    ChecklistTemplate[]  @relation("ChecklistAssignee")
   categoriesCreated     Category[]
   announcements         Announcement[]
   announcementReads     AnnouncementRead[]
@@ -217,6 +218,7 @@ model Category {
 
   createdBy User   @relation(fields: [createdById], references: [id])
   tasks     Task[]
+  checklistTemplates ChecklistTemplate[]
 
   @@index([position])
 }
@@ -334,12 +336,18 @@ model ChecklistTemplate {
   department       String?
   proofRequired    Boolean   @default(false)
   active           Boolean   @default(true)
+  assigneeId       String? // default owner for generated tasks (null = unassigned)
+  categoryId       String? // tag generated tasks with this board category
   createdById      String
   createdAt        DateTime  @default(now())
 
   location    Location?             @relation(fields: [locationId], references: [id])
-  createdBy   User                  @relation(fields: [createdById], references: [id])
+  createdBy   User                  @relation("ChecklistCreator", fields: [createdById], references: [id])
+  assignee    User?                 @relation("ChecklistAssignee", fields: [assigneeId], references: [id])
+  category    Category?             @relation(fields: [categoryId], references: [id])
   generations ChecklistGeneration[]
+
+  @@index([assigneeId])
 }
 
 // Tracks each time a template was run, preventing duplicate daily generates.

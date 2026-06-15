@@ -170,7 +170,7 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
       },
       select: { id: true, name: true, frequency: true, weekDay: true, monthDay: true, items: true },
       orderBy: { createdAt: "asc" },
-      take: 8,
+      take: 80,
     }),
     // One-off tasks scheduled within this week (for the "Scheduled" planner rows).
     prisma.task.findMany({
@@ -216,22 +216,30 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
   }));
 
   // Weekly planner rows from recurring templates + scheduled one-offs.
+  // Group by label so a task that recurs on several weekdays is a single row.
   type Cadence = "DAILY" | "WEEKLY" | "SCHEDULED";
-  const plannerRows: { label: string; cadence: Cadence; days: number[] }[] = [];
+  const plannerMap = new Map<string, { label: string; cadence: Cadence; days: Set<number> }>();
+  const addPlanner = (label: string, cadence: Cadence, days: number[]) => {
+    const row = plannerMap.get(label) ?? { label, cadence, days: new Set<number>() };
+    days.forEach((d) => row.days.add(d));
+    // Promote toward the most "recurring" cadence colour.
+    if (cadence === "DAILY" || row.days.size === 7) row.cadence = "DAILY";
+    else if (cadence === "WEEKLY" && row.cadence !== "DAILY") row.cadence = "WEEKLY";
+    plannerMap.set(label, row);
+  };
   for (const tpl of templates) {
-    if (tpl.frequency === "DAILY") {
-      plannerRows.push({ label: tpl.name, cadence: "DAILY", days: [0, 1, 2, 3, 4, 5, 6] });
-    } else if (tpl.frequency === "WEEKLY" && tpl.weekDay != null) {
-      plannerRows.push({ label: tpl.name, cadence: "WEEKLY", days: [(tpl.weekDay + 6) % 7] });
-    } else if (tpl.frequency === "MONTHLY" && tpl.monthDay != null) {
+    if (tpl.frequency === "DAILY") addPlanner(tpl.name, "DAILY", [0, 1, 2, 3, 4, 5, 6]);
+    else if (tpl.frequency === "WEEKLY" && tpl.weekDay != null) addPlanner(tpl.name, "WEEKLY", [(tpl.weekDay + 6) % 7]);
+    else if (tpl.frequency === "MONTHLY" && tpl.monthDay != null) {
       const hit = weekDates.find((d) => d.getDate() === tpl.monthDay);
-      if (hit) plannerRows.push({ label: tpl.name, cadence: "SCHEDULED", days: [col(hit)] });
+      if (hit) addPlanner(tpl.name, "SCHEDULED", [col(hit)]);
     }
   }
   for (const t of weekTasks) {
     if (!t.dueAt) continue;
-    plannerRows.push({ label: t.title, cadence: "SCHEDULED", days: [col(new Date(t.dueAt))] });
+    addPlanner(t.title, "SCHEDULED", [col(new Date(t.dueAt))]);
   }
+  const plannerRows = [...plannerMap.values()].map((r) => ({ label: r.label, cadence: r.cadence, days: [...r.days].sort() }));
   const dayCounts = weekDates.map((_, i) => plannerRows.filter((r) => r.days.includes(i)).length);
 
   const upcoming = upcomingRaw.map((t) => ({
@@ -260,7 +268,7 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
     completedToday,
     todayTasks,
     pendingChecklists: pendingChecklists.slice(0, 8),
-    planner: { weekDates: weekDates.map((d) => d.toISOString()), rows: plannerRows.slice(0, 12), dayCounts },
+    planner: { weekDates: weekDates.map((d) => d.toISOString()), rows: plannerRows.slice(0, 20), dayCounts },
     upcoming,
     categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks })),
     users,
