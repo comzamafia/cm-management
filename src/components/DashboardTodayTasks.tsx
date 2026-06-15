@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Priority, TaskStatus } from "@prisma/client";
 import { changeTaskStatus, assignTask } from "@/lib/tasks";
 import { generateNow } from "@/lib/checklists";
-import { PRIORITY_LABEL, PRIORITY_STYLE } from "@/lib/labels";
+import { PRIORITY_LABEL, PRIORITY_STYLE, STATUS_LABEL, STATUS_STYLE } from "@/lib/labels";
 
 export type TodayTask = {
   id: string;
@@ -24,15 +24,6 @@ export type TodayTask = {
 export type PendingChecklist = { key: string; title: string; templateName: string };
 type UserOpt = { id: string; name: string };
 
-function dueLabel(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  const t = new Date(); t.setHours(0, 0, 0, 0);
-  const days = Math.floor((d.setHours(0, 0, 0, 0) - t.getTime()) / 86400000);
-  if (days === 0) return "Today";
-  if (days < 0) return `${-days}d late`;
-  return new Date(iso).toLocaleDateString("en-US", { weekday: "short" });
-}
 function initials(name: string) {
   return name.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
@@ -88,7 +79,7 @@ export function DashboardTodayTasks({
               <th className="px-5 py-2">Task</th>
               <th className="px-3 py-2 w-28">Category</th>
               <th className="px-3 py-2 w-40">Owner</th>
-              <th className="px-3 py-2 w-20">Due</th>
+              <th className="px-3 py-2 w-28">Status</th>
               <th className="px-3 py-2 w-24">Priority</th>
             </tr>
           </thead>
@@ -127,7 +118,7 @@ export function DashboardTodayTasks({
                   )}
                 </td>
                 <td className="px-3 py-2.5">
-                  <span className={`text-xs font-medium ${dueLabel(t.dueAt).endsWith("late") ? "text-[#e2445c]" : "text-[#726973]"}`}>{dueLabel(t.dueAt)}</span>
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${STATUS_STYLE[t.status]}`}>{STATUS_LABEL[t.status]}</span>
                 </td>
                 <td className="px-3 py-2.5">
                   <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${PRIORITY_STYLE[t.priority]}`}>{PRIORITY_LABEL[t.priority]}</span>
@@ -146,8 +137,8 @@ export function DashboardTodayTasks({
                 </td>
                 <td className="px-3 py-2.5"><span className="inline-flex rounded-md bg-[#5B8DD91a] px-2 py-0.5 text-[11px] font-semibold text-[#5B8DD9]">Checklist</span></td>
                 <td className="px-3 py-2.5 text-xs text-[#A19BA2]" title={p.templateName}>{p.templateName}</td>
-                <td className="px-3 py-2.5"><span className="text-xs font-medium text-[#726973]">Today</span></td>
-                <td className="px-3 py-2.5"><span className="text-[11px] italic text-[#A19BA2]">not started</span></td>
+                <td className="px-3 py-2.5"><span className="text-[11px] italic text-[#A19BA2]">Not started</span></td>
+                <td className="px-3 py-2.5 text-[#C9C4C9]">—</td>
               </tr>
             ))}
 
