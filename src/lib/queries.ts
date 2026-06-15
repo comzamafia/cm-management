@@ -136,7 +136,8 @@ export async function getMyWork(user: { id: string }) {
 /**
  * Manager/Owner landing dashboard (mockup layout): today's operational tasks,
  * weekly recurring planner, upcoming items, category counts, and today's
- * completion count. All scoped to the user's locations. Read-only.
+ * completion count. Personal — shows only the signed-in user's own tasks
+ * (cross-team task visibility lives in /tasks). Read-only.
  */
 export async function getManagerDashboard(user: { id: string; role: Role; locationId: string | null }) {
   const scope = await locationScopeWhere(user);
@@ -154,50 +155,69 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
   const weekEnd = new Date(weekDates[6]); weekEnd.setHours(23, 59, 59, 999);
   const col = (d: Date) => (d.getDay() + 6) % 7; // Mon=0 … Sun=6
 
-  const [completedToday, todayRaw, templates, weekTasks, upcomingRaw, categories, genToday, users] = await Promise.all([
+  // The landing dashboard is PERSONAL: every task widget shows only the
+  // signed-in user's own work. Cross-team task visibility lives in /tasks.
+  const mine = { assigneeId: user.id };
+  const [completedToday, todayRaw, templates, weekTasks, upcomingRaw, overdueRaw, categories, myCatCounts, genToday, users, activity] = await Promise.all([
     prisma.taskCompletion.count({ where: { completedById: user.id, completedAt: { gte: startToday } } }),
-    // Today's operational tasks across scope: due today, still open.
+    // My tasks due today, still open.
     prisma.task.findMany({
-      where: { ...scope, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: startToday, lt: endToday } },
+      where: { ...mine, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: startToday, lt: endToday } },
       include: { category: { select: { name: true, color: true } }, location: { select: { name: true } }, assignee: { select: { id: true, name: true } } },
       orderBy: [{ priority: "desc" }, { dueAt: "asc" }],
       take: 12,
     }),
+    // Recurring templates assigned to me (planner + pending-today).
     prisma.checklistTemplate.findMany({
-      where: {
-        active: true,
-        ...(scopeIds === null ? {} : { OR: [{ locationId: { in: scopeIds } }, { locationId: null }] }),
-      },
+      where: { active: true, assigneeId: user.id },
       select: { id: true, name: true, frequency: true, weekDay: true, monthDay: true, items: true },
       orderBy: { createdAt: "asc" },
       take: 80,
     }),
-    // One-off tasks scheduled within this week (for the "Scheduled" planner rows).
+    // My one-off tasks scheduled within this week (for the "Scheduled" planner rows).
     prisma.task.findMany({
-      where: { ...scope, type: "ONE_OFF", dueAt: { gte: monday, lte: weekEnd } },
+      where: { ...mine, type: "ONE_OFF", dueAt: { gte: monday, lte: weekEnd } },
       select: { id: true, title: true, dueAt: true },
       orderBy: { dueAt: "asc" },
       take: 8,
     }),
+    // My upcoming tasks.
     prisma.task.findMany({
-      where: { ...scope, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: endToday } },
+      where: { ...mine, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: endToday } },
       include: { location: { select: { name: true } } },
       orderBy: { dueAt: "asc" },
       take: 6,
     }),
+    // My overdue tasks.
+    prisma.task.findMany({
+      where: { ...mine, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { lt: startToday } },
+      include: { location: { select: { name: true } } },
+      orderBy: { dueAt: "asc" },
+      take: 6,
+    }),
+    // Category names/colours in scope (counts below are MY tasks only).
     prisma.category.findMany({
       where: scopeIds === null ? {} : { OR: [{ locationId: { in: scopeIds } }, { locationId: null }] },
-      select: { id: true, name: true, color: true, _count: { select: { tasks: true } } },
+      select: { id: true, name: true, color: true },
       orderBy: { position: "asc" },
     }),
+    prisma.task.groupBy({ by: ["categoryId"], where: { assigneeId: user.id, categoryId: { not: null } }, _count: { _all: true } }),
     prisma.checklistGeneration.findMany({
       where: { generatedAt: { gte: startToday } },
       select: { templateId: true },
     }),
+    // Assignable teammates (for the inline assign control) — scoped, not "my data".
     prisma.user.findMany({
       where: { ...scope, status: "ACTIVE" },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
+    }),
+    // My recent activity.
+    prisma.activityLog.findMany({
+      where: { userId: user.id },
+      include: { user: { select: { name: true } }, location: { select: { name: true } } },
+      orderBy: { timestamp: "desc" },
+      take: 8,
     }),
   ]);
 
@@ -248,6 +268,12 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
     locationName: t.location.name,
     dueAt: t.dueAt ? t.dueAt.toISOString() : null,
   }));
+  const overdueTasks = overdueRaw.map((t) => ({
+    id: t.id,
+    title: t.title,
+    locationName: t.location.name,
+    dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+  }));
 
   // Checklist items that *should* be done today but haven't been generated yet.
   const genIds = new Set(genToday.map((g) => g.templateId));
@@ -264,14 +290,19 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
     items.forEach((item, i) => pendingChecklists.push({ key: `${tpl.id}-${i}`, title: item, templateName: tpl.name }));
   }
 
+  // My task count per category.
+  const catCount = new Map(myCatCounts.map((g) => [g.categoryId, g._count._all]));
+
   return {
     completedToday,
     todayTasks,
     pendingChecklists: pendingChecklists.slice(0, 8),
     planner: { weekDates: weekDates.map((d) => d.toISOString()), rows: plannerRows.slice(0, 20), dayCounts },
     upcoming,
-    categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks })),
+    overdueTasks,
+    categories: categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: catCount.get(c.id) ?? 0 })),
     users,
+    activity,
   };
 }
 

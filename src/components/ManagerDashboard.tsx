@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Role } from "@prisma/client";
-import { getMyWork, getManagerDashboard, getDashboardData } from "@/lib/queries";
+import { getMyWork, getManagerDashboard } from "@/lib/queries";
 import { ROLE_LABEL, formatDateTime } from "@/lib/labels";
 import { DashboardTodayTasks } from "./DashboardTodayTasks";
 import { DashboardCategories } from "./DashboardCategories";
@@ -29,10 +29,9 @@ function upcomingLabel(iso: string | null): string {
 }
 
 export async function ManagerDashboard({ user }: { user: MgrUser }) {
-  const [myWork, md, dash] = await Promise.all([
+  const [myWork, md] = await Promise.all([
     getMyWork(user),
     getManagerDashboard(user),
-    getDashboardData(user),
   ]);
   const firstName = user.name.split(/\s+/)[0];
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -123,19 +122,19 @@ export async function ManagerDashboard({ user }: { user: MgrUser }) {
         <section className="m-card p-5">
           <CardHead title="Overdue Tasks" href="/tasks?mine=1" />
           <div className="space-y-2">
-            {dash.overdueTasks.slice(0, 4).map((t) => {
-              const days = t.dueAt ? Math.floor((Date.now() - t.dueAt.getTime()) / 86400000) : 0;
+            {md.overdueTasks.slice(0, 4).map((t) => {
+              const days = t.dueAt ? Math.floor((Date.now() - new Date(t.dueAt).getTime()) / 86400000) : 0;
               return (
                 <Link key={t.id} href={`/tasks/${t.id}`} className="block rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2.5 transition-colors hover:bg-[#fbe6e9]">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-[#140516]">{t.title}</span>
                     <span className="shrink-0 text-xs font-bold text-[#e2445c]">{days > 0 ? `${days}d late` : "due today"}</span>
                   </div>
-                  <div className="text-xs text-[#726973]">{t.location.name}{t.assignee ? ` · ${t.assignee.name}` : ""}</div>
+                  <div className="text-xs text-[#726973]">{t.locationName}</div>
                 </Link>
               );
             })}
-            {dash.overdueTasks.length === 0 && <Empty>Nothing overdue. 🎉</Empty>}
+            {md.overdueTasks.length === 0 && <Empty>Nothing overdue. 🎉</Empty>}
           </div>
         </section>
 
@@ -186,9 +185,9 @@ export async function ManagerDashboard({ user }: { user: MgrUser }) {
 
       {/* Activity feed */}
       <section className="m-card p-5">
-        <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#726973]">Live Activity Feed</h3>
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#726973]">My Recent Activity</h3>
         <ul className="divide-y divide-[#f3eef3]">
-          {dash.activity.slice(0, 8).map((a) => {
+          {md.activity.slice(0, 8).map((a) => {
             const meta = a.meta as { title?: string; to?: string };
             return (
               <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
@@ -201,7 +200,7 @@ export async function ManagerDashboard({ user }: { user: MgrUser }) {
               </li>
             );
           })}
-          {dash.activity.length === 0 && <Empty>No recent activity.</Empty>}
+          {md.activity.length === 0 && <Empty>No recent activity.</Empty>}
         </ul>
       </section>
     </div>
