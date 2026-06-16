@@ -75,9 +75,9 @@ const I = {
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" />
     </svg>
   ),
-  inventory: (
+  performance: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="M3.27 6.96 12 12.01l8.73-5.05" /><path d="M12 22.08V12" />
+      <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
 };
@@ -101,7 +101,7 @@ const NAV_BASE: NavDef[] = [
   { href: "/checklists",    label: "Tasks Routine",     icon: I.checklists,    minRank: RANK.SHIFT_LEAD },
   { href: "/maintenance",   label: "Maintenance",       icon: I.maintenance },
   { href: "/compliance",    label: "Compliance",        icon: I.compliance,    minRank: RANK.SHIFT_LEAD },
-  { href: "/inventory",     label: "Server Performance", icon: I.inventory,    minRank: RANK.SHIFT_LEAD },
+  { href: "/performance",   label: "Server Performance", icon: I.performance,  minRank: RANK.SHIFT_LEAD },
   { href: "/people",        label: "People",            icon: I.people,        minRank: RANK.STORE_MANAGER },
   { href: "/announcements", label: "Announcements",     icon: I.announcements },
   { href: "/channels",      label: "Channels",          icon: I.channels },

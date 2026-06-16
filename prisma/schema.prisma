@@ -170,6 +170,7 @@ model Location {
   projects            Project[]
   complianceSchedules ComplianceSchedule[]
   messages            Message[]
+  serverPerformance   ServerPerformance[]
 }
 
 model User {
@@ -208,6 +209,7 @@ model User {
   complianceAssigned    ComplianceSchedule[] @relation("ComplianceAssignee")
   complianceCreated     ComplianceSchedule[] @relation("ComplianceCreator")
   messages              Message[]
+  serverPerformance     ServerPerformance[]  @relation("ServerPerf")
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -575,6 +577,29 @@ model ComplianceSchedule {
 
   @@index([locationId, active])
   @@index([nextDueDate])
+}
+
+// Server (waitstaff) performance — one row per server per location per business
+// day. Fed by an external API (the company website / POS) via /api/performance.
+model ServerPerformance {
+  id          String   @id @default(cuid())
+  serverId    String
+  locationId  String
+  date        DateTime // business day (normalized to midnight)
+  sales       Float    @default(0)
+  covers      Int      @default(0)
+  tips        Float    @default(0)
+  upsells     Int      @default(0)
+  reviewScore Float? // 0–5 average guest rating
+  source      String   @default("api")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  server   User     @relation("ServerPerf", fields: [serverId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([serverId, locationId, date])
+  @@index([locationId, date])
 }
 
 // Branch discussion channel message. locationId null = company-wide channel.
