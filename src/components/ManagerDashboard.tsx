@@ -170,6 +170,7 @@ export async function ManagerDashboard({ user }: { user: MgrUser }) {
           <div className="mt-3 border-t border-[#f3eef3] pt-3">
             <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]">Reports</div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <Link href="/reports/daily" className="font-semibold text-[#440E48] hover:underline">Daily Summary</Link>
               <Link href="/dashboard/who" className="text-[#440E48] hover:underline">People</Link>
               <Link href="/dashboard/what" className="text-[#440E48] hover:underline">Departments</Link>
               <Link href="/dashboard/when" className="text-[#440E48] hover:underline">Trends</Link>

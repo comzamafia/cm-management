@@ -1,9 +1,64 @@
-import { Role } from "@prisma/client";
+import { Role, TaskStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { locationScopeWhere } from "./auth";
 import { isOverdue } from "./labels";
+import { dayBoundsTZ, APP_TZ } from "./time";
 
 type ScopeUser = { role: Role; locationId: string | null };
+
+// ── Daily Summary ──────────────────────────────────────────────────────────────
+
+/** Today's operational summary (Toronto local day), scoped to the user's locations. */
+export async function getDailySummary(scope: ScopeUser) {
+  const where = await locationScopeWhere(scope);
+  const { start, end } = dayBoundsTZ();
+
+  const [completions, createdToday, verifiedToday, snapshot] = await Promise.all([
+    prisma.taskCompletion.findMany({
+      where: { completedAt: { gte: start, lt: end }, task: { is: where } },
+      include: {
+        completedBy: { select: { name: true } },
+        task: { select: { title: true, location: { select: { name: true } } } },
+      },
+      orderBy: { completedAt: "desc" },
+    }),
+    prisma.task.count({ where: { ...where, createdAt: { gte: start, lt: end } } }),
+    prisma.taskCompletion.count({ where: { verifiedAt: { gte: start, lt: end }, task: { is: where } } }),
+    prisma.task.findMany({ where, select: { status: true, dueAt: true } }),
+  ]);
+
+  const derived = snapshot.map((t) => (isOverdue(t.dueAt, t.status) ? "OVERDUE" : t.status) as TaskStatus);
+  const count = (s: TaskStatus) => derived.filter((x) => x === s).length;
+
+  // Completions grouped by location + by person (today).
+  const byLocation = new Map<string, number>();
+  const byPerson = new Map<string, number>();
+  for (const c of completions) {
+    const loc = c.task?.location.name ?? "—";
+    byLocation.set(loc, (byLocation.get(loc) ?? 0) + 1);
+    byPerson.set(c.completedBy.name, (byPerson.get(c.completedBy.name) ?? 0) + 1);
+  }
+
+  return {
+    dateStr: new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: APP_TZ }),
+    completedToday: completions.length,
+    verifiedToday,
+    createdToday,
+    pending: count("PENDING"),
+    inProgress: count("IN_PROGRESS"),
+    overdue: count("OVERDUE"),
+    completions: completions.slice(0, 25).map((c) => ({
+      id: c.id,
+      title: c.task?.title ?? "—",
+      locationName: c.task?.location.name ?? "—",
+      byName: c.completedBy.name,
+      at: c.completedAt.toISOString(),
+      verified: c.verifiedAt != null,
+    })),
+    byLocation: [...byLocation.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n),
+    topPerformers: [...byPerson.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => b.n - a.n).slice(0, 6),
+  };
+}
 
 // ── WHO ─────────────────────────────────────────────────────────────────────
 
