@@ -84,7 +84,7 @@ export default async function MaintenancePage({
               className="m-card flex items-center gap-4 p-4 transition hover:shadow-md"
             >
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${MAINTENANCE_STATUS_STYLE[r.status]}`}
                   >
@@ -95,10 +95,16 @@ export default async function MaintenancePage({
                   >
                     {PRIORITY_LABEL[r.priority]}
                   </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F0EBF0] px-2 py-0.5 text-[10px] font-semibold text-[#440E48]">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {r.location.name}
+                  </span>
                 </div>
                 <p className="mt-1 truncate font-semibold text-[#140516]">{r.title}</p>
                 <p className="mt-0.5 text-xs text-[#726973]">
-                  {MAINTENANCE_AREA_LABEL[r.area]} · {r.location.name} · {formatDateTime(r.createdAt)}
+                  {MAINTENANCE_AREA_LABEL[r.area]} · {formatDateTime(r.createdAt)}
                   {r.assignedTo && ` · ${r.assignedTo.name}`}
                   {r.vendor && ` · ${r.vendor}`}
                 </p>
