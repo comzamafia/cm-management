@@ -93,6 +93,9 @@ export function DashboardTodayTasks({
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </button>
                     <Link href={`/tasks/${t.id}`} className="font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
+                    <Link href={`/tasks/${t.id}#comments`} title="Comment" className="shrink-0 text-[#C9C4C9] hover:text-[#440E48]">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </Link>
                   </div>
                 </td>
                 <td className="px-3 py-2.5">

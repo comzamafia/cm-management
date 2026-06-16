@@ -238,6 +238,7 @@ export default async function TaskDetailPage({
       />
 
       {/* Comments */}
+      <div id="comments" className="scroll-mt-20" />
       <TaskComments
         taskId={task.id}
         comments={task.comments.map((c) => ({

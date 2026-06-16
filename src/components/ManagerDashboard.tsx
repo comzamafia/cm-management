@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { Role } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { isManager, scopedLocationIds } from "@/lib/auth";
 import { getMyWork, getManagerDashboard } from "@/lib/queries";
 import { ROLE_LABEL, formatDateTime } from "@/lib/labels";
+import { APP_TZ } from "@/lib/time";
 import { DashboardTodayTasks } from "./DashboardTodayTasks";
 import { DashboardCategories } from "./DashboardCategories";
+import { DashboardViewAs } from "./DashboardViewAs";
 
 type MgrUser = { id: string; name: string; role: Role; locationId: string | null; location: { name: string } | null };
 
@@ -28,13 +32,23 @@ function upcomingLabel(iso: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export async function ManagerDashboard({ user }: { user: MgrUser }) {
+export async function ManagerDashboard({ user, viewAs }: { user: MgrUser; viewAs?: string }) {
+  // A manager may view a teammate's board (?view=<id>) — validate location scope.
+  let subject: MgrUser = user;
+  if (viewAs && viewAs !== user.id && isManager(user.role)) {
+    const ids = await scopedLocationIds(user);
+    const t = await prisma.user.findUnique({ where: { id: viewAs }, include: { location: { select: { name: true } } } });
+    if (t && (ids === null || (t.locationId != null && ids.includes(t.locationId)))) subject = t as MgrUser;
+  }
+  const viewingOther = subject.id !== user.id;
+  const tasksHref = viewingOther ? `/tasks?assigneeId=${subject.id}` : "/tasks?mine=1";
+
   const [myWork, md] = await Promise.all([
-    getMyWork(user),
-    getManagerDashboard(user),
+    getMyWork(subject),
+    getManagerDashboard(user, subject.id),
   ]);
-  const firstName = user.name.split(/\s+/)[0];
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const firstName = subject.name.split(/\s+/)[0];
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: APP_TZ });
   const weekDates = md.planner.weekDates.map((d) => new Date(d));
 
   return (
@@ -42,17 +56,26 @@ export async function ManagerDashboard({ user }: { user: MgrUser }) {
       {/* Greeting */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">Welcome back, {firstName} 👋</h1>
-          <p className="mt-0.5 text-sm text-[#726973]">{today} · {ROLE_LABEL[user.role]}{user.location ? ` · ${user.location.name}` : ""}</p>
+          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">
+            {viewingOther ? `${subject.name}'s board` : `Welcome back, ${firstName} 👋`}
+          </h1>
+          <p className="mt-0.5 text-sm text-[#726973]">
+            {viewingOther ? "Viewing as manager · " : `${today} · `}{ROLE_LABEL[subject.role]}{subject.location ? ` · ${subject.location.name}` : ""}
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/tasks?mine=1" className="m-btn">
+        <div className="flex flex-wrap items-center gap-2">
+          <DashboardViewAs users={md.users} currentId={subject.id} meId={user.id} />
+          {viewingOther ? (
+            <Link href="/dashboard" className="m-btn-ghost">← My board</Link>
+          ) : (
+            <Link href="/calendar" className="m-btn-ghost">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Calendar
+            </Link>
+          )}
+          <Link href={tasksHref} className="m-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            My Tasks
-          </Link>
-          <Link href="/calendar" className="m-btn-ghost">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Calendar
+            {viewingOther ? "Their Tasks" : "My Tasks"}
           </Link>
         </div>
       </div>

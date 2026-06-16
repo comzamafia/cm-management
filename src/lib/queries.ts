@@ -138,8 +138,12 @@ export async function getMyWork(user: { id: string }) {
  * completion count. Personal — shows only the signed-in user's own tasks
  * (cross-team task visibility lives in /tasks). Read-only.
  */
-export async function getManagerDashboard(user: { id: string; role: Role; locationId: string | null }) {
-  const scope = await locationScopeWhere(user);
+export async function getManagerDashboard(
+  viewer: { id: string; role: Role; locationId: string | null },
+  subjectId?: string,
+) {
+  const subject = subjectId ?? viewer.id; // whose tasks to show (a manager may view a teammate)
+  const scope = await locationScopeWhere(viewer);
   const scopeIds = scope.locationId?.in ?? null; // null = all locations
 
   const now = new Date();
@@ -153,9 +157,9 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
 
   // The landing dashboard is PERSONAL: every task widget shows only the
   // signed-in user's own work. Cross-team task visibility lives in /tasks.
-  const mine = { assigneeId: user.id };
+  const mine = { assigneeId: subject };
   const [completedToday, todayRaw, templates, weekTasks, upcomingRaw, overdueRaw, categories, myCatCounts, genToday, users, activity] = await Promise.all([
-    prisma.taskCompletion.count({ where: { completedById: user.id, completedAt: { gte: startToday } } }),
+    prisma.taskCompletion.count({ where: { completedById: subject, completedAt: { gte: startToday } } }),
     // My tasks due today, still open.
     prisma.task.findMany({
       where: { ...mine, status: { in: ["PENDING", "IN_PROGRESS"] }, dueAt: { gte: startToday, lt: endToday } },
@@ -165,7 +169,7 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
     }),
     // Recurring templates assigned to me (planner + pending-today).
     prisma.checklistTemplate.findMany({
-      where: { active: true, assigneeId: user.id },
+      where: { active: true, assigneeId: subject },
       select: { id: true, name: true, frequency: true, weekDay: true, monthDay: true, items: true },
       orderBy: { createdAt: "asc" },
       take: 80,
@@ -197,7 +201,7 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
       select: { id: true, name: true, color: true },
       orderBy: { position: "asc" },
     }),
-    prisma.task.groupBy({ by: ["categoryId"], where: { assigneeId: user.id, categoryId: { not: null } }, _count: { _all: true } }),
+    prisma.task.groupBy({ by: ["categoryId"], where: { assigneeId: subject, categoryId: { not: null } }, _count: { _all: true } }),
     prisma.checklistGeneration.findMany({
       where: { generatedAt: { gte: startToday } },
       select: { templateId: true },
@@ -208,9 +212,9 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    // My recent activity.
+    // Recent activity for the subject.
     prisma.activityLog.findMany({
-      where: { userId: user.id },
+      where: { userId: subject },
       include: { user: { select: { name: true } }, location: { select: { name: true } } },
       orderBy: { timestamp: "desc" },
       take: 8,

@@ -31,7 +31,11 @@ function dueLabel(dueAt: Date | null): { text: string; tone: string } {
   return { text: `Due in ${days}d`, tone: "text-[#726973]" };
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user) {
     return (
@@ -44,7 +48,8 @@ export default async function DashboardPage() {
   // Managers & owners get the operational dashboard; front-line staff keep the
   // simpler personal-first view below.
   if (isManager(user.role)) {
-    return <ManagerDashboard user={user} />;
+    const { view } = await searchParams;
+    return <ManagerDashboard user={user} viewAs={view} />;
   }
 
   const firstName = user.name.split(/\s+/)[0];
