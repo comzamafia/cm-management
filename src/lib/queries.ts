@@ -2,6 +2,7 @@ import { Priority, Role, TaskStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { locationScopeWhere } from "./auth";
 import { isOverdue } from "./labels";
+import { dayBoundsTZ, localWeekday, localDayOfMonth } from "./time";
 
 type ScopeUser = { role: Role; locationId: string | null };
 
@@ -102,9 +103,7 @@ export async function getMyWork(user: { id: string }) {
     (t) => t.derivedStatus !== "DONE" && t.derivedStatus !== "VERIFIED",
   );
 
-  const startToday = new Date();
-  startToday.setHours(0, 0, 0, 0);
-  const endToday = new Date(startToday.getTime() + 86400000);
+  const { start: startToday, end: endToday } = dayBoundsTZ();
   const dueToday = open.filter(
     (t) => t.dueAt && t.dueAt >= startToday && t.dueAt < endToday,
   ).length;
@@ -144,16 +143,13 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
   const scopeIds = scope.locationId?.in ?? null; // null = all locations
 
   const now = new Date();
-  const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
-  const endToday = new Date(startToday.getTime() + 86400000);
-  // Monday → Sunday of the current week (local).
-  const monday = new Date(startToday);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-  const weekDates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday); d.setDate(monday.getDate() + i); return d;
-  });
-  const weekEnd = new Date(weekDates[6]); weekEnd.setHours(23, 59, 59, 999);
-  const col = (d: Date) => (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+  const { start: startToday, end: endToday } = dayBoundsTZ(now);
+  // Monday → Sunday of the current week, anchored to the local (Toronto) timezone.
+  const wd = localWeekday(now);
+  const monday = new Date(startToday.getTime() - ((wd + 6) % 7) * 86400000);
+  const weekDates = Array.from({ length: 7 }, (_, i) => new Date(monday.getTime() + i * 86400000));
+  const weekEnd = new Date(monday.getTime() + 7 * 86400000);
+  const col = (d: Date) => (localWeekday(d) + 6) % 7; // Mon=0 … Sun=6
 
   // The landing dashboard is PERSONAL: every task widget shows only the
   // signed-in user's own work. Cross-team task visibility lives in /tasks.
@@ -277,12 +273,12 @@ export async function getManagerDashboard(user: { id: string; role: Role; locati
 
   // Checklist items that *should* be done today but haven't been generated yet.
   const genIds = new Set(genToday.map((g) => g.templateId));
-  const utcDay = now.getUTCDay();
-  const utcDate = now.getUTCDate();
+  const localDay = localWeekday(now);
+  const localDate = localDayOfMonth(now);
   const dueToday = (tpl: { frequency: string; weekDay: number | null; monthDay: number | null }) =>
     tpl.frequency === "DAILY" ||
-    (tpl.frequency === "WEEKLY" && tpl.weekDay === utcDay) ||
-    (tpl.frequency === "MONTHLY" && tpl.monthDay === utcDate);
+    (tpl.frequency === "WEEKLY" && tpl.weekDay === localDay) ||
+    (tpl.frequency === "MONTHLY" && tpl.monthDay === localDate);
   const pendingChecklists: { key: string; title: string; templateName: string }[] = [];
   for (const tpl of templates) {
     if (genIds.has(tpl.id) || !dueToday(tpl)) continue;

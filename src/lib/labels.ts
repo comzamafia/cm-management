@@ -1,4 +1,5 @@
 import { ComplianceCategory, ComplianceInterval, Frequency, InventoryUnit, MaintenanceArea, MaintenanceStatus, NotificationType, Priority, ProjectStatus, Role, TaskStatus, TaskType } from "@prisma/client";
+import { APP_TZ } from "./time";
 
 export const ROLE_LABEL: Record<Role, string> = {
   OWNER: "Owner / Senior Management",
@@ -88,6 +89,7 @@ export function formatDateTime(d: Date | string | null | undefined): string {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: APP_TZ,
   });
 }
 

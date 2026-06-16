@@ -6,6 +6,7 @@ import { prisma } from "./prisma";
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
 import { getCurrentUser, isManager, locationScopeWhere, scopedLocationIds } from "./auth";
+import { startOfDayTZ, atLocalHourTZ, localHour, localWeekday, localDayOfMonth } from "./time";
 import type { ActionResult } from "./tasks";
 
 // ── Template CRUD ────────────────────────────────────────────────────────────
@@ -87,14 +88,12 @@ export async function generateDueChecklists(
   nowUtc: Date = new Date(),
   force = false,
 ): Promise<{ tasksCreated: number; templatesRun: number }> {
-  const currentHour = nowUtc.getUTCHours();
-  const currentDay = nowUtc.getUTCDay();     // 0-6
-  const currentDate = nowUtc.getUTCDate();   // 1-31
+  const currentHour = localHour(nowUtc);     // local (Toronto) hour
+  const currentDay = localWeekday(nowUtc);   // 0-6 local
+  const currentDate = localDayOfMonth(nowUtc); // 1-31 local
 
-  // Midnight UTC of today — used to detect if already generated today.
-  const todayStart = new Date(
-    Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate()),
-  );
+  // Local midnight today — used to detect if already generated today.
+  const todayStart = startOfDayTZ(nowUtc);
 
   const templates = await prisma.checklistTemplate.findMany({
     where: { active: true },
@@ -137,8 +136,8 @@ export async function generateDueChecklists(
       const assignerId = mgr?.id ?? tpl.createdById;
 
       const items = tpl.items as string[];
-      const dueAt = new Date(nowUtc);
-      dueAt.setUTCHours(tpl.autoGenerateHour + 12, 0, 0, 0); // due 12 h after generation
+      // Due at 9pm local (end of the operating day) so it counts as "today" locally.
+      const dueAt = atLocalHourTZ(nowUtc, 21);
 
       const createdTaskIds: string[] = [];
 
