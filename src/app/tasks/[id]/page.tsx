@@ -73,6 +73,7 @@ export default async function TaskDetailPage({
     assigneeId: task.assigneeId,
     categoryId: task.categoryId,
     department: task.department,
+    startAt: task.startAt ? new Date(task.startAt).toISOString().slice(0, 16) : null,
     dueAt: task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 16) : null,
     proofRequired: task.proofRequired,
   };
@@ -135,6 +136,7 @@ export default async function TaskDetailPage({
           <Field label="Assignee" value={task.assignee?.name ?? "Unassigned"} />
           <Field label="Assigned by" value={task.assigner.name} />
           <Field label="Department" value={task.department ?? "—"} />
+          {task.startAt && <Field label="Starts" value={formatDateTime(task.startAt)} />}
           <Field label="Due" value={formatDateTime(task.dueAt)} highlight={task.derivedStatus === "OVERDUE"} />
           <Field label="Created" value={formatDateTime(task.createdAt)} />
           <Field label="Photo proof" value={task.proofRequired ? "Required" : "Not required"} />

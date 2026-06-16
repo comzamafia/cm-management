@@ -35,6 +35,7 @@ export function NewTaskForm({
   const [assigneeId, setAssigneeId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [department, setDepartment] = useState("");
+  const [startAt, setStartAt] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [proofRequired, setProofRequired] = useState(false);
 
@@ -55,6 +56,7 @@ export function NewTaskForm({
         assigneeId: assigneeId || undefined,
         categoryId: categoryId || undefined,
         department,
+        startAt: startAt ? new Date(startAt).toISOString() : undefined,
         dueAt: dueAt ? new Date(dueAt).toISOString() : undefined,
         proofRequired,
       });
@@ -139,9 +141,16 @@ export function NewTaskForm({
         </div>
       </div>
 
-      <div>
-        <label className={labelCls}>Due date / time</label>
-        <input type="datetime-local" className={field} value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className={labelCls}>Start date / time (optional)</label>
+          <input type="datetime-local" className={field} value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+          <p className="mt-1 text-xs text-[#A19BA2]">Schedule ahead — the assignee is notified when this day arrives.</p>
+        </div>
+        <div>
+          <label className={labelCls}>Due date / time</label>
+          <input type="datetime-local" className={field} value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+        </div>
       </div>
 
       <label className="flex cursor-pointer items-center gap-2 text-sm text-[#433745] select-none">

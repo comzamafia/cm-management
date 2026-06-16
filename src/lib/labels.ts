@@ -117,6 +117,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   COMPLIANCE_DUE_SOON: "Compliance Due Soon",
   COMPLIANCE_OVERDUE: "Compliance Overdue",
   MENTION: "Mention",
+  TASK_STARTING: "Task Starting",
 };
 
 export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
@@ -135,6 +136,7 @@ export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
   COMPLIANCE_DUE_SOON: "text-[#F4A626]",
   COMPLIANCE_OVERDUE: "text-[#e2445c]",
   MENTION: "text-[#440E48]",
+  TASK_STARTING: "text-[#5B8DD9]",
 };
 
 // ---- Phase 5: Maintenance + Inventory ----

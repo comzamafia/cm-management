@@ -14,6 +14,7 @@ type TaskEdit = {
   assigneeId: string | null;
   categoryId: string | null;
   department: string | null;
+  startAt: string | null;
   dueAt: string | null;
   proofRequired: boolean;
 };
@@ -45,6 +46,7 @@ export function TaskEditModal({
   const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? "");
   const [categoryId, setCategoryId] = useState(task.categoryId ?? "");
   const [department, setDepartment] = useState(task.department ?? "");
+  const [startAt, setStartAt] = useState(task.startAt ?? "");
   const [dueAt, setDueAt] = useState(task.dueAt ?? "");
   const [proofRequired, setProofRequired] = useState(task.proofRequired);
 
@@ -55,6 +57,7 @@ export function TaskEditModal({
     setAssigneeId(task.assigneeId ?? "");
     setCategoryId(task.categoryId ?? "");
     setDepartment(task.department ?? "");
+    setStartAt(task.startAt ?? "");
     setDueAt(task.dueAt ?? "");
     setProofRequired(task.proofRequired);
     setError(null);
@@ -72,6 +75,7 @@ export function TaskEditModal({
         assigneeId: assigneeId || undefined,
         categoryId: categoryId || undefined,
         department,
+        startAt: startAt || null,
         dueAt: dueAt || null,
         proofRequired,
       });
@@ -148,6 +152,11 @@ export function TaskEditModal({
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Start date / time (optional)</label>
+                  <input type="datetime-local" className={field} value={startAt} onChange={(e) => setStartAt(e.target.value)} />
                 </div>
 
                 <div>

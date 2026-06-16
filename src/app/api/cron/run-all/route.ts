@@ -3,6 +3,7 @@ import { generateDueChecklists } from "@/lib/checklists";
 import { runOverdueChecks } from "@/lib/overdue";
 import { runMaintenanceSla } from "@/lib/maintenance-sla";
 import { runComplianceReminders } from "@/lib/compliance";
+import { runStartingToday } from "@/lib/scheduling";
 import { sendDailyDigest } from "@/lib/digest";
 import { checkCronAuth } from "@/lib/cron-auth";
 
@@ -32,7 +33,10 @@ export async function GET(req: Request) {
   // 4. Send multi-step advance + overdue reminders for compliance schedules.
   const compliance = await runComplianceReminders(now);
 
-  // 5. Send the daily digest to owners / area managers.
+  // 5. Notify assignees of scheduled tasks whose start date has arrived.
+  const starting = await runStartingToday(now);
+
+  // 6. Send the daily digest to owners / area managers.
   const digest = await sendDailyDigest();
 
   return NextResponse.json({
@@ -42,6 +46,7 @@ export async function GET(req: Request) {
     overdue,
     maintenance,
     compliance,
+    starting,
     digest: { sent: digest.sent, skipped: digest.skipped },
   });
 }

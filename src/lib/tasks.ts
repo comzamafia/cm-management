@@ -30,6 +30,7 @@ export async function createTask(input: {
   assigneeId?: string;
   department?: string;
   categoryId?: string;
+  startAt?: string; // ISO — optional future start date
   dueAt?: string; // ISO
   proofRequired: boolean;
 }): Promise<ActionResult> {
@@ -53,6 +54,7 @@ export async function createTask(input: {
         assignerId: user.id,
         department: input.department?.trim() || null,
         categoryId: input.categoryId || null,
+        startAt: input.startAt ? new Date(input.startAt) : null,
         dueAt: input.dueAt ? new Date(input.dueAt) : null,
         proofRequired: input.proofRequired,
       },
@@ -268,6 +270,7 @@ export async function editTask(input: {
   assigneeId?: string;
   categoryId?: string;
   department?: string;
+  startAt?: string | null;
   dueAt?: string | null;
   proofRequired: boolean;
 }): Promise<ActionResult> {
@@ -296,6 +299,7 @@ export async function editTask(input: {
         assigneeId: input.assigneeId || null,
         categoryId: input.categoryId || null,
         department: input.department?.trim() || null,
+        startAt: input.startAt ? new Date(input.startAt) : null,
         dueAt: input.dueAt ? new Date(input.dueAt) : null,
         proofRequired: input.proofRequired,
       },

@@ -84,6 +84,7 @@ enum NotificationType {
   COMPLIANCE_DUE_SOON
   COMPLIANCE_OVERDUE
   MENTION
+  TASK_STARTING
 }
 
 enum TrainingCategory {
@@ -270,6 +271,8 @@ model Task {
   complianceScheduleId String?
   position      Int        @default(0)
   amount        Float? // optional dollar value (e.g. cash-flow rows)
+  startAt       DateTime? // optional future start date — task "activates" / notifies on this day
+  startNotified Boolean    @default(false) // set once the start-day reminder has fired
   dueAt         DateTime?
   status        TaskStatus @default(PENDING)
   proofRequired Boolean    @default(false)
