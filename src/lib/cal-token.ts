@@ -1,9 +1,12 @@
 import { createHmac } from "crypto";
 
 function secret(): string {
-  const s = process.env.NEXTAUTH_SECRET ?? process.env.CAL_SECRET;
-  if (!s) throw new Error("No NEXTAUTH_SECRET configured");
-  return s;
+  return (
+    process.env.AUTH_SECRET ??
+    process.env.NEXTAUTH_SECRET ??
+    process.env.CAL_SECRET ??
+    "dev-cal-secret"
+  );
 }
 
 export function makeCalToken(userId: string): string {
