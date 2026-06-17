@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { getCurrentUser, isManager } from "@/lib/auth";
+import { getCurrentUser, isManager, locationScopeWhere } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getChecklistTemplates } from "@/lib/checklists";
 import { FREQUENCY_LABEL, PRIORITY_LABEL, WEEK_DAYS } from "@/lib/labels";
-import { ToggleTemplateButton, GenerateNowButton } from "@/components/ChecklistActions";
+import { ToggleTemplateButton, GenerateNowButton, AssignTemplateSelect } from "@/components/ChecklistActions";
 
 export default async function ChecklistsPage() {
   const user = await getCurrentUser();
@@ -13,7 +14,17 @@ export default async function ChecklistsPage() {
     return <div className="text-slate-600">Checklist templates are visible to managers and above.</div>;
   }
 
-  const templates = await getChecklistTemplates();
+  const [templates, scope] = await Promise.all([
+    getChecklistTemplates(),
+    locationScopeWhere(user),
+  ]);
+
+  // Employees to show in the assign dropdown — scoped to manager's location(s).
+  const assignableUsers = await prisma.user.findMany({
+    where: { ...scope, status: "ACTIVE" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
   return (
     <div className="space-y-5">
@@ -73,6 +84,16 @@ export default async function ChecklistsPage() {
                   <span className="text-xs text-slate-500">{items.length} item{items.length !== 1 ? "s" : ""}</span>
                   <ToggleTemplateButton id={t.id} active={t.active} />
                 </div>
+              </div>
+
+              {/* Assign to employee */}
+              <div className="mt-3">
+                <AssignTemplateSelect
+                  templateId={t.id}
+                  assigneeId={t.assignee?.id ?? null}
+                  assigneeName={t.assignee?.name ?? null}
+                  users={assignableUsers}
+                />
               </div>
 
               <ul className="mt-3 space-y-1">

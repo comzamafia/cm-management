@@ -217,9 +217,30 @@ export async function getChecklistTemplates() {
 
   return prisma.checklistTemplate.findMany({
     where,
-    include: { location: true, createdBy: true, _count: { select: { generations: true } } },
+    include: {
+      location: true,
+      createdBy: true,
+      assignee: { select: { id: true, name: true } },
+      _count: { select: { generations: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function assignChecklistTemplate(
+  templateId: string,
+  assigneeId: string | null,
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user || !isManager(user.role)) return { ok: false, error: "Unauthorized" };
+
+  await prisma.checklistTemplate.update({
+    where: { id: templateId },
+    data: { assigneeId },
+  });
+
+  revalidatePath("/checklists");
+  return { ok: true };
 }
 
 export async function getScopedLocations() {
