@@ -44,15 +44,25 @@ export default async function CalendarPage({
 
   const scope = await locationScopeWhere(user);
   const scopeIds = await scopedLocationIds(user); // null = all locations
+  const isEmployeeRole = user.role === "EMPLOYEE" || user.role === "NEW_HIRE";
 
   const [tasks, maintenance, templates] = await Promise.all([
     prisma.task.findMany({
-      where: { ...scope, dueAt: { gte: from, lt: to } },
+      where: {
+        ...scope,
+        dueAt: { gte: from, lt: to },
+        ...(isEmployeeRole ? { assigneeId: user.id } : {}),
+      },
       include: { assignee: { select: { name: true } } },
       orderBy: { dueAt: "asc" },
     }),
     prisma.maintenanceRequest.findMany({
-      where: { ...scope, status: { not: "CLOSED" }, createdAt: { gte: from, lt: to } },
+      where: {
+        ...scope,
+        status: { not: "CLOSED" },
+        createdAt: { gte: from, lt: to },
+        ...(isEmployeeRole ? { assignedToId: user.id } : {}),
+      },
       select: { id: true, title: true, createdAt: true, priority: true, status: true, assignedTo: { select: { name: true } } },
     }),
     prisma.checklistTemplate.findMany({
