@@ -67,7 +67,10 @@ export function DashboardTodayTasks({
           <h2 className="text-base font-bold text-[#140516]">Today&apos;s Tasks</h2>
           <span className="text-sm text-[#A19BA2]">· {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span>
         </div>
-        <Link href="/tasks?mine=1" className="rounded-lg border border-[#E4DDE4] px-3 py-1.5 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">View all my tasks</Link>
+        <div className="flex items-center gap-2">
+          <Link href="/tasks?mine=1" className="rounded-lg border border-[#E4DDE4] px-3 py-1.5 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">My Tasks</Link>
+          <Link href="/tasks" className="rounded-lg border border-[#440E48] px-3 py-1.5 text-xs font-semibold text-[#440E48] hover:bg-[#FAF6FA]">All Tasks</Link>
+        </div>
       </div>
 
       {err && <div className="mx-5 mb-2 rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2 text-xs font-medium text-[#e2445c]">{err}</div>}

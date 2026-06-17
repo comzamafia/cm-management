@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isOverdue, STATUS_LABEL, MAINTENANCE_STATUS_LABEL, FREQUENCY_LABEL } from "@/lib/labels";
 import { TaskStatus } from "@prisma/client";
 import { CalendarClient, type CalendarItem } from "@/components/CalendarClient";
+import { makeCalToken } from "@/lib/cal-token";
 
 export const dynamic = "force-dynamic";
 
@@ -43,15 +44,25 @@ export default async function CalendarPage({
 
   const scope = await locationScopeWhere(user);
   const scopeIds = await scopedLocationIds(user); // null = all locations
+  const isEmployeeRole = user.role === "EMPLOYEE" || user.role === "NEW_HIRE";
 
   const [tasks, maintenance, templates] = await Promise.all([
     prisma.task.findMany({
-      where: { ...scope, dueAt: { gte: from, lt: to } },
+      where: {
+        ...scope,
+        dueAt: { gte: from, lt: to },
+        ...(isEmployeeRole ? { assigneeId: user.id } : {}),
+      },
       include: { assignee: { select: { name: true } } },
       orderBy: { dueAt: "asc" },
     }),
     prisma.maintenanceRequest.findMany({
-      where: { ...scope, status: { not: "CLOSED" }, createdAt: { gte: from, lt: to } },
+      where: {
+        ...scope,
+        status: { not: "CLOSED" },
+        createdAt: { gte: from, lt: to },
+        ...(isEmployeeRole ? { assignedToId: user.id } : {}),
+      },
       select: { id: true, title: true, createdAt: true, priority: true, status: true, assignedTo: { select: { name: true } } },
     }),
     prisma.checklistTemplate.findMany({
@@ -135,9 +146,11 @@ export default async function CalendarPage({
     { label: STATUS_LABEL.OVERDUE, color: STATUS_HEX.OVERDUE },
   ];
 
+  const calToken = makeCalToken(user.id);
+
   return (
     <div className="mx-auto max-w-5xl">
-      <CalendarClient month={monthStr} items={items} legend={legend} />
+      <CalendarClient month={monthStr} items={items} legend={legend} calUid={user.id} calToken={calToken} />
     </div>
   );
 }
