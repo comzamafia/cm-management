@@ -41,7 +41,7 @@ export async function ManagerDashboard({ user, viewAs }: { user: MgrUser; viewAs
     if (t && (ids === null || (t.locationId != null && ids.includes(t.locationId)))) subject = t as MgrUser;
   }
   const viewingOther = subject.id !== user.id;
-  const tasksHref = viewingOther ? `/tasks?assigneeId=${subject.id}` : "/tasks?mine=1";
+  const tasksHref = viewingOther ? `/tasks?assigneeId=${subject.id}` : "/tasks";
 
   const [myWork, md] = await Promise.all([
     getMyWork(subject),
@@ -75,7 +75,7 @@ export async function ManagerDashboard({ user, viewAs }: { user: MgrUser; viewAs
           )}
           <Link href={tasksHref} className="m-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            {viewingOther ? "Their Tasks" : "My Tasks"}
+            {viewingOther ? "Their Tasks" : "All Tasks"}
           </Link>
         </div>
       </div>
@@ -86,9 +86,9 @@ export async function ManagerDashboard({ user, viewAs }: { user: MgrUser; viewAs
           icon={<><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></>} />
         <StatTile color="#F4A626" value={myWork.counts.dueToday} label="Due Today" href="/calendar"
           icon={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />
-        <StatTile color="#e2445c" value={myWork.counts.overdue} label="Overdue" href="/tasks?mine=1"
+        <StatTile color="#e2445c" value={myWork.counts.overdue} label="Overdue" href="/tasks"
           icon={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>} />
-        <StatTile color="#1DBA87" value={md.completedToday} label="Completed Today" href="/tasks?mine=1"
+        <StatTile color="#1DBA87" value={md.completedToday} label="Completed Today" href="/tasks?status=DONE"
           icon={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />
       </div>
 
@@ -143,7 +143,7 @@ export async function ManagerDashboard({ user, viewAs }: { user: MgrUser; viewAs
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {/* Overdue */}
         <section className="m-card p-5">
-          <CardHead title="Overdue Tasks" href="/tasks?mine=1" />
+          <CardHead title="Overdue Tasks" href="/tasks" />
           <div className="space-y-2">
             {md.overdueTasks.slice(0, 4).map((t) => {
               const days = t.dueAt ? Math.floor((Date.now() - new Date(t.dueAt).getTime()) / 86400000) : 0;
