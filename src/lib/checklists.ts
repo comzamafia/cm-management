@@ -239,7 +239,23 @@ export async function assignChecklistTemplate(
     data: { assigneeId },
   });
 
+  // Backfill today's already-generated tasks from this template so the
+  // newly assigned employee sees them immediately without waiting for tomorrow's cron.
+  const todayStart = startOfDayTZ(new Date());
+  const generations = await prisma.checklistGeneration.findMany({
+    where: { templateId, generatedAt: { gte: todayStart } },
+    select: { taskIds: true },
+  });
+  const taskIds = generations.flatMap((g) => g.taskIds as string[]);
+  if (taskIds.length > 0) {
+    await prisma.task.updateMany({
+      where: { id: { in: taskIds } },
+      data: { assigneeId },
+    });
+  }
+
   revalidatePath("/checklists");
+  revalidatePath("/tasks");
   return { ok: true };
 }
 
