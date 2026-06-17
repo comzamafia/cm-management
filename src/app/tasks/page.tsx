@@ -44,13 +44,7 @@ export default async function TasksPage({
   const priority = (Object.values(Priority) as string[]).includes(params.priority ?? "")
     ? (params.priority as Priority)
     : undefined;
-  const isEmployeeRole = user.role === "EMPLOYEE" || user.role === "NEW_HIRE";
-  // Employees always see only their own tasks; managers can toggle with ?mine=1.
-  const assigneeId = isEmployeeRole
-    ? user.id
-    : params.mine === "1"
-    ? user.id
-    : params.assigneeId || undefined;
+  const assigneeId = params.mine === "1" ? user.id : params.assigneeId || undefined;
   const categoryId = params.categoryId || undefined;
 
   const tasks = await getTasks(user, {
@@ -109,7 +103,7 @@ export default async function TasksPage({
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">{isEmployeeRole ? "My Tasks" : "Tasks"}</h1>
+          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">Tasks</h1>
           <p className="mt-0.5 text-sm text-[#726973]">{tasks.length} item{tasks.length === 1 ? "" : "s"} in view</p>
         </div>
         {canCreate && (
@@ -132,7 +126,7 @@ export default async function TasksPage({
             assignees={assignees}
             categories={categories}
             showAssignee={canManage}
-            showMine={!isEmployeeRole}
+            showMine={true}
           />
         </Suspense>
         <div className="flex flex-wrap gap-2">
