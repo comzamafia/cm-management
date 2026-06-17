@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isOverdue, STATUS_LABEL, MAINTENANCE_STATUS_LABEL, FREQUENCY_LABEL } from "@/lib/labels";
 import { TaskStatus } from "@prisma/client";
 import { CalendarClient, type CalendarItem } from "@/components/CalendarClient";
+import { makeCalToken } from "@/lib/cal-token";
 
 export const dynamic = "force-dynamic";
 
@@ -135,9 +136,11 @@ export default async function CalendarPage({
     { label: STATUS_LABEL.OVERDUE, color: STATUS_HEX.OVERDUE },
   ];
 
+  const calToken = makeCalToken(user.id);
+
   return (
     <div className="mx-auto max-w-5xl">
-      <CalendarClient month={monthStr} items={items} legend={legend} />
+      <CalendarClient month={monthStr} items={items} legend={legend} calUid={user.id} calToken={calToken} />
     </div>
   );
 }
