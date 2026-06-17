@@ -69,6 +69,8 @@ export default async function CalendarPage({
       where: {
         active: true,
         ...(scopeIds === null ? {} : { OR: [{ locationId: { in: scopeIds } }, { locationId: null }] }),
+        // Employees only see templates assigned to them; managers see all.
+        ...(isEmployeeRole ? { assigneeId: user.id } : {}),
       },
       select: { id: true, name: true, frequency: true, weekDay: true, monthDay: true },
     }),
