@@ -98,7 +98,9 @@ export async function changeTaskStatus(
   if (!task) return { ok: false, error: "Task not found" };
 
   const scope = await scopedLocationIds(user);
-  if (scope !== null && !scope.includes(task.locationId)) {
+  // Allow assignees to update their own tasks even if cross-location.
+  const isAssignee = task.assigneeId === user.id;
+  if (scope !== null && !scope.includes(task.locationId) && !isAssignee) {
     return { ok: false, error: "Outside your location scope" };
   }
 

@@ -15,7 +15,8 @@ export async function addComment(taskId: string, body: string): Promise<ActionRe
   if (!task) return { ok: false, error: "Task not found" };
 
   const scope = await scopedLocationIds(user);
-  if (scope !== null && !scope.includes(task.locationId)) {
+  const isAssignee = task.assigneeId === user.id;
+  if (scope !== null && !scope.includes(task.locationId) && !isAssignee) {
     return { ok: false, error: "Outside your location scope" };
   }
 
