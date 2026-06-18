@@ -382,6 +382,96 @@ export async function getComplianceSchedules(user: { role: import("@prisma/clien
 
 export type ComplianceRow = Awaited<ReturnType<typeof getComplianceSchedules>>["rows"][number];
 
+/** Full schedule detail for the /compliance/[id] page. */
+export async function getComplianceScheduleDetail(
+  id: string,
+  user: { role: import("@prisma/client").Role; locationId: string | null; id: string },
+) {
+  const scope = await locationScopeWhere(user);
+  const [schedule, activity] = await Promise.all([
+    prisma.complianceSchedule.findFirst({
+      where: { id, ...scope },
+      include: {
+        location: { select: { id: true, name: true } },
+        assignee: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true } },
+        currentTask: {
+          select: { id: true, title: true, status: true, dueAt: true, assignee: { select: { id: true, name: true } } },
+        },
+        tasks: {
+          where: { NOT: { id: undefined } },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            status: true,
+            dueAt: true,
+            createdAt: true,
+            completions: {
+              select: { completedAt: true, completedBy: { select: { name: true } } },
+              orderBy: { completedAt: "desc" },
+              take: 1,
+            },
+          },
+        },
+        comments: {
+          orderBy: { createdAt: "asc" },
+          include: { user: { select: { id: true, name: true } } },
+        },
+      },
+    }),
+    prisma.activityLog.findMany({
+      where: { entityId: id },
+      orderBy: { timestamp: "desc" },
+      take: 30,
+      include: { user: { select: { id: true, name: true } } },
+    }),
+  ]);
+
+  return schedule ? { schedule, activity } : null;
+}
+
+export type ComplianceDetail = Awaited<ReturnType<typeof getComplianceScheduleDetail>>;
+
+export async function addComplianceComment(scheduleId: string, body: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "Comment cannot be empty" };
+  if (trimmed.length > 2000) return { ok: false, error: "Comment too long" };
+
+  const schedule = await prisma.complianceSchedule.findUnique({ where: { id: scheduleId } });
+  if (!schedule) return { ok: false, error: "Schedule not found" };
+  const ids = await scopedLocationIds(user);
+  if (ids !== null && !ids.includes(schedule.locationId)) return { ok: false, error: "Out of your location scope" };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.complianceComment.create({ data: { scheduleId, userId: user.id, body: trimmed } });
+    await logActivity(tx, {
+      userId: user.id,
+      action: "compliance.commented",
+      entity: "ComplianceSchedule",
+      entityId: scheduleId,
+      locationId: schedule.locationId,
+      meta: { excerpt: trimmed.slice(0, 80) },
+    });
+  });
+
+  revalidatePath(`/compliance/${scheduleId}`);
+  return { ok: true };
+}
+
+export async function deleteComplianceComment(commentId: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const comment = await prisma.complianceComment.findUnique({ where: { id: commentId } });
+  if (!comment) return { ok: false, error: "Comment not found" };
+  if (comment.userId !== user.id && !isManager(user.role)) return { ok: false, error: "Not authorized" };
+  await prisma.complianceComment.delete({ where: { id: commentId } });
+  revalidatePath(`/compliance/${comment.scheduleId}`);
+  return { ok: true };
+}
+
 /**
  * Cron worker: send multi-step advance reminders (14/7/3/1 days) and throttled
  * overdue alerts for active schedules. De-duplicated via remindersSent + lastOverdueAlert.

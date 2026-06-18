@@ -200,6 +200,7 @@ model User {
   announcementReads     AnnouncementRead[]
   trainingMaterials     TrainingMaterial[]
   comments              Comment[]
+  complianceComments    ComplianceComment[]
   inventoryItemsCreated InventoryItem[]
   inventoryCounts       InventoryCount[]
   maintenanceReported   MaintenanceRequest[] @relation("MaintReporter")
@@ -588,11 +589,25 @@ model ComplianceSchedule {
   location    Location @relation(fields: [locationId], references: [id])
   assignee    User?    @relation("ComplianceAssignee", fields: [assigneeId], references: [id])
   createdBy   User     @relation("ComplianceCreator", fields: [createdById], references: [id])
-  currentTask Task?    @relation("ComplianceCurrentTask", fields: [currentTaskId], references: [id])
-  tasks       Task[]   @relation("ComplianceTasks")
+  currentTask Task?               @relation("ComplianceCurrentTask", fields: [currentTaskId], references: [id])
+  tasks       Task[]              @relation("ComplianceTasks")
+  comments    ComplianceComment[]
 
   @@index([locationId, active])
   @@index([nextDueDate])
+}
+
+model ComplianceComment {
+  id         String   @id @default(cuid())
+  scheduleId String
+  userId     String
+  body       String
+  createdAt  DateTime @default(now())
+
+  schedule ComplianceSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user     User               @relation(fields: [userId], references: [id])
+
+  @@index([scheduleId, createdAt])
 }
 
 // Server (waitstaff) performance — one row per server per location per business

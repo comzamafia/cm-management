@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -162,7 +163,9 @@ function Row({
         <div className="flex items-center gap-3">
           <span className="h-7 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: COMPLIANCE_STATUS_HEX[r.status] }} />
           <div>
-            <div className="font-semibold text-[#140516]">{r.name}</div>
+            <Link href={`/compliance/${r.id}`} className="font-semibold text-[#140516] hover:text-[#440E48] hover:underline">
+              {r.name}
+            </Link>
             <div className="text-xs text-[#A19BA2]">{COMPLIANCE_CATEGORY_LABEL[r.category]} · {PRIORITY_LABEL[r.priority]}</div>
           </div>
         </div>
@@ -278,7 +281,9 @@ function Card({
       <div className="flex items-start gap-2">
         <span className="mt-0.5 h-5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: COMPLIANCE_STATUS_HEX[r.status] }} />
         <div className="flex-1">
-          <div className="text-sm font-semibold text-[#140516]">{r.name}</div>
+          <Link href={`/compliance/${r.id}`} className="block text-sm font-semibold text-[#140516] hover:text-[#440E48]">
+            {r.name}
+          </Link>
           <div className="text-xs text-[#A19BA2]">
             {COMPLIANCE_CATEGORY_LABEL[r.category]} · {COMPLIANCE_INTERVAL_LABEL[r.interval]}
             {showLocation ? ` · ${r.locationName}` : ""}
