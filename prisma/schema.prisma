@@ -201,6 +201,7 @@ model User {
   trainingMaterials     TrainingMaterial[]
   comments              Comment[]
   complianceComments    ComplianceComment[]
+  maintenanceComments   MaintenanceComment[]
   inventoryItemsCreated InventoryItem[]
   inventoryCounts       InventoryCount[]
   maintenanceReported   MaintenanceRequest[] @relation("MaintReporter")
@@ -552,13 +553,27 @@ model MaintenanceRequest {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  location   Location @relation(fields: [locationId], references: [id])
-  reportedBy User     @relation("MaintReporter", fields: [reportedById], references: [id])
-  assignedTo User?    @relation("MaintAssignee", fields: [assignedToId], references: [id])
-  resolvedBy User?    @relation("MaintResolver", fields: [resolvedById], references: [id])
+  location   Location             @relation(fields: [locationId], references: [id])
+  reportedBy User                 @relation("MaintReporter", fields: [reportedById], references: [id])
+  assignedTo User?                @relation("MaintAssignee", fields: [assignedToId], references: [id])
+  resolvedBy User?                @relation("MaintResolver", fields: [resolvedById], references: [id])
+  comments   MaintenanceComment[]
 
   @@index([locationId, status])
   @@index([assignedToId, status])
+}
+
+model MaintenanceComment {
+  id        String   @id @default(cuid())
+  requestId String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  request MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [userId], references: [id])
+
+  @@index([requestId, createdAt])
 }
 
 // Recurring compliance service schedule — spawns a Task each cycle and rolls the

@@ -45,20 +45,66 @@ export async function getMaintenanceDetail(id: string) {
     where: { id, ...scope },
     include: {
       location: { select: { id: true, name: true } },
-      reportedBy: { select: { name: true } },
+      reportedBy: { select: { id: true, name: true } },
       assignedTo: { select: { id: true, name: true } },
-      resolvedBy: { select: { name: true } },
+      resolvedBy: { select: { id: true, name: true } },
+      comments: {
+        orderBy: { createdAt: "asc" },
+        include: { user: { select: { id: true, name: true } } },
+      },
     },
   });
   if (!req) return null;
 
   const activity = await prisma.activityLog.findMany({
     where: { entity: "MaintenanceRequest", entityId: id },
-    include: { user: { select: { name: true } } },
+    include: { user: { select: { id: true, name: true } } },
     orderBy: { timestamp: "desc" },
-    take: 30,
+    take: 40,
   });
-  return Object.assign(req, { activity });
+  return { ...req, activity };
+}
+
+export async function addMaintenanceComment(requestId: string, body: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "Comment cannot be empty" };
+  if (trimmed.length > 2000) return { ok: false, error: "Comment too long (max 2000 chars)" };
+
+  const scope = await locationScopeWhere(user);
+  const req = await prisma.maintenanceRequest.findFirst({ where: { id: requestId, ...scope } });
+  if (!req) return { ok: false, error: "Request not found or out of scope" };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.maintenanceComment.create({ data: { requestId, userId: user.id, body: trimmed } });
+    await tx.activityLog.create({
+      data: {
+        userId: user.id,
+        action: "maintenance.commented",
+        entity: "MaintenanceRequest",
+        entityId: requestId,
+        locationId: req.locationId,
+        meta: { excerpt: trimmed.slice(0, 80) },
+      },
+    });
+  });
+
+  revalidatePath(`/maintenance/${requestId}`);
+  return { ok: true };
+}
+
+export async function deleteMaintenanceComment(commentId: string): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const comment = await prisma.maintenanceComment.findUnique({ where: { id: commentId } });
+  if (!comment) return { ok: false, error: "Comment not found" };
+  if (comment.userId !== user.id && !atLeast(user.role, Role.STORE_MANAGER)) {
+    return { ok: false, error: "Not authorized" };
+  }
+  await prisma.maintenanceComment.delete({ where: { id: commentId } });
+  revalidatePath(`/maintenance/${comment.requestId}`);
+  return { ok: true };
 }
 
 /** Any active staff member may report a maintenance issue for their location. */
