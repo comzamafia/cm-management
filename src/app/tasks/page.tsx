@@ -18,6 +18,10 @@ const STATUS_FILTERS: (TaskStatus | "ALL")[] = [
   "OVERDUE",
 ];
 
+const PRIORITY_ORDER: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
+const VALID_SORTS = ["title", "priority", "due"] as const;
+type SortCol = (typeof VALID_SORTS)[number];
+
 export default async function TasksPage({
   searchParams,
 }: {
@@ -29,6 +33,8 @@ export default async function TasksPage({
     assigneeId?: string;
     priority?: string;
     categoryId?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }) {
   const user = await getCurrentUser();
@@ -44,8 +50,12 @@ export default async function TasksPage({
   const priority = (Object.values(Priority) as string[]).includes(params.priority ?? "")
     ? (params.priority as Priority)
     : undefined;
+  const sort: SortCol | undefined = VALID_SORTS.includes(params.sort as SortCol)
+    ? (params.sort as SortCol)
+    : undefined;
+  const sortDir: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
+
   const isEmployeeRole = user.role === "EMPLOYEE" || user.role === "NEW_HIRE";
-  // Employees always see only their own tasks; managers can toggle with ?mine=1.
   const assigneeId = isEmployeeRole
     ? user.id
     : params.mine === "1"
@@ -53,14 +63,39 @@ export default async function TasksPage({
     : params.assigneeId || undefined;
   const categoryId = params.categoryId || undefined;
 
-  const tasks = await getTasks(user, {
-    status,
+  // Fetch all tasks matching scope+filters (no status filter) — we filter/count in JS.
+  const allTasks = await getTasks(user, {
     locationId: params.locationId,
     assigneeId,
     priority,
     categoryId,
     q,
   });
+
+  // Count by derived status for the pill badges.
+  const statusCounts: Partial<Record<TaskStatus | "ALL", number>> = { ALL: allTasks.length };
+  for (const t of allTasks) {
+    statusCounts[t.derivedStatus] = (statusCounts[t.derivedStatus] ?? 0) + 1;
+  }
+
+  // Apply optional column sort.
+  const sorted = sort
+    ? [...allTasks].sort((a, b) => {
+        const m = sortDir === "desc" ? -1 : 1;
+        if (sort === "title") return m * a.title.localeCompare(b.title);
+        if (sort === "priority")
+          return m * ((PRIORITY_ORDER[a.priority] ?? 0) - (PRIORITY_ORDER[b.priority] ?? 0));
+        if (sort === "due") {
+          if (!a.dueAt && !b.dueAt) return 0;
+          if (!a.dueAt) return m;
+          if (!b.dueAt) return -m;
+          return m * (a.dueAt.getTime() - b.dueAt.getTime());
+        }
+        return 0;
+      })
+    : allTasks;
+
+  const tasks = status ? sorted.filter((t) => t.derivedStatus === status) : sorted;
 
   const rows: TaskRow[] = tasks.map((t) => ({
     id: t.id,
@@ -73,11 +108,9 @@ export default async function TasksPage({
     proofRequired: t.proofRequired,
   }));
 
-  // Everyone with a branch can add a personal task; managers/shift leads create for the team.
   const canCreate = isManager(user.role) || user.role === "SHIFT_LEAD" || !!user.locationId;
   const canManage = isManager(user.role);
 
-  // Options for the filter dropdowns (scope-limited).
   const scope = await locationScopeWhere(user);
   const [assignees, categories] = await Promise.all([
     canManage
@@ -88,11 +121,15 @@ export default async function TasksPage({
         })
       : Promise.resolve([]),
     prisma.category.findMany({
-      where: scope.locationId ? { OR: [{ locationId: { in: scope.locationId.in } }, { locationId: null }] } : {},
+      where: scope.locationId
+        ? { OR: [{ locationId: { in: scope.locationId.in } }, { locationId: null }] }
+        : {},
       orderBy: [{ position: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
   ]);
+
+  // Build URL for status pill links, preserving all other active filters.
   const qs = (s: string) => {
     const p = new URLSearchParams();
     if (s !== "ALL") p.set("status", s);
@@ -102,6 +139,7 @@ export default async function TasksPage({
     if (params.assigneeId) p.set("assigneeId", params.assigneeId);
     if (params.priority) p.set("priority", params.priority);
     if (params.categoryId) p.set("categoryId", params.categoryId);
+    if (sort) { p.set("sort", sort); if (sortDir === "desc") p.set("dir", "desc"); }
     const str = p.toString();
     return str ? `/tasks?${str}` : "/tasks";
   };
@@ -110,20 +148,35 @@ export default async function TasksPage({
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">{isEmployeeRole ? "My Tasks" : "Tasks"}</h1>
-          <p className="mt-0.5 text-sm text-[#726973]">{tasks.length} item{tasks.length === 1 ? "" : "s"} in view</p>
+          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">
+            {isEmployeeRole ? "My Tasks" : "Tasks"}
+          </h1>
+          <p className="mt-0.5 text-sm text-[#726973]">
+            {tasks.length} item{tasks.length === 1 ? "" : "s"} in view
+          </p>
         </div>
         {canCreate && (
           <Link href="/tasks/new" className="m-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             New Task
           </Link>
         )}
       </div>
 
-      {/* Search + status filters */}
+      {/* Search + filters + status pills */}
       <div className="space-y-3">
         <Suspense>
           <TaskSearchBar defaultValue={q ?? ""} />
@@ -139,6 +192,7 @@ export default async function TasksPage({
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((s) => {
             const active = (s === "ALL" && !status) || s === status;
+            const count = statusCounts[s] ?? 0;
             return (
               <Link
                 key={s}
@@ -150,6 +204,10 @@ export default async function TasksPage({
                 }`}
               >
                 {s === "ALL" ? "All" : STATUS_LABEL[s]}
+                {" "}
+                <span className={active ? "text-white/70" : "text-[#A19BA2]"}>
+                  ({count})
+                </span>
               </Link>
             );
           })}
@@ -160,6 +218,8 @@ export default async function TasksPage({
         tasks={rows}
         canManage={canManage}
         assignees={assignees}
+        sort={sort}
+        sortDir={sortDir}
         emptyMessage={q ? `No tasks matching "${q}".` : "No tasks match this filter."}
       />
     </div>
