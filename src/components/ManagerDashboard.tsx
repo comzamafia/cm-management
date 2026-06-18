@@ -8,6 +8,7 @@ import { APP_TZ } from "@/lib/time";
 import { DashboardTodayTasks } from "./DashboardTodayTasks";
 import { DashboardCategories } from "./DashboardCategories";
 import { DashboardViewAs } from "./DashboardViewAs";
+import { DashboardNotesSection } from "./DashboardNotesSection";
 
 type MgrUser = { id: string; name: string; role: Role; locationId: string | null; location: { name: string } | null };
 
@@ -32,7 +33,7 @@ function upcomingLabel(iso: string | null): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export async function ManagerDashboard({ user, viewAs }: { user: MgrUser; viewAs?: string }) {
+export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUser; viewAs?: string; noteDate?: string }) {
   // A manager may view a teammate's board (?view=<id>) — validate location scope.
   let subject: MgrUser = user;
   if (viewAs && viewAs !== user.id && isManager(user.role)) {
@@ -227,6 +228,9 @@ export async function ManagerDashboard({ user, viewAs }: { user: MgrUser; viewAs
           {md.activity.length === 0 && <Empty>No recent activity.</Empty>}
         </ul>
       </section>
+
+      {/* Daily notes (your own log, regardless of whose board you're viewing) */}
+      <DashboardNotesSection userId={user.id} noteDate={noteDate} />
     </div>
   );
 }

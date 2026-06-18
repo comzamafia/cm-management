@@ -171,6 +171,7 @@ model Location {
   complianceSchedules ComplianceSchedule[]
   messages            Message[]
   serverPerformance   ServerPerformance[]
+  dailyNotes          DailyNote[]
 }
 
 model User {
@@ -210,6 +211,7 @@ model User {
   complianceCreated     ComplianceSchedule[] @relation("ComplianceCreator")
   messages              Message[]
   serverPerformance     ServerPerformance[]  @relation("ServerPerf")
+  dailyNotes            DailyNote[]
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -369,6 +371,20 @@ model ChecklistGeneration {
   template ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@index([templateId, locationId, generatedAt])
+}
+
+// Daily notes — free-form log of extra / ad-hoc work, browsable day by day.
+model DailyNote {
+  id         String   @id @default(cuid())
+  userId     String
+  locationId String?
+  body       String
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location? @relation(fields: [locationId], references: [id])
+
+  @@index([userId, createdAt])
 }
 
 // Phase 2: In-app notifications

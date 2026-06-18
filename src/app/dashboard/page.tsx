@@ -3,6 +3,7 @@ import { getCurrentUser, isManager } from "@/lib/auth";
 import { getMyWork } from "@/lib/queries";
 import { getAnnouncements } from "@/lib/announcements";
 import { ManagerDashboard } from "@/components/ManagerDashboard";
+import { DashboardNotesSection } from "@/components/DashboardNotesSection";
 import {
   formatDateTime,
   STATUS_LABEL,
@@ -34,7 +35,7 @@ function dueLabel(dueAt: Date | null): { text: string; tone: string } {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; noteDate?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) {
@@ -45,11 +46,12 @@ export default async function DashboardPage({
     );
   }
 
+  const { view, noteDate } = await searchParams;
+
   // Managers & owners get the operational dashboard; front-line staff keep the
   // simpler personal-first view below.
   if (isManager(user.role)) {
-    const { view } = await searchParams;
-    return <ManagerDashboard user={user} viewAs={view} />;
+    return <ManagerDashboard user={user} viewAs={view} noteDate={noteDate} />;
   }
 
   const firstName = user.name.split(/\s+/)[0];
@@ -140,6 +142,9 @@ export default async function DashboardPage({
           </div>
         </section>
       </div>
+
+      {/* Daily notes */}
+      <DashboardNotesSection userId={user.id} noteDate={noteDate} />
     </div>
   );
 }
