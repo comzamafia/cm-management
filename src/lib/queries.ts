@@ -49,11 +49,16 @@ export async function getTasks(
     : withDerived;
 }
 
-export async function getTaskDetail(id: string, user: ScopeUser) {
+export async function getTaskDetail(id: string, user: ScopeUser & { id: string }) {
   const scope = await locationScopeWhere(user);
+  const isEmployee = user.role === "EMPLOYEE" || user.role === "NEW_HIRE";
+  // Employees can open any task assigned to them even if location scope is narrow.
+  const where = isEmployee
+    ? { id, OR: [scope.locationId ? { locationId: scope.locationId } : {}, { assigneeId: user.id }] }
+    : { id, ...scope };
   const [task, activity] = await Promise.all([
     prisma.task.findFirst({
-      where: { id, ...scope },
+      where,
       include: {
         location: true,
         assignee: true,
