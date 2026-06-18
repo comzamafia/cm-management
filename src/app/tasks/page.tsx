@@ -73,7 +73,8 @@ export default async function TasksPage({
     proofRequired: t.proofRequired,
   }));
 
-  const canCreate = isManager(user.role) || user.role === "SHIFT_LEAD";
+  // Everyone with a branch can add a personal task; managers/shift leads create for the team.
+  const canCreate = isManager(user.role) || user.role === "SHIFT_LEAD" || !!user.locationId;
   const canManage = isManager(user.role);
 
   // Options for the filter dropdowns (scope-limited).

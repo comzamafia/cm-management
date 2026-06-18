@@ -8,18 +8,9 @@ import { createNotification } from "./notifications";
 import { getCurrentUser, isManager, scopedLocationIds } from "./auth";
 import { canTransition, canVerify, deriveStatus, proofMissing } from "./rules";
 import { rollScheduleOnTaskDone } from "./compliance";
+import { formatDateTime } from "./labels";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
-
-async function assertInScope(locationId: string) {
-  const user = await getCurrentUser();
-  if (!user) return { user: null, error: "Not signed in" as const };
-  const ids = await scopedLocationIds(user);
-  if (ids !== null && !ids.includes(locationId)) {
-    return { user, error: "Outside your location scope" as const };
-  }
-  return { user, error: null };
-}
 
 export async function createTask(input: {
   title: string;
@@ -34,13 +25,25 @@ export async function createTask(input: {
   dueAt?: string; // ISO
   proofRequired: boolean;
 }): Promise<ActionResult> {
-  const { user, error } = await assertInScope(input.locationId);
-  if (!user) return { ok: false, error: error ?? "Not signed in" };
-  if (error) return { ok: false, error };
-  if (!isManager(user.role) && user.role !== "SHIFT_LEAD") {
-    return { ok: false, error: "Only managers/shift leads can create tasks" };
-  }
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
   if (!input.title.trim()) return { ok: false, error: "Title is required" };
+
+  const canManage = isManager(user.role) || user.role === "SHIFT_LEAD";
+
+  // Non-managers may only create personal tasks: assigned to themselves, at their own branch.
+  let locationId = input.locationId;
+  let assigneeId: string | null = input.assigneeId || null;
+  if (!canManage) {
+    if (!user.locationId) return { ok: false, error: "You have no branch assigned — ask a manager" };
+    locationId = user.locationId;
+    assigneeId = user.id;
+  } else {
+    const ids = await scopedLocationIds(user);
+    if (ids !== null && !ids.includes(locationId)) {
+      return { ok: false, error: "Outside your location scope" };
+    }
+  }
 
   await prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
@@ -49,8 +52,8 @@ export async function createTask(input: {
         description: input.description?.trim() || null,
         type: input.type,
         priority: input.priority,
-        locationId: input.locationId,
-        assigneeId: input.assigneeId || null,
+        locationId,
+        assigneeId,
         assignerId: user.id,
         department: input.department?.trim() || null,
         categoryId: input.categoryId || null,
@@ -68,13 +71,13 @@ export async function createTask(input: {
       meta: { title: task.title, assigneeId: task.assigneeId, priority: task.priority },
     });
 
-    // Notify the assignee.
-    if (input.assigneeId && input.assigneeId !== user.id) {
+    // Notify the assignee (skips self-assigned personal tasks).
+    if (assigneeId && assigneeId !== user.id) {
       await createNotification(tx, {
-        userId: input.assigneeId,
+        userId: assigneeId,
         type: "TASK_ASSIGNED",
         title: "New task assigned to you",
-        body: `"${task.title}" — due ${task.dueAt ? task.dueAt.toLocaleDateString() : "no date"}.`,
+        body: `"${task.title}" — due ${task.dueAt ? formatDateTime(task.dueAt) : "no date"}.`,
         entityId: task.id,
         entityType: "Task",
       });

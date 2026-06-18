@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { TaskStatus } from "@prisma/client";
 import { StatusBadge, PriorityBadge } from "@/components/Badge";
 import { DeleteTaskButton } from "@/components/DeleteTaskButton";
-import { STATUS_LABEL, formatDateTime } from "@/lib/labels";
+import { STATUS_LABEL, formatDueRelative } from "@/lib/labels";
 import { bulkTaskAction } from "@/lib/tasks";
 
 export type TaskRow = {
@@ -131,7 +131,8 @@ export function TaskTable({
       )}
       {error && <p className="text-sm font-medium text-[#943B13]">{error}</p>}
 
-      <div className="m-card overflow-x-auto">
+      {/* Desktop table */}
+      <div className="m-card hidden overflow-x-auto md:block">
         <table className="w-full min-w-[680px] text-sm">
           <thead className="border-b border-[#E4DDE4] bg-[#F9F6F9] text-left text-xs font-semibold uppercase tracking-wider text-[#726973]">
             <tr>
@@ -169,7 +170,7 @@ export function TaskTable({
                 <td className="px-4 py-3 text-[#726973]">{t.locationName}</td>
                 <td className="px-4 py-3 text-[#726973]">{t.assigneeName ?? "—"}</td>
                 <td className="px-4 py-3"><PriorityBadge priority={t.priority} /></td>
-                <td className="px-4 py-3 text-[#726973]">{formatDateTime(t.dueAt)}</td>
+                <td className={`px-4 py-3 ${t.derivedStatus === "OVERDUE" ? "font-semibold text-[#e2445c]" : "text-[#726973]"}`}>{formatDueRelative(t.dueAt)}</td>
                 <td className="px-4 py-3"><StatusBadge status={t.derivedStatus} /></td>
                 {canManage && (
                   <td className="px-4 py-3">
@@ -194,6 +195,48 @@ export function TaskTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="space-y-2.5 md:hidden">
+        {tasks.map((t) => (
+          <div
+            key={t.id}
+            className={`m-card p-3.5 ${selected.has(t.id) ? "ring-2 ring-[#440E48]/30" : ""}`}
+          >
+            <div className="flex items-start gap-2.5">
+              <span className="mt-1 h-8 w-1.5 shrink-0 rounded-r" style={{ backgroundColor: STATUS_HEX[t.derivedStatus] }} />
+              {canManage && (
+                <input
+                  type="checkbox"
+                  checked={selected.has(t.id)}
+                  onChange={() => toggle(t.id)}
+                  aria-label={`Select ${t.title}`}
+                  className="mt-1 accent-[#440E48]"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <Link href={`/tasks/${t.id}`} className="block font-semibold leading-snug text-[#140516]">
+                  {t.title}
+                  {t.proofRequired && <span className="ml-1 text-xs text-[#F4A626]" title="Photo proof required">📷</span>}
+                </Link>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={t.derivedStatus} />
+                  <PriorityBadge priority={t.priority} />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#726973]">
+                  <span>{t.locationName}</span>
+                  <span>· {t.assigneeName ?? "Unassigned"}</span>
+                  <span className={t.derivedStatus === "OVERDUE" ? "font-semibold text-[#e2445c]" : ""}>· {formatDueRelative(t.dueAt)}</span>
+                </div>
+              </div>
+              {canManage && <DeleteTaskButton taskId={t.id} compact />}
+            </div>
+          </div>
+        ))}
+        {tasks.length === 0 && (
+          <div className="m-card px-4 py-12 text-center text-[#A19BA2]">{emptyMessage}</div>
+        )}
       </div>
     </div>
   );

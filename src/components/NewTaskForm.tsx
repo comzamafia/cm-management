@@ -18,10 +18,12 @@ export function NewTaskForm({
   locations,
   users,
   categories,
+  selfOnly = false,
 }: {
   locations: LocationOpt[];
   users: UserOpt[];
   categories: CategoryOpt[];
+  selfOnly?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -92,27 +94,34 @@ export function NewTaskForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>Branch *</label>
-          <select
-            className={field}
-            value={locationId}
-            onChange={(e) => { setLocationId(e.target.value); setAssigneeId(""); }}
-          >
-            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
+      {selfOnly ? (
+        <div className="rounded-xl bg-[#FAF6FA] px-4 py-3 text-sm text-[#726973]">
+          This task will be added to <span className="font-semibold text-[#440E48]">your list</span>
+          {locations[0] ? <> at {locations[0].name}</> : null}.
         </div>
-        <div>
-          <label className={labelCls}>Assignee</label>
-          <select className={field} value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-            <option value="">— Unassigned —</option>
-            {assignees.map((u) => (
-              <option key={u.id} value={u.id}>{u.name} ({ROLE_LABEL[u.role]})</option>
-            ))}
-          </select>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Branch *</label>
+            <select
+              className={field}
+              value={locationId}
+              onChange={(e) => { setLocationId(e.target.value); setAssigneeId(""); }}
+            >
+              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Assignee</label>
+            <select className={field} value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+              <option value="">— Unassigned —</option>
+              {assignees.map((u) => (
+                <option key={u.id} value={u.id}>{u.name} ({ROLE_LABEL[u.role]})</option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>

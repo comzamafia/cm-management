@@ -93,6 +93,38 @@ export function formatDateTime(d: Date | string | null | undefined): string {
   });
 }
 
+/** Calendar Y/M/D of a date as seen in the app timezone (Toronto). */
+function tzYmd(date: Date): { y: number; m: number; d: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(date);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return { y: get("year"), m: get("month"), d: get("day") };
+}
+
+/**
+ * Human "due" label relative to today, in the app timezone:
+ * "3d ago" / "Yesterday" / "Today 3:00 PM" / "Tomorrow 9:00 AM" / "Wed 9:00 AM" / "Mar 5".
+ * Wording is status-neutral; callers colour overdue rows themselves.
+ */
+export function formatDueRelative(d: Date | string | null | undefined): string {
+  if (!d) return "—";
+  const date = typeof d === "string" ? new Date(d) : d;
+  const a = tzYmd(new Date());
+  const b = tzYmd(date);
+  const diff = Math.round(
+    (Date.UTC(b.y, b.m - 1, b.d) - Date.UTC(a.y, a.m - 1, a.d)) / 86400000,
+  );
+  const time = date.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", timeZone: APP_TZ });
+
+  if (diff < -1) return `${Math.abs(diff)}d ago`;
+  if (diff === -1) return "Yesterday";
+  if (diff === 0) return `Today ${time}`;
+  if (diff === 1) return `Tomorrow ${time}`;
+  if (diff < 7) return `${date.toLocaleDateString("en-US", { weekday: "short", timeZone: APP_TZ })} ${time}`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: APP_TZ });
+}
+
 export const FREQUENCY_LABEL: Record<Frequency, string> = {
   DAILY: "Daily",
   WEEKLY: "Weekly",
