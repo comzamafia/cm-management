@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFiles } from "@/lib/upload-client";
 
 type Props = {
   value: string[];
@@ -9,9 +9,6 @@ type Props = {
   disabled?: boolean;
 };
 
-// Uploads photos straight to Vercel Blob from the browser (camera or library),
-// returning public URLs. Falls back to pasting an image URL if upload is
-// unavailable (e.g. Blob store not configured yet).
 export function PhotoUploader({ value, onChange, disabled }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -24,21 +21,10 @@ export function PhotoUploader({ value, onChange, disabled }: Props) {
     setErr(null);
     setBusy(true);
     try {
-      const uploaded: string[] = [];
-      for (const file of Array.from(files)) {
-        const blob = await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-        });
-        uploaded.push(blob.url);
-      }
-      onChange([...value, ...uploaded]);
+      const urls = await uploadFiles(Array.from(files), "photos");
+      onChange([...value, ...urls]);
     } catch (e) {
-      setErr(
-        (e as Error).message?.includes("store")
-          ? "Upload not configured yet — paste an image URL instead."
-          : `Upload failed: ${(e as Error).message}`,
-      );
+      setErr(`Upload failed: ${(e as Error).message}`);
       setShowPaste(true);
     } finally {
       setBusy(false);
@@ -59,7 +45,6 @@ export function PhotoUploader({ value, onChange, disabled }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Thumbnails */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {value.map((url, i) => (
@@ -82,7 +67,6 @@ export function PhotoUploader({ value, onChange, disabled }: Props) {
         </div>
       )}
 
-      {/* Capture / upload button */}
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={fileRef}
@@ -126,7 +110,6 @@ export function PhotoUploader({ value, onChange, disabled }: Props) {
         </button>
       </div>
 
-      {/* URL paste fallback */}
       {showPaste && (
         <div className="flex gap-2">
           <input

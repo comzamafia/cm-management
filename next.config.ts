@@ -1,7 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Phase 1 scaffold. Add image domains / experimental flags as features land.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.s3.*.amazonaws.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.s3.amazonaws.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

@@ -1,0 +1,12 @@
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["POST", "PUT", "GET"],
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "https://cm-management.vercel.app"
+    ],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]

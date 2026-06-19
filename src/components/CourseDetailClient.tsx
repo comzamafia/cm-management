@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { LessonType, TrainingCategory } from "@prisma/client";
-import { upload } from "@vercel/blob/client";
+import { uploadFiles } from "@/lib/upload-client";
 import {
   addLesson,
   updateLesson,
@@ -435,14 +435,8 @@ function LessonForm({
     setErr(null);
     setUploading(true);
     try {
-      const urls: string[] = [];
-      for (const file of Array.from(files)) {
-        const blob = await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-        });
-        urls.push(blob.url);
-      }
+      const folder = kind === "image" ? "lessons/images" : "lessons/files";
+      const urls = await uploadFiles(Array.from(files), folder);
       if (kind === "image") setImageUrls((prev) => [...prev, ...urls]);
       else setFileUrls((prev) => [...prev, ...urls]);
     } catch (e) {

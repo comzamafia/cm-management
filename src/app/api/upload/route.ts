@@ -1,45 +1,35 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { createUploadPresign } from "@/lib/storage";
 
-// POST /api/upload — issues a short-lived client token so the browser can upload
-// a photo directly to Vercel Blob (bypasses the serverless request-body limit).
-// Auth-gated: only signed-in users can obtain a token.
+// POST /api/upload — returns a presigned S3 POST so the browser can upload directly.
 export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
-
   try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname) => {
-        const user = await getCurrentUser();
-        if (!user) throw new Error("Not authenticated");
-        return {
-          allowedContentTypes: [
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "image/heic",
-            "image/heif",
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "text/plain",
-          ],
-          maximumSizeInBytes: 25 * 1024 * 1024, // 25 MB
-          addRandomSuffix: true,
-          tokenPayload: JSON.stringify({ userId: user.id, pathname }),
-        };
-      },
-      // Runs server-side after the blob lands. Nothing extra to persist here —
-      // the returned URL is attached to the TaskCompletion when the task is closed.
-      onUploadCompleted: async () => {},
-    });
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
 
-    return NextResponse.json(jsonResponse);
+    const { filename, contentType, folder } = (await request.json()) as {
+      filename: string;
+      contentType: string;
+      folder?: string;
+    };
+
+    if (!filename || !contentType) {
+      return NextResponse.json(
+        { error: "filename and contentType are required" },
+        { status: 400 },
+      );
+    }
+
+    const presign = await createUploadPresign(
+      filename,
+      contentType,
+      folder ?? "uploads",
+    );
+
+    return NextResponse.json(presign);
   } catch (error) {
     return NextResponse.json(
       { error: (error as Error).message },
