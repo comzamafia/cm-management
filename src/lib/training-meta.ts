@@ -1,4 +1,4 @@
-import { TrainingCategory } from "@prisma/client";
+import { TrainingCategory, LessonType } from "@prisma/client";
 
 // Plain (non-"use server") module: constants + types shared by the training
 // server actions and client components. Keeping these out of training.ts is
@@ -33,4 +33,18 @@ export const TRAINING_CATEGORY_COLOR: Record<TrainingCategory, string> = {
   PRODUCT: "#fdab3d",
   COMPLIANCE: "#a25ddc",
   OTHER: "#676879",
+};
+
+export const LESSON_TYPE_LABEL: Record<LessonType, string> = {
+  VIDEO: "Video",
+  ARTICLE: "Article",
+  DOCUMENT: "Document",
+  LINK: "Link",
+};
+
+export const LESSON_TYPE_ICON: Record<LessonType, string> = {
+  VIDEO: "▶",
+  ARTICLE: "📄",
+  DOCUMENT: "📎",
+  LINK: "🔗",
 };

@@ -239,7 +239,7 @@ export function ComplianceDetail({
         {/* Schedule details */}
         <div className="m-card p-5 md:col-span-2">
           <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#726973]">Details</h2>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <Detail label="Last service" value={fmtDate(schedule.lastServiceDate.toISOString())} />
             <Detail label="Frequency" value={COMPLIANCE_INTERVAL_LABEL[schedule.interval]} />
             <Detail label="Vendor" value={schedule.vendor ?? "—"} />

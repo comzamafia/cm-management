@@ -246,7 +246,7 @@ function MarkServicedButton({ r, run }: { r: ComplianceRow; run: (fn: Action) =>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-1 w-60 rounded-lg border border-[#E4DDE4] bg-white p-3 text-left shadow-lg">
+          <div className="absolute left-0 sm:left-auto sm:right-0 top-full z-20 mt-1 w-60 rounded-lg border border-[#E4DDE4] bg-white p-3 text-left shadow-lg">
             <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]">Record service</div>
             <label className="mb-1 block text-xs text-[#726973]">Service date</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}

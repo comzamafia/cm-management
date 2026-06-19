@@ -207,7 +207,7 @@ export function CalendarClient({
       </div>
 
       <div className="m-card overflow-x-auto p-4">
-        <div className="min-w-[680px]">
+        <div className="min-w-[560px]">
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[#726973]">
             {WEEKDAYS.map((d) => (
               <div key={d} className="py-1">{d}</div>
@@ -224,7 +224,7 @@ export function CalendarClient({
                   type="button"
                   onClick={() => setSelected(d)}
                   aria-pressed={isSelected}
-                  className={`min-h-[104px] rounded-lg border p-1.5 text-left transition-shadow hover:border-[#440E48] ${
+                  className={`min-h-[80px] sm:min-h-[104px] rounded-lg border p-1.5 text-left transition-shadow hover:border-[#440E48] ${
                     isSelected ? "border-[#440E48] ring-2 ring-[#440E48]/30" : isToday(d) ? "border-[#440E48] bg-[#FAF6FA]" : "border-[#EEEAEE]"
                   }`}
                 >

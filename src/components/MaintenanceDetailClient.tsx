@@ -378,7 +378,7 @@ export function MaintenanceDetailClient({
               {req.resolutionNote && (
                 <p className="mb-2 text-sm text-[#433745]">{req.resolutionNote}</p>
               )}
-              <div className="grid grid-cols-2 gap-2 text-xs text-[#726973]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#726973]">
                 {req.resolvedBy && <div><span className="text-[#A19BA2]">By:</span> {req.resolvedBy.name}</div>}
                 {req.resolvedAt && <div><span className="text-[#A19BA2]">At:</span> {formatDateTime(req.resolvedAt)}</div>}
                 {req.cost != null && <div><span className="text-[#A19BA2]">Cost:</span> ${req.cost.toFixed(2)}</div>}
@@ -393,7 +393,7 @@ export function MaintenanceDetailClient({
           {req.description && (
             <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-[#433745]">{req.description}</p>
           )}
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <DetailField label="Assigned to" value={req.assignedTo?.name ?? "Unassigned"} />
             <DetailField label="Vendor" value={req.vendor ?? "—"} />
             <DetailField label="Location" value={req.location.name} />

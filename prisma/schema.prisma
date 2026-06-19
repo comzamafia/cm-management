@@ -96,6 +96,13 @@ enum TrainingCategory {
   OTHER
 }
 
+enum LessonType {
+  VIDEO
+  ARTICLE
+  DOCUMENT
+  LINK
+}
+
 // Phase 5: Inventory
 enum InventoryUnit {
   EACH
@@ -164,6 +171,7 @@ model Location {
   checklistTemplates  ChecklistTemplate[]
   announcements       Announcement[]
   trainingMaterials   TrainingMaterial[]
+  courses             Course[]
   inventoryItems      InventoryItem[]
   inventoryCounts     InventoryCount[]
   maintenanceRequests MaintenanceRequest[]
@@ -199,6 +207,7 @@ model User {
   announcements         Announcement[]
   announcementReads     AnnouncementRead[]
   trainingMaterials     TrainingMaterial[]
+  coursesCreated        Course[]             @relation("CourseCreator")
   comments              Comment[]
   complianceComments    ComplianceComment[]
   maintenanceComments   MaintenanceComment[]
@@ -435,7 +444,43 @@ model AnnouncementRead {
   @@unique([announcementId, userId])
 }
 
-// Phase 4: Training materials hub
+// Phase 4: LMS — Course / Lesson
+model Course {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  category    TrainingCategory
+  thumbnail   String?
+  locationId  String?
+  published   Boolean          @default(true)
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  createdBy User      @relation("CourseCreator", fields: [createdById], references: [id])
+  location  Location? @relation(fields: [locationId], references: [id])
+  lessons   Lesson[]
+
+  @@index([locationId, category])
+}
+
+model Lesson {
+  id         String     @id @default(cuid())
+  courseId    String
+  title      String
+  content    String?
+  contentUrl String?
+  type       LessonType @default(ARTICLE)
+  duration   Int?
+  position   Int        @default(0)
+  createdAt  DateTime   @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, position])
+}
+
+// Legacy flat materials (kept for data compatibility)
 model TrainingMaterial {
   id          String           @id @default(cuid())
   title       String
