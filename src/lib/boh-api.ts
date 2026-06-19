@@ -141,7 +141,9 @@ export async function fetchServerPerformance(
     return { ok: false, status: 0, error: `Unknown branch: ${branchId}`, reason: "not-configured" };
   }
 
-  const key = process.env[branch.keyEnv];
+  // Trim whitespace/newlines and strip stray surrounding quotes — common when a
+  // key is pasted into a dashboard env field (e.g. Vercel) with extra characters.
+  const key = process.env[branch.keyEnv]?.trim().replace(/^["']|["']$/g, "");
   if (!key) {
     return {
       ok: false,
@@ -157,7 +159,12 @@ export async function fetchServerPerformance(
     const res = await fetchWithRetry(url, key);
 
     if (res.status === 401)
-      return { ok: false, status: 401, error: "Invalid or missing API key for this branch.", reason: "unauthorized" };
+      return {
+        ok: false,
+        status: 401,
+        error: `${branch.name} rejected the key in ${branch.keyEnv}. Check it matches this branch's URL (${branch.baseUrl}) and has no extra spaces/quotes.`,
+        reason: "unauthorized",
+      };
     if (res.status === 503)
       return { ok: false, status: 503, error: "This branch has not configured its API key yet.", reason: "not-configured" };
     if (res.status === 400) {
