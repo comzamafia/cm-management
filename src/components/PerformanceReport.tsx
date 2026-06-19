@@ -1,37 +1,10 @@
 import type { BohServerPerformance } from "@/lib/boh-api";
+import { money0, money2, pct, int, fmtGenerated, scoreFormula } from "@/lib/perf-format";
 
 // Presentational report that mirrors the official "Server Performance Report"
 // PDF (dark navy header band, bordered stat tiles, navy leaderboard header with
-// rank-1 highlight). Rendered on screen and printed verbatim via the browser
-// (Export PDF → window.print). The app chrome is hidden on print by the root
-// layout; print-color-adjust keeps the navy/cream fills in the exported PDF.
-
-const BRANCH_TZ = "America/Toronto";
-
-function money0(n: number): string {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-}
-function money2(n: number): string {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-// Percent with up to 2 decimals, trailing zeros trimmed: 15.21% · 18.2% · 0%.
-function pct(n: number): string {
-  return `${parseFloat(n.toFixed(2))}%`;
-}
-function int(n: number): string {
-  return Math.round(n).toLocaleString("en-US");
-}
-function fmtGenerated(iso: string): string {
-  const s = new Date(iso).toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-    hour: "numeric", minute: "2-digit", timeZone: BRANCH_TZ,
-  });
-  return s.replace(/\bAM\b/, "a.m.").replace(/\bPM\b/, "p.m.");
-}
-function scoreFormula(w: BohServerPerformance["weights"]): string {
-  const p = (x: number) => Math.round(x * 100);
-  return `Score = Sales/hr ${p(w.salesPerHour)}% · Avg/Guest ${p(w.avgPerGuest)}% · Drink% ${p(w.drinkPct)}% · Dessert attach ${p(w.dessertPer100)}% · Discount discipline ${p(w.discount)}% (normalised across servers). Station logins excluded; tips not shown.`;
-}
+// rank-1 highlight). Rendered on screen; the same data is rendered to a real
+// downloadable PDF by src/lib/performance-pdf.tsx (Export PDF button).
 
 const NAVY = "#1F2A37";
 
