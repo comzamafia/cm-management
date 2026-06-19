@@ -473,6 +473,8 @@ model Lesson {
   type       LessonType @default(ARTICLE)
   duration   Int?
   position   Int        @default(0)
+  imageUrls  String[]   @default([])
+  fileUrls   String[]   @default([])
   createdAt  DateTime   @default(now())
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)

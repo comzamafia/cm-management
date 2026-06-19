@@ -22,8 +22,14 @@ export async function POST(request: Request): Promise<NextResponse> {
             "image/webp",
             "image/heic",
             "image/heif",
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "text/plain",
           ],
-          maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
+          maximumSizeInBytes: 25 * 1024 * 1024, // 25 MB
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ userId: user.id, pathname }),
         };

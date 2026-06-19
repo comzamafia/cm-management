@@ -188,6 +188,8 @@ export async function addLesson(
     contentUrl?: string;
     type: LessonType;
     duration?: number | null;
+    imageUrls?: string[];
+    fileUrls?: string[];
   },
 ): Promise<ActionResult> {
   const user = await getCurrentUser();
@@ -214,6 +216,8 @@ export async function addLesson(
         type: input.type,
         duration: input.duration ?? null,
         position: (maxPos._max.position ?? -1) + 1,
+        imageUrls: input.imageUrls ?? [],
+        fileUrls: input.fileUrls ?? [],
       },
     });
     await tx.activityLog.create({
@@ -240,6 +244,8 @@ export async function updateLesson(
     contentUrl?: string;
     type?: LessonType;
     duration?: number | null;
+    imageUrls?: string[];
+    fileUrls?: string[];
   },
 ): Promise<ActionResult> {
   const user = await getCurrentUser();
@@ -266,6 +272,8 @@ export async function updateLesson(
           : {}),
         ...(input.type !== undefined ? { type: input.type } : {}),
         ...(input.duration !== undefined ? { duration: input.duration } : {}),
+        ...(input.imageUrls !== undefined ? { imageUrls: input.imageUrls } : {}),
+        ...(input.fileUrls !== undefined ? { fileUrls: input.fileUrls } : {}),
       },
     });
     await tx.activityLog.create({
