@@ -43,6 +43,12 @@ export function atLocalHourTZ(date: Date, hour: number, tz: string = APP_TZ): Da
   return new Date(startOfDayTZ(date, tz).getTime() + hour * 3600000);
 }
 
+/** Local calendar date as `YYYY-MM-DD` in the configured timezone. */
+export function localDateISO(date: Date = new Date(), tz: string = APP_TZ): string {
+  const p = parts(date, tz);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 /** Local weekday (0=Sun … 6=Sat) for the instant in the configured timezone. */
 export function localWeekday(date: Date = new Date(), tz: string = APP_TZ): number {
   return WD.indexOf(parts(date, tz).weekday);

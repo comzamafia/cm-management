@@ -1,18 +1,28 @@
-import Link from "next/link";
 import { getCurrentUser, isManager } from "@/lib/auth";
-import { getServerPerformance } from "@/lib/performance";
-import { startOfDayTZ } from "@/lib/time";
+import { localDateISO } from "@/lib/time";
+import { fetchServerPerformance, configuredBranches, type BohResult } from "@/lib/boh-api";
+import { PerformanceControls } from "@/components/PerformanceControls";
+import { PerformanceReport } from "@/components/PerformanceReport";
 
 export const dynamic = "force-dynamic";
 
-function money(n: number): string {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const MAX_RANGE_DAYS = 366;
+
+// Validate a YYYY-MM-DD string.
+function validDate(s: string | undefined): s is string {
+  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round(
+    (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${from}T00:00:00Z`).getTime()) / 86400000,
+  );
 }
 
 export default async function PerformancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<{ branch?: string; from?: string; to?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) return <div className="text-[#726973]">Sign in to view performance.</div>;
@@ -20,100 +30,118 @@ export default async function PerformancePage({
     return <div className="text-[#726973]">Manager access required.</div>;
   }
 
-  const { days } = await searchParams;
-  const range = days === "30" ? 30 : days === "1" ? 1 : 7;
-  const to = new Date();
-  const from = new Date(startOfDayTZ(to).getTime() - (range - 1) * 86400000);
-  const { servers, totals } = await getServerPerformance(user, { from, to });
+  const branchesWithKeys = configuredBranches();
+  const anyKey = branchesWithKeys.some((b) => b.hasKey);
 
-  const RANGES = [
-    { d: 1, label: "Today" },
-    { d: 7, label: "7 days" },
-    { d: 30, label: "30 days" },
-  ];
+  const sp = await searchParams;
+
+  // Default branch: requested → first with a key → first in registry.
+  const requested = sp.branch ? branchesWithKeys.find((b) => b.branch.id === sp.branch) : undefined;
+  const fallback = branchesWithKeys.find((b) => b.hasKey) ?? branchesWithKeys[0];
+  const selected = requested ?? fallback;
+  const branchId = selected.branch.id;
+
+  // Default range: last 7 days (Toronto business dates).
+  const today = localDateISO(new Date());
+  const defaultFrom = localDateISO(new Date(Date.parse(`${today}T00:00:00Z`) - 6 * 86400000));
+  let from = validDate(sp.from) ? sp.from : defaultFrom;
+  let to = validDate(sp.to) ? sp.to : today;
+  if (from > to) [from, to] = [to, from];
+  // Clamp range length.
+  let rangeError: string | null = null;
+  if (daysBetween(from, to) > MAX_RANGE_DAYS) {
+    rangeError = `Range exceeds ${MAX_RANGE_DAYS} days — shorten the dates.`;
+  }
+
+  const branchOpts = branchesWithKeys.map((b) => ({
+    id: b.branch.id,
+    label: b.branch.name,
+    hasKey: b.hasKey,
+  }));
+
+  // Fetch only when at least one branch is configured and range is valid.
+  let result: BohResult | null = null;
+  if (anyKey && !rangeError) {
+    result = await fetchServerPerformance(branchId, from, to);
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">Server Performance</h1>
-          <p className="mt-0.5 text-sm text-[#726973]">Sales, covers, tips and reviews per server — fed from your POS via API.</p>
-        </div>
-        <div className="flex gap-1.5">
-          {RANGES.map((r) => (
-            <Link key={r.d} href={`/performance?days=${r.d}`}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${range === r.d ? "bg-[#440E48] text-white" : "bg-[#F0EBF0] text-[#726973] hover:bg-[#E4DDE4]"}`}>
-              {r.label}
-            </Link>
-          ))}
-        </div>
+    <div className="space-y-5">
+      <div className="print:hidden">
+        <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">Server Performance</h1>
+        <p className="mt-0.5 text-sm text-[#726973]">
+          Live leaderboard pulled from each branch&apos;s BOH reporting API. Pick a branch and date range, then Export PDF.
+        </p>
       </div>
 
-      {/* KPI tiles */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi label="Total Sales" value={money(totals.sales)} color="#1DBA87" />
-        <Kpi label="Covers" value={totals.covers.toLocaleString()} color="#5B8DD9" />
-        <Kpi label="Avg Check" value={money(totals.avgCheck)} color="#F4A626" />
-        <Kpi label="Servers" value={String(totals.servers)} color="#440E48" />
-      </div>
+      <PerformanceControls branches={branchOpts} branchId={branchId} from={from} to={to} />
 
-      <section className="m-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-[#eee] bg-[#faf8fa] text-left text-[10px] font-bold uppercase tracking-wider text-[#726973]">
-              <tr>
-                <th className="px-4 py-2.5 w-10">#</th>
-                <th className="px-4 py-2.5">Server</th>
-                <th className="px-3 py-2.5">Location</th>
-                <th className="px-3 py-2.5 text-right">Sales</th>
-                <th className="px-3 py-2.5 text-right">Covers</th>
-                <th className="px-3 py-2.5 text-right">Avg Check</th>
-                <th className="px-3 py-2.5 text-right">Tips</th>
-                <th className="px-3 py-2.5 text-right">Tip %</th>
-                <th className="px-3 py-2.5 text-right">Upsells</th>
-                <th className="px-3 py-2.5 text-right">Review</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f3eef3]">
-              {servers.map((s, i) => (
-                <tr key={s.serverId} className="hover:bg-[#faf8fa]">
-                  <td className="px-4 py-2.5 font-bold text-[#A19BA2]">{i + 1}</td>
-                  <td className="px-4 py-2.5">
-                    <Link href={`/dashboard/who/${s.serverId}`} className="font-semibold text-[#140516] hover:text-[#440E48]">{s.name}</Link>
-                  </td>
-                  <td className="px-3 py-2.5 text-[#726973]">{s.locationName}</td>
-                  <td className="px-3 py-2.5 text-right font-semibold text-[#140516]">{money(s.sales)}</td>
-                  <td className="px-3 py-2.5 text-right text-[#726973]">{s.covers}</td>
-                  <td className="px-3 py-2.5 text-right text-[#726973]">{money(s.avgCheck)}</td>
-                  <td className="px-3 py-2.5 text-right text-[#726973]">{money(s.tips)}</td>
-                  <td className="px-3 py-2.5 text-right text-[#726973]">{s.tipPct.toFixed(1)}%</td>
-                  <td className="px-3 py-2.5 text-right text-[#726973]">{s.upsells}</td>
-                  <td className="px-3 py-2.5 text-right">
-                    {s.reviewAvg != null
-                      ? <span className="font-semibold text-[#F4A626]">★ {s.reviewAvg.toFixed(1)}</span>
-                      : <span className="text-[#C9C4C9]">—</span>}
-                  </td>
-                </tr>
-              ))}
-              {servers.length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-10 text-center text-sm text-[#A19BA2]">
-                  No performance data for this range. Push data to <code className="rounded bg-[#F0EBF0] px-1">POST /api/performance</code> from your POS/website.
-                </td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {rangeError && (
+        <Panel tone="warn" title="Invalid date range">{rangeError}</Panel>
+      )}
+
+      {!anyKey && (
+        <Panel tone="info" title="No branch API keys configured yet">
+          <p>
+            Add each branch&apos;s API key as an environment variable, then redeploy. The page goes live automatically once a key is present.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {branchesWithKeys.map((b) => (
+              <li key={b.branch.id} className="font-mono text-xs">
+                {b.branch.keyEnv} <span className="text-[#A19BA2]">→ {b.branch.name} ({b.branch.baseUrl})</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {result && !result.ok && (
+        <Panel tone={result.reason === "no-key" || result.reason === "not-configured" ? "info" : "warn"}
+          title={errorTitle(result)}>
+          <p>{result.error}</p>
+          {result.reason === "no-key" && (
+            <p className="mt-1 font-mono text-xs text-[#A19BA2]">Set {selected.branch.keyEnv} in the environment.</p>
+          )}
+          {(result.reason === "server" || result.reason === "network") && (
+            <p className="mt-1 text-xs text-[#A19BA2]">This branch may be temporarily unavailable — try again shortly.</p>
+          )}
+        </Panel>
+      )}
+
+      {result && result.ok && <PerformanceReport data={result.data} />}
     </div>
   );
 }
 
-function Kpi({ label, value, color }: { label: string; value: string; color: string }) {
+function errorTitle(r: Extract<BohResult, { ok: false }>): string {
+  switch (r.reason) {
+    case "no-key": return "Branch not configured";
+    case "not-configured": return "Branch not configured";
+    case "unauthorized": return "API key rejected";
+    case "bad-request": return "Invalid request";
+    case "server": return "Branch server error";
+    case "network": return "Could not reach branch";
+    default: return "Unable to load report";
+  }
+}
+
+function Panel({
+  tone,
+  title,
+  children,
+}: {
+  tone: "info" | "warn";
+  title: string;
+  children: React.ReactNode;
+}) {
+  const styles = tone === "warn"
+    ? { bg: "#FDF6E7", border: "#F4D58A", text: "#8A5A00" }
+    : { bg: "#F2F7FD", border: "#BBD6F2", text: "#1D5FA8" };
   return (
-    <div className="m-card relative overflow-hidden p-4">
-      <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: color }} />
-      <div className="text-2xl font-extrabold lg:text-3xl" style={{ color }}>{value}</div>
-      <div className="mt-0.5 text-xs font-medium text-[#726973]">{label}</div>
+    <div className="rounded-xl border p-4 text-sm print:hidden"
+      style={{ backgroundColor: styles.bg, borderColor: styles.border, color: styles.text }}>
+      <div className="font-bold">{title}</div>
+      <div className="mt-1 leading-relaxed">{children}</div>
     </div>
   );
 }
