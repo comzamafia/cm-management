@@ -3,6 +3,7 @@ import { localDateISO } from "@/lib/time";
 import { fetchServerPerformance, configuredBranches, type BohResult } from "@/lib/boh-api";
 import { PerformanceControls } from "@/components/PerformanceControls";
 import { PerformanceReport } from "@/components/PerformanceReport";
+import { PerformanceUpsell } from "@/components/PerformanceUpsell";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ function daysBetween(from: string, to: string): number {
 export default async function PerformancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ branch?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ branch?: string; from?: string; to?: string; view?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) return <div className="text-[#726973]">Sign in to view performance.</div>;
@@ -40,6 +41,7 @@ export default async function PerformancePage({
   const fallback = branchesWithKeys.find((b) => b.hasKey) ?? branchesWithKeys[0];
   const selected = requested ?? fallback;
   const branchId = selected.branch.id;
+  const view = sp.view === "upsell" ? "upsell" : "score";
 
   // Default range: last 7 days (Toronto business dates).
   const today = localDateISO(new Date());
@@ -74,7 +76,7 @@ export default async function PerformancePage({
         </p>
       </div>
 
-      <PerformanceControls branches={branchOpts} branchId={branchId} from={from} to={to} />
+      <PerformanceControls branches={branchOpts} branchId={branchId} from={from} to={to} view={view} />
 
       {rangeError && (
         <Panel tone="warn" title="Invalid date range">{rangeError}</Panel>
@@ -108,7 +110,8 @@ export default async function PerformancePage({
         </Panel>
       )}
 
-      {result && result.ok && <PerformanceReport data={result.data} />}
+      {result && result.ok && view === "score" && <PerformanceReport data={result.data} />}
+      {result && result.ok && view === "upsell" && <PerformanceUpsell data={result.data} />}
     </div>
   );
 }
