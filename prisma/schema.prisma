@@ -223,6 +223,8 @@ model User {
   messages              Message[]
   serverPerformance     ServerPerformance[]  @relation("ServerPerf")
   dailyNotes            DailyNote[]
+  notesAbout            PersonNote[]         @relation("NoteSubject")
+  notesAuthored         PersonNote[]         @relation("NoteAuthor")
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -727,4 +729,30 @@ model ActivityLog {
 
   @@index([locationId, timestamp])
   @@index([userId, timestamp])
+}
+
+// Private management notes pinned to a person's profile. Visible only to
+// OWNER / AREA_MANAGER (see src/lib/person-notes.ts). Displayed as sticky notes.
+enum NoteColor {
+  YELLOW
+  PINK
+  GREEN
+  BLUE
+  PURPLE
+}
+
+model PersonNote {
+  id        String    @id @default(cuid())
+  subjectId String // the user the note is about
+  authorId  String // who wrote it
+  title     String?
+  body      String
+  color     NoteColor @default(YELLOW)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  subject User @relation("NoteSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  author  User @relation("NoteAuthor", fields: [authorId], references: [id])
+
+  @@index([subjectId, createdAt])
 }

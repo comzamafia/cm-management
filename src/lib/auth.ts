@@ -4,7 +4,7 @@ import { prisma } from "./prisma";
 import { scopedLocationIdsFor } from "./rules";
 
 // Re-export pure RBAC helpers — logic lives in ./rules (unit-tested, no DB deps).
-export { RANK, rankOf, atLeast, isManager } from "./rules";
+export { RANK, rankOf, atLeast, isManager, hasGlobalScope } from "./rules";
 
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
