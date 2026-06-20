@@ -196,13 +196,19 @@ export async function GET(req: Request) {
 
   lines.push("END:VCALENDAR");
 
-  const body = lines.map(fold).join("\r\n");
+  // Trailing CRLF — strict parsers (incl. Outlook) expect the final line to end
+  // with CRLF, otherwise END:VCALENDAR can be dropped and the import fails.
+  const body = lines.map(fold).join("\r\n") + "\r\n";
 
-  return new Response(body, {
-    headers: {
-      "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="cm-calendar.ics"',
-      "Cache-Control": "no-store, no-cache",
-    },
-  });
+  // Only force a file download when explicitly requested (the "Download .ics"
+  // button). For webcal / "Subscribe from web", an attachment disposition makes
+  // Outlook treat the feed as a download and reject it ("Could not import").
+  const isDownload = url.searchParams.get("download") === "1";
+  const headers: Record<string, string> = {
+    "Content-Type": "text/calendar; charset=utf-8",
+    "Cache-Control": "no-store, no-cache",
+  };
+  if (isDownload) headers["Content-Disposition"] = 'attachment; filename="cm-calendar.ics"';
+
+  return new Response(body, { headers });
 }

@@ -159,7 +159,7 @@ export function CalendarClient({
 
                 {/* Download */}
                 <a
-                  href="/api/calendar/ics"
+                  href="/api/calendar/ics?download=1"
                   download="cm-calendar.ics"
                   className="mb-2 flex items-center gap-2 rounded-lg border border-[#E4DDE4] px-3 py-2 text-sm font-medium text-[#140516] hover:bg-[#F0EBF0]"
                   onClick={() => setSyncOpen(false)}
