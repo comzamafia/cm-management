@@ -90,8 +90,9 @@ export default async function DashboardPage({
         <StatTile label="Completed" value={myWork.counts.doneThisCycle} color="#1DBA87" />
       </div>
 
-      {/* My Tasks + Company News */}
-      <div className="grid gap-5 lg:grid-cols-5">
+      {/* My Tasks + Company News (left) · Sticky Notes (right rail) */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-5">
         <section className="m-card p-5 lg:col-span-3">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-[#726973]">My Tasks</h2>
@@ -147,10 +148,13 @@ export default async function DashboardPage({
             )}
           </div>
         </section>
-      </div>
+        </div>
 
-      {/* Sticky notes (personal) */}
-      <DashboardStickyNotes subjectId={user.id} notes={stickyNotes} currentUserId={user.id} canManage />
+        {/* Sticky Notes — right rail */}
+        <aside className="lg:sticky lg:top-4 lg:self-start">
+          <DashboardStickyNotes subjectId={user.id} notes={stickyNotes} currentUserId={user.id} canManage />
+        </aside>
+      </div>
 
       {/* Daily notes */}
       <DashboardNotesSection userId={user.id} noteDate={noteDate} />

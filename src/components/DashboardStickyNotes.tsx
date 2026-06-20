@@ -112,7 +112,7 @@ export function DashboardStickyNotes({ subjectId, notes, currentUserId, canManag
           {canManage ? "No notes yet. Click “New Note” to add one." : "No notes."}
         </p>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-3">
           {notes.map((n) => {
             const st = NOTE_STYLE[n.color];
             const canDelete = canManage || n.author.id === currentUserId;

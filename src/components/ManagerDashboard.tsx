@@ -99,8 +99,9 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           icon={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />
       </div>
 
-      {/* Today's Tasks + Weekly Planner */}
-      <div className="grid gap-5 lg:grid-cols-5">
+      {/* Today's Tasks + Weekly Planner (left) · Sticky Notes (right rail) */}
+      <div className={`grid gap-5 ${canSeeNotes ? "lg:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
+        <div className="grid min-w-0 gap-5 lg:grid-cols-5">
         <DashboardTodayTasks tasks={md.todayTasks} pending={md.pendingChecklists} users={md.users} canEdit />
         <section className="m-card lg:col-span-2">
           <div className="flex items-center gap-2 px-5 py-4">
@@ -144,12 +145,15 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
             </div>
           </div>
         </section>
-      </div>
+        </div>
 
-      {/* Sticky notes */}
-      {canSeeNotes && (
-        <DashboardStickyNotes subjectId={subject.id} notes={stickyNotes} currentUserId={user.id} canManage />
-      )}
+        {/* Sticky Notes — right rail */}
+        {canSeeNotes && (
+          <aside className="lg:sticky lg:top-4 lg:self-start">
+            <DashboardStickyNotes subjectId={subject.id} notes={stickyNotes} currentUserId={user.id} canManage />
+          </aside>
+        )}
+      </div>
 
       {/* Overdue · Upcoming · Quick Links · Task Categories */}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

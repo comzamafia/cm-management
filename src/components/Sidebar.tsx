@@ -102,7 +102,7 @@ const NAV_BASE: NavDef[] = [
   { href: "/maintenance",   label: "Maintenance",       icon: I.maintenance },
   { href: "/compliance",    label: "Compliance",        icon: I.compliance,    minRank: RANK.SHIFT_LEAD },
   { href: "/performance",   label: "Server Performance", icon: I.performance,  minRank: RANK.SHIFT_LEAD },
-  { href: "/people",        label: "People",            icon: I.people,        minRank: RANK.STORE_MANAGER },
+  { href: "/people",        label: "Team Member",       icon: I.people,        minRank: RANK.STORE_MANAGER },
   { href: "/announcements", label: "Announcements",     icon: I.announcements },
   { href: "/channels",      label: "Channels",          icon: I.channels },
   { href: "/training",      label: "Training Hub",      icon: I.training },
