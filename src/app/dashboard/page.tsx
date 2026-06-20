@@ -4,6 +4,8 @@ import { getMyWork } from "@/lib/queries";
 import { getAnnouncements } from "@/lib/announcements";
 import { ManagerDashboard } from "@/components/ManagerDashboard";
 import { DashboardNotesSection } from "@/components/DashboardNotesSection";
+import { DashboardStickyNotes } from "@/components/DashboardStickyNotes";
+import { getStickyNotes } from "@/lib/person-notes";
 import {
   formatDateTime,
   STATUS_LABEL,
@@ -59,7 +61,11 @@ export default async function DashboardPage({
     weekday: "long", month: "long", day: "numeric", year: "numeric",
   });
 
-  const [myWork, announcements] = await Promise.all([getMyWork(user), getAnnouncements()]);
+  const [myWork, announcements, stickyNotes] = await Promise.all([
+    getMyWork(user),
+    getAnnouncements(),
+    getStickyNotes(user.id),
+  ]);
   const news = announcements.slice(0, 4);
 
   return (
@@ -142,6 +148,9 @@ export default async function DashboardPage({
           </div>
         </section>
       </div>
+
+      {/* Sticky notes (personal) */}
+      <DashboardStickyNotes subjectId={user.id} notes={stickyNotes} currentUserId={user.id} canManage />
 
       {/* Daily notes */}
       <DashboardNotesSection userId={user.id} noteDate={noteDate} />

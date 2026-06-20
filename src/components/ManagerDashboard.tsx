@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isManager, scopedLocationIds } from "@/lib/auth";
+import { isManager, scopedLocationIds, hasGlobalScope } from "@/lib/auth";
 import { getMyWork, getManagerDashboard } from "@/lib/queries";
+import { getStickyNotes } from "@/lib/person-notes";
 import { ROLE_LABEL, formatDateTime } from "@/lib/labels";
 import { APP_TZ } from "@/lib/time";
 import { DashboardTodayTasks } from "./DashboardTodayTasks";
 import { DashboardCategories } from "./DashboardCategories";
 import { DashboardViewAs } from "./DashboardViewAs";
 import { DashboardNotesSection } from "./DashboardNotesSection";
+import { DashboardStickyNotes } from "./DashboardStickyNotes";
 
 type MgrUser = { id: string; name: string; role: Role; locationId: string | null; location: { name: string } | null };
 
@@ -51,6 +53,10 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
   const firstName = subject.name.split(/\s+/)[0];
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: APP_TZ });
   const weekDates = md.planner.weekDates.map((d) => new Date(d));
+
+  // Sticky notes: own board → manage your own; OWNER/AREA_MANAGER → manage anyone's.
+  const canSeeNotes = subject.id === user.id || hasGlobalScope(user.role);
+  const stickyNotes = canSeeNotes ? await getStickyNotes(subject.id) : [];
 
   return (
     <div className="space-y-6">
@@ -139,6 +145,11 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           </div>
         </section>
       </div>
+
+      {/* Sticky notes */}
+      {canSeeNotes && (
+        <DashboardStickyNotes subjectId={subject.id} notes={stickyNotes} currentUserId={user.id} canManage />
+      )}
 
       {/* Overdue · Upcoming · Quick Links · Task Categories */}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

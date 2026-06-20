@@ -8,7 +8,7 @@ import { hasGlobalScope } from "./rules";
 
 export type ActionResult = { ok: boolean; error?: string };
 
-export type PersonNoteItem = {
+export type StickyNoteItem = {
   id: string;
   title: string | null;
   body: string;
@@ -17,16 +17,20 @@ export type PersonNoteItem = {
   author: { id: string; name: string };
 };
 
-// Sticky notes are private management notes — only OWNER / AREA_MANAGER may
-// read or write them. Anyone below that never sees the section at all.
-function canAccessNotes(role: Role): boolean {
-  return hasGlobalScope(role);
+type Viewer = { id: string; role: Role };
+
+// Sticky notes live on a person's dashboard. The dashboard owner manages their
+// own notes; OWNER / AREA_MANAGER have owner-like rights over anyone's notes
+// (view, add, delete) — e.g. to leave a note on a teammate's board.
+export async function canManageNotesFor(viewer: Viewer, subjectId: string): Promise<boolean> {
+  return viewer.id === subjectId || hasGlobalScope(viewer.role);
 }
 
-/** Notes pinned to a person's profile (newest first). Gated to OWNER/AREA_MANAGER. */
-export async function getPersonNotes(subjectId: string): Promise<PersonNoteItem[]> {
+/** Notes pinned to a person's dashboard (newest first). */
+export async function getStickyNotes(subjectId: string): Promise<StickyNoteItem[]> {
   const user = await getCurrentUser();
-  if (!user || !canAccessNotes(user.role)) return [];
+  if (!user) return [];
+  if (user.id !== subjectId && !hasGlobalScope(user.role)) return [];
 
   return prisma.personNote.findMany({
     where: { subjectId },
@@ -35,13 +39,15 @@ export async function getPersonNotes(subjectId: string): Promise<PersonNoteItem[
   });
 }
 
-export async function addPersonNote(
+export async function addStickyNote(
   subjectId: string,
   input: { title?: string; body: string; color?: NoteColor },
 ): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  if (!canAccessNotes(user.role)) return { ok: false, error: "Owner / Area Manager only" };
+  if (user.id !== subjectId && !hasGlobalScope(user.role)) {
+    return { ok: false, error: "Not allowed to add notes here" };
+  }
 
   const body = input.body.trim();
   if (!body) return { ok: false, error: "Note cannot be empty" };
@@ -66,7 +72,7 @@ export async function addPersonNote(
     await tx.activityLog.create({
       data: {
         userId: user.id,
-        action: "person_note.added",
+        action: "sticky_note.added",
         entity: "User",
         entityId: subjectId,
         locationId: subject.locationId,
@@ -75,23 +81,23 @@ export async function addPersonNote(
     });
   });
 
-  revalidatePath(`/dashboard/who/${subjectId}`);
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 
-export async function deletePersonNote(noteId: string): Promise<ActionResult> {
+export async function deleteStickyNote(noteId: string): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  if (!canAccessNotes(user.role)) return { ok: false, error: "Owner / Area Manager only" };
 
   const note = await prisma.personNote.findUnique({ where: { id: noteId } });
   if (!note) return { ok: false, error: "Note not found" };
-  // Author may delete their own; OWNER may delete any.
-  if (note.authorId !== user.id && user.role !== Role.OWNER) {
-    return { ok: false, error: "Only the author or an owner can delete this note" };
-  }
+
+  // The dashboard owner, the author, or an OWNER/AREA_MANAGER may delete.
+  const allowed =
+    note.subjectId === user.id || note.authorId === user.id || hasGlobalScope(user.role);
+  if (!allowed) return { ok: false, error: "Not allowed to delete this note" };
 
   await prisma.personNote.delete({ where: { id: noteId } });
-  revalidatePath(`/dashboard/who/${note.subjectId}`);
+  revalidatePath("/dashboard");
   return { ok: true };
 }

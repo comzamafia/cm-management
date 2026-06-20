@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser, isManager, hasGlobalScope } from "@/lib/auth";
+import { getCurrentUser, isManager } from "@/lib/auth";
 import { getUserProfile } from "@/lib/reports";
-import { getPersonNotes } from "@/lib/person-notes";
 import { ROLE_LABEL, formatDateTime } from "@/lib/labels";
 import { StatusBadge, PriorityBadge } from "@/components/Badge";
-import { PersonNotes } from "@/components/PersonNotes";
 
 const ACTION_VERB: Record<string, string> = {
   "task.created": "created",
@@ -26,10 +24,6 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
   if (!profile) notFound();
 
   const { user: subject, stats, recentTasks, activity } = profile;
-
-  // Sticky notes are private management notes — only OWNER / AREA_MANAGER.
-  const canSeeNotes = hasGlobalScope(user.role);
-  const notes = canSeeNotes ? await getPersonNotes(userId) : [];
 
   return (
     <div className="space-y-6">
@@ -59,16 +53,6 @@ export default async function UserProfilePage({ params }: { params: Promise<{ us
           </div>
         </div>
       </div>
-
-      {/* Sticky notes — OWNER / AREA_MANAGER only */}
-      {canSeeNotes && (
-        <PersonNotes
-          subjectId={subject.id}
-          notes={notes}
-          currentUserId={user.id}
-          canDeleteAny={user.role === "OWNER"}
-        />
-      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent tasks */}
