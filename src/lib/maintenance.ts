@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { MaintenanceArea, MaintenanceStatus, Priority, Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { getCurrentUser, atLeast, locationScopeWhere } from "./auth";
+import { sendPushToUser, sendPushToUsers } from "./push";
 import { MAINTENANCE_NEXT } from "./labels";
 
 export type ActionResult = { ok: boolean; error?: string };
@@ -133,6 +134,8 @@ export async function createMaintenanceRequest(input: {
     return { ok: false, error: "Outside your location scope" };
   }
 
+  let newReqId = "";
+  let managerIds: string[] = [];
   await prisma.$transaction(async (tx) => {
     const req = await tx.maintenanceRequest.create({
       data: {
@@ -165,19 +168,28 @@ export async function createMaintenanceRequest(input: {
       },
       select: { id: true },
     });
+    managerIds = managers.filter((m) => m.id !== user.id).map((m) => m.id);
     await tx.notification.createMany({
-      data: managers
-        .filter((m) => m.id !== user.id)
-        .map((m) => ({
-          userId: m.id,
-          type: "MAINTENANCE_REPORTED" as const,
-          title: `Maintenance: ${req.title}`,
-          body: `${req.priority} priority reported by ${user.name}`,
-          entityId: req.id,
-          entityType: "MaintenanceRequest",
-        })),
+      data: managerIds.map((id) => ({
+        userId: id,
+        type: "MAINTENANCE_REPORTED" as const,
+        title: `Maintenance: ${req.title}`,
+        body: `${req.priority} priority reported by ${user.name}`,
+        entityId: req.id,
+        entityType: "MaintenanceRequest",
+      })),
     });
+    newReqId = req.id;
   });
+
+  if (managerIds.length) {
+    void sendPushToUsers(managerIds, {
+      title: `Maintenance: ${input.title.trim()}`,
+      body: `${input.priority} priority reported by ${user.name}`,
+      url: `/maintenance/${newReqId}`,
+      tag: `maint-${newReqId}`,
+    });
+  }
 
   revalidatePath("/maintenance");
   revalidatePath("/dashboard");
@@ -231,6 +243,15 @@ export async function assignMaintenance(input: {
       });
     }
   });
+
+  if (input.assignedToId && input.assignedToId !== user.id) {
+    void sendPushToUser(input.assignedToId, {
+      title: `Assigned: ${req.title}`,
+      body: `${req.priority} priority maintenance task`,
+      url: `/maintenance/${input.id}`,
+      tag: `maint-${input.id}`,
+    });
+  }
 
   revalidatePath("/maintenance");
   revalidatePath(`/maintenance/${input.id}`);
@@ -303,6 +324,15 @@ export async function transitionMaintenanceStatus(input: {
       });
     }
   });
+
+  if (input.to === "RESOLVED" && req.reportedById !== user.id) {
+    void sendPushToUser(req.reportedById, {
+      title: `Resolved: ${req.title}`,
+      body: input.resolutionNote?.slice(0, 120) || "Marked resolved",
+      url: `/maintenance/${input.id}`,
+      tag: `maint-${input.id}`,
+    });
+  }
 
   revalidatePath("/maintenance");
   revalidatePath(`/maintenance/${input.id}`);

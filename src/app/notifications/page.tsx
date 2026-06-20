@@ -7,6 +7,7 @@ import {
   formatDateTime,
 } from "@/lib/labels";
 import { MarkAllReadButton } from "@/components/MarkAllReadButton";
+import { PushToggle } from "@/components/PushToggle";
 
 export default async function NotificationsPage() {
   const user = await getCurrentUser();
@@ -28,6 +29,8 @@ export default async function NotificationsPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Notifications</h1>
         {unread > 0 && <MarkAllReadButton count={unread} />}
       </div>
+
+      <PushToggle />
 
       <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
         {notifications.map((n) => (

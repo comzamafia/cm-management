@@ -5,6 +5,7 @@ import { Priority, TaskStatus, TaskType } from "@prisma/client";
 import { prisma } from "./prisma";
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
+import { sendPushToUser } from "./push";
 import { getCurrentUser, isManager, scopedLocationIds } from "./auth";
 import { canTransition, canVerify, deriveStatus, proofMissing } from "./rules";
 import { rollScheduleOnTaskDone } from "./compliance";
@@ -45,6 +46,8 @@ export async function createTask(input: {
     }
   }
 
+  let newTaskId = "";
+  const dueText = input.dueAt ? formatDateTime(new Date(input.dueAt)) : "no date";
   await prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
       data: {
@@ -71,6 +74,8 @@ export async function createTask(input: {
       meta: { title: task.title, assigneeId: task.assigneeId, priority: task.priority },
     });
 
+    newTaskId = task.id;
+
     // Notify the assignee (skips self-assigned personal tasks).
     if (assigneeId && assigneeId !== user.id) {
       await createNotification(tx, {
@@ -83,6 +88,16 @@ export async function createTask(input: {
       });
     }
   });
+
+  // Real-time push (after commit, fire-and-forget).
+  if (assigneeId && assigneeId !== user.id && newTaskId) {
+    void sendPushToUser(assigneeId, {
+      title: "New task assigned to you",
+      body: `"${input.title.trim()}" — due ${dueText}.`,
+      url: `/tasks/${newTaskId}`,
+      tag: `task-${newTaskId}`,
+    });
+  }
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
@@ -208,6 +223,15 @@ export async function assignTask(taskId: string, assigneeId: string): Promise<Ac
       });
     }
   });
+
+  if (assigneeId !== user.id) {
+    void sendPushToUser(assigneeId, {
+      title: "Task assigned to you",
+      body: `"${task.title}" has been assigned to you.`,
+      url: `/tasks/${taskId}`,
+      tag: `task-${taskId}`,
+    });
+  }
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);

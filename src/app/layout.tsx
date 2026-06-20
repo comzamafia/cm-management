@@ -9,6 +9,7 @@ import { ROLE_LABEL } from "@/lib/labels";
 import { Sidebar } from "@/components/Sidebar";
 import { NotificationBell, type NotificationItem } from "@/components/NotificationBell";
 import { getUnreadAnnouncementCount } from "@/lib/announcements";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const ibmPlex = IBM_Plex_Sans({
   variable: "--font-ibm",
@@ -25,6 +26,11 @@ const cormorant = Cormorant_Garamond({
 export const metadata: Metadata = {
   title: "CM Operations",
   description: "Operational task management for Chiang Mai Thai Dining.",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "CM Ops" },
+};
+
+export const viewport = {
+  themeColor: "#440E48",
 };
 
 export default async function RootLayout({
@@ -62,6 +68,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${ibmPlex.variable} ${cormorant.variable}`}>
       <body className="min-h-screen bg-[#F9F6F9] text-[#140516]">
+        <ServiceWorkerRegister />
         {user ? (
           <>
             <Sidebar

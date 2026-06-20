@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { createNotification } from "./notifications";
+import { sendPushToUsers } from "./push";
 import { getCurrentUser, isManager, scopedLocationIds } from "./auth";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -96,6 +97,16 @@ export async function postMessage(
       });
     }
   });
+
+  const recipients = clean.filter((uid) => uid !== user.id);
+  if (recipients.length) {
+    void sendPushToUsers(recipients, {
+      title: `${user.name} mentioned you`,
+      body: text.slice(0, 140),
+      url: "/channels",
+      tag: `channel-${channel}`,
+    });
+  }
 
   revalidatePath("/channels");
   return { ok: true };

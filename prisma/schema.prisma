@@ -225,6 +225,7 @@ model User {
   dailyNotes            DailyNote[]
   notesAbout            PersonNote[]         @relation("NoteSubject")
   notesAuthored         PersonNote[]         @relation("NoteAuthor")
+  pushSubscriptions     PushSubscription[]
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -755,4 +756,20 @@ model PersonNote {
   author  User @relation("NoteAuthor", fields: [authorId], references: [id])
 
   @@index([subjectId, createdAt])
+}
+
+// Web Push subscriptions (one per browser/device). Used to deliver real-time
+// notifications via the service worker. Endpoint is unique per subscription.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
