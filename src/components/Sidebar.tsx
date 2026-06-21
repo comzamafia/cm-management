@@ -98,6 +98,16 @@ const RANK: Record<string, number> = {
 
 type NavDef = Omit<NavItem, "badge"> & { minRank?: number };
 
+// Mobile bottom-nav: the four screens everyone uses most (+ a "More" button
+// rendered separately that opens the full drawer). All are available to every
+// role, so no gating needed here.
+const BOTTOM_NAV: { href: string; label: string; icon: React.ReactNode }[] = [
+  { href: "/dashboard", label: "Home", icon: I.dashboard },
+  { href: "/tasks", label: "Tasks", icon: I.tasks },
+  { href: "/calendar", label: "Calendar", icon: I.calendar },
+  { href: "/channels", label: "Chat", icon: I.channels },
+];
+
 const NAV_BASE: NavDef[] = [
   { href: "/dashboard",     label: "Dashboard",        icon: I.dashboard },
   { href: "/tasks",         label: "Tasks",             icon: I.tasks },
@@ -323,6 +333,40 @@ export function Sidebar({
           </aside>
         </div>
       )}
+
+      {/* Mobile bottom nav — quick access to the most-used screens */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-[#E4DDE4] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden print:hidden"
+      >
+        {BOTTOM_NAV.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex flex-1 flex-col items-center gap-0.5 py-2"
+            >
+              <span className={active ? "text-[#440E48]" : "text-[#A19BA2]"}>{item.icon}</span>
+              <span className={`text-[10px] font-medium ${active ? "text-[#440E48]" : "text-[#726973]"}`}>{item.label}</span>
+            </Link>
+          );
+        })}
+        <button
+          onClick={() => setOpen(true)}
+          className="flex flex-1 flex-col items-center gap-0.5 py-2"
+          aria-label="More menu"
+        >
+          <span className="relative text-[#A19BA2]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+            {(unreadCount + unreadAnnouncements) > 0 && (
+              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-[#e2445c]" />
+            )}
+          </span>
+          <span className="text-[10px] font-medium text-[#726973]">More</span>
+        </button>
+      </nav>
     </>
   );
 }
