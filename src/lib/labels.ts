@@ -171,6 +171,18 @@ export const NOTIFICATION_TYPE_STYLE: Record<NotificationType, string> = {
   TASK_STARTING: "text-[#5B8DD9]",
 };
 
+/** Where a notification links, based on the entity it references. */
+export function notificationHref(entityType: string | null, entityId: string | null): string | null {
+  switch (entityType) {
+    case "Task": return entityId ? `/tasks/${entityId}` : "/tasks";
+    case "MaintenanceRequest": return entityId ? `/maintenance/${entityId}` : "/maintenance";
+    case "ComplianceSchedule": return entityId ? `/compliance/${entityId}` : "/compliance";
+    case "Message": return "/channels";
+    case "Announcement": return "/announcements";
+    default: return null;
+  }
+}
+
 // ---- Phase 5: Maintenance + Inventory ----
 
 export const MAINTENANCE_STATUS_LABEL: Record<MaintenanceStatus, string> = {
