@@ -1,5 +1,7 @@
 import { prisma } from "./prisma";
 import { createNotification } from "./notifications";
+import { sendPushToUser } from "./push";
+import { getNotificationSettings } from "./settings";
 import { dayBoundsTZ } from "./time";
 
 /**
@@ -7,6 +9,7 @@ import { dayBoundsTZ } from "./time";
  * Fires once per task (guarded by startNotified). Run daily from the cron.
  */
 export async function runStartingToday(now: Date = new Date()): Promise<{ notified: number }> {
+  const push = (await getNotificationSettings()).pushEnabled;
   const { end } = dayBoundsTZ(now);
 
   // Tasks with a start date on/before end-of-today, not yet announced, still open.
@@ -34,7 +37,17 @@ export async function runStartingToday(now: Date = new Date()): Promise<{ notifi
         });
       }
     });
-    if (t.assigneeId) notified++;
+    if (t.assigneeId) {
+      if (push) {
+        void sendPushToUser(t.assigneeId, {
+          title: "A scheduled task starts today",
+          body: `"${t.title}" at ${t.location.name} is scheduled to start today.`,
+          url: `/tasks/${t.id}`,
+          tag: `task-${t.id}`,
+        });
+      }
+      notified++;
+    }
   }
 
   return { notified };
