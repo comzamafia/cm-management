@@ -39,11 +39,20 @@ export type PresignedUpload = {
   fileUrl: string;
 };
 
+export function isStorageConfigured(): boolean {
+  return !!(process.env.AWS_S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+}
+
 export async function createUploadPresign(
   filename: string,
   contentType: string,
   folder: string = "uploads",
 ): Promise<PresignedUpload> {
+  if (!isStorageConfigured()) {
+    throw new Error(
+      "Storage is not configured. Set AWS_S3_BUCKET, AWS_S3_REGION, AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in Vercel, then redeploy.",
+    );
+  }
   if (!ALLOWED_FILE_TYPES.includes(contentType)) {
     throw new Error(`File type not allowed: ${contentType}`);
   }
