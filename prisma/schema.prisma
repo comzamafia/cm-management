@@ -758,6 +758,19 @@ model PersonNote {
   @@index([subjectId, createdAt])
 }
 
+// Org-wide notification timing settings (singleton row, id = "default").
+// Drives the daily cron reminders. Editable by OWNER / AREA_MANAGER.
+model NotificationSettings {
+  id                         String   @id @default("default")
+  nearDueEnabled             Boolean  @default(true)
+  nearDueHours               Int      @default(2) // remind this many hours before a task is due
+  complianceRemindersEnabled Boolean  @default(true)
+  complianceThresholds       Int[]    @default([14, 7, 3, 1]) // advance reminder days
+  pushEnabled                Boolean  @default(true) // master switch for cron push
+  updatedAt                  DateTime @updatedAt
+  updatedById                String?
+}
+
 // Web Push subscriptions (one per browser/device). Used to deliver real-time
 // notifications via the service worker. Endpoint is unique per subscription.
 model PushSubscription {

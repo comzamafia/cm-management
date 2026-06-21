@@ -5,6 +5,8 @@ import { ComplianceCategory, ComplianceInterval, Prisma, Priority } from "@prism
 import { prisma } from "./prisma";
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
+import { sendPushToUser } from "./push";
+import { getNotificationSettings } from "./settings";
 import { getCurrentUser, isManager, locationScopeWhere, scopedLocationIds } from "./auth";
 import {
   computeNextDue,
@@ -492,16 +494,22 @@ export async function runComplianceReminders(now: Date = new Date()): Promise<{
   let overdueNotified = 0;
   const startToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
+  const settings = await getNotificationSettings();
+  const thresholds = settings.complianceThresholds.length ? settings.complianceThresholds : REMINDER_THRESHOLDS;
+  const push = settings.pushEnabled;
+
   for (const s of schedules) {
     const days = complianceDaysUntil(s.nextDueDate, now);
     const recipients = new Set<string>();
     if (s.assigneeId) recipients.add(s.assigneeId);
     if (s.location.managerId) recipients.add(s.location.managerId);
     if (recipients.size === 0) continue;
+    const entityUrl = s.currentTaskId ? `/tasks/${s.currentTaskId}` : `/compliance/${s.id}`;
 
     if (days >= 0) {
+      if (!settings.complianceRemindersEnabled) continue; // advance reminders turned off
       const sent = Array.isArray(s.remindersSent) ? (s.remindersSent as number[]) : [];
-      const crossed = REMINDER_THRESHOLDS.filter((t) => days <= t && !sent.includes(t));
+      const crossed = thresholds.filter((t) => days <= t && !sent.includes(t));
       if (crossed.length > 0) {
         for (const uid of recipients) {
           await createNotification(prisma, {
@@ -512,6 +520,14 @@ export async function runComplianceReminders(now: Date = new Date()): Promise<{
             entityId: s.currentTaskId ?? s.id,
             entityType: s.currentTaskId ? "Task" : "ComplianceSchedule",
           });
+          if (push) {
+            void sendPushToUser(uid, {
+              title: `Compliance due in ${days} day${days === 1 ? "" : "s"}`,
+              body: `${s.name} at ${s.location.name} — due ${s.nextDueDate.toISOString().slice(0, 10)}.`,
+              url: entityUrl,
+              tag: `compliance-${s.id}`,
+            });
+          }
         }
         await prisma.complianceSchedule.update({
           where: { id: s.id },
@@ -520,7 +536,7 @@ export async function runComplianceReminders(now: Date = new Date()): Promise<{
         dueSoonNotified++;
       }
     } else {
-      // Overdue: at most one alert per day.
+      // Overdue: at most one alert per day (always sent, regardless of toggle).
       const alertedToday = s.lastOverdueAlert && s.lastOverdueAlert >= startToday;
       if (!alertedToday) {
         for (const uid of recipients) {
@@ -532,6 +548,14 @@ export async function runComplianceReminders(now: Date = new Date()): Promise<{
             entityId: s.currentTaskId ?? s.id,
             entityType: s.currentTaskId ? "Task" : "ComplianceSchedule",
           });
+          if (push) {
+            void sendPushToUser(uid, {
+              title: `Compliance OVERDUE: ${s.name}`,
+              body: `${s.location.name} — was due ${s.nextDueDate.toISOString().slice(0, 10)} (${-days}d ago).`,
+              url: entityUrl,
+              tag: `compliance-${s.id}`,
+            });
+          }
         }
         await prisma.complianceSchedule.update({ where: { id: s.id }, data: { lastOverdueAlert: now } });
         overdueNotified++;
