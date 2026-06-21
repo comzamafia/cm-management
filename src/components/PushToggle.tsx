@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { savePushSubscription, removePushSubscription } from "@/lib/push-actions";
+import { savePushSubscription, removePushSubscription, sendTestPush } from "@/lib/push-actions";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -19,6 +19,13 @@ type State = "loading" | "unsupported" | "denied" | "off" | "on" | "busy";
 export function PushToggle() {
   const [state, setState] = useState<State>("loading");
   const [err, setErr] = useState<string | null>(null);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+
+  async function test() {
+    setTestMsg("Sending…");
+    const res = await sendTestPush();
+    setTestMsg(res.ok ? "Sent — check your notifications." : res.error ?? "Failed");
+  }
 
   useEffect(() => {
     (async () => {
@@ -109,9 +116,15 @@ export function PushToggle() {
         {err && <div className="mt-1 text-xs font-medium text-[#e2445c]">{err}</div>}
       </div>
       {state === "on" && (
-        <button onClick={disable} className="rounded-lg border border-[#E4DDE4] px-3 py-2 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">
-          Turn off
-        </button>
+        <div className="flex items-center gap-2">
+          {testMsg && <span className="text-xs text-[#726973]">{testMsg}</span>}
+          <button onClick={test} className="rounded-lg border border-[#440E48] px-3 py-2 text-xs font-semibold text-[#440E48] hover:bg-[#FAF6FA]">
+            Send test
+          </button>
+          <button onClick={disable} className="rounded-lg border border-[#E4DDE4] px-3 py-2 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">
+            Turn off
+          </button>
+        </div>
       )}
       {state === "off" && (
         <button onClick={enable} className="rounded-lg bg-[#440E48] px-4 py-2 text-xs font-semibold text-white hover:brightness-110">

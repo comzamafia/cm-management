@@ -75,6 +75,7 @@ export async function runMaintenanceSla(now: Date = new Date()): Promise<{ escal
         body: `${r.priority} at ${r.location.name} — unresolved ${Math.round(ageHours)}h (SLA ${SLA_HOURS[r.priority]}h).`,
         url: `/maintenance/${r.id}`,
         tag: `maint-${r.id}`,
+        category: "maintenance",
       });
     }
     escalated++;

@@ -226,6 +226,7 @@ model User {
   notesAbout            PersonNote[]         @relation("NoteSubject")
   notesAuthored         PersonNote[]         @relation("NoteAuthor")
   pushSubscriptions     PushSubscription[]
+  mutedPush             String[]             @default([]) // push categories this user opted out of
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).

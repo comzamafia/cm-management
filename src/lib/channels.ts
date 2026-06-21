@@ -105,6 +105,7 @@ export async function postMessage(
       body: text.slice(0, 140),
       url: "/channels",
       tag: `channel-${channel}`,
+      category: "mentions",
     });
   }
 

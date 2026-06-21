@@ -44,6 +44,7 @@ export async function runStartingToday(now: Date = new Date()): Promise<{ notifi
           body: `"${t.title}" at ${t.location.name} is scheduled to start today.`,
           url: `/tasks/${t.id}`,
           tag: `task-${t.id}`,
+          category: "tasks",
         });
       }
       notified++;

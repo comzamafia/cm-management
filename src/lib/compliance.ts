@@ -526,6 +526,7 @@ export async function runComplianceReminders(now: Date = new Date()): Promise<{
               body: `${s.name} at ${s.location.name} — due ${s.nextDueDate.toISOString().slice(0, 10)}.`,
               url: entityUrl,
               tag: `compliance-${s.id}`,
+              category: "compliance",
             });
           }
         }
@@ -554,6 +555,7 @@ export async function runComplianceReminders(now: Date = new Date()): Promise<{
               body: `${s.location.name} — was due ${s.nextDueDate.toISOString().slice(0, 10)} (${-days}d ago).`,
               url: entityUrl,
               tag: `compliance-${s.id}`,
+              category: "compliance",
             });
           }
         }

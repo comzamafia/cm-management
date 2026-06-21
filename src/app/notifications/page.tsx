@@ -8,6 +8,7 @@ import {
 } from "@/lib/labels";
 import { MarkAllReadButton } from "@/components/MarkAllReadButton";
 import { PushToggle } from "@/components/PushToggle";
+import { NotificationPrefs } from "@/components/NotificationPrefs";
 
 export default async function NotificationsPage() {
   const user = await getCurrentUser();
@@ -31,6 +32,8 @@ export default async function NotificationsPage() {
       </div>
 
       <PushToggle />
+
+      <NotificationPrefs muted={user.mutedPush ?? []} />
 
       <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
         {notifications.map((n) => (

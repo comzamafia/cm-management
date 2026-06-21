@@ -78,6 +78,7 @@ export async function runOverdueChecks(now: Date = new Date()): Promise<{
         body: `${task.location.name}${task.assignee ? ` · ${task.assignee.name}` : ""} — past deadline.`,
         url: `/tasks/${task.id}`,
         tag: `task-${task.id}`,
+        category: "tasks",
       });
     }
     if (push && task.assigneeId) {
@@ -86,6 +87,7 @@ export async function runOverdueChecks(now: Date = new Date()): Promise<{
         body: `"${task.title}" at ${task.location.name} is past its due date.`,
         url: `/tasks/${task.id}`,
         tag: `task-${task.id}`,
+        category: "tasks",
       });
     }
     marked++;
@@ -128,6 +130,7 @@ export async function runOverdueChecks(now: Date = new Date()): Promise<{
           body: `"${task.title}" at ${task.location.name} is due within ${hoursLabel}.`,
           url: `/tasks/${task.id}`,
           tag: `task-${task.id}`,
+        category: "tasks",
         });
       }
       nearDueNotified++;

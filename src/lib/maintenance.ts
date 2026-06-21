@@ -188,6 +188,7 @@ export async function createMaintenanceRequest(input: {
       body: `${input.priority} priority reported by ${user.name}`,
       url: `/maintenance/${newReqId}`,
       tag: `maint-${newReqId}`,
+      category: "maintenance",
     });
   }
 
@@ -250,6 +251,7 @@ export async function assignMaintenance(input: {
       body: `${req.priority} priority maintenance task`,
       url: `/maintenance/${input.id}`,
       tag: `maint-${input.id}`,
+      category: "maintenance",
     });
   }
 
@@ -331,6 +333,7 @@ export async function transitionMaintenanceStatus(input: {
       body: input.resolutionNote?.slice(0, 120) || "Marked resolved",
       url: `/maintenance/${input.id}`,
       tag: `maint-${input.id}`,
+      category: "maintenance",
     });
   }
 

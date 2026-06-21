@@ -1,0 +1,27 @@
+name: Hourly reminders
+
+# Runs the daily scheduler hourly so near-due / SLA reminders fire on time.
+# (Vercel Hobby only allows once-daily crons; this is a free hourly trigger.)
+#
+# Setup (one-time):
+#   1. Set CRON_SECRET in Vercel env (Production) so the endpoint is protected.
+#   2. Add the SAME value as a GitHub Actions secret named CRON_SECRET
+#      (repo → Settings → Secrets and variables → Actions → New secret).
+#   3. (optional) Add CRON_URL secret if your domain isn't the default below.
+
+on:
+  schedule:
+    - cron: "0 * * * *" # top of every hour (UTC)
+  workflow_dispatch: {} # allow manual run from the Actions tab
+
+jobs:
+  run-all:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger /api/cron/run-all
+        run: |
+          BASE="${{ secrets.CRON_URL }}"
+          if [ -z "$BASE" ]; then BASE="https://cm.sujeevan.ca"; fi
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "$BASE/api/cron/run-all"

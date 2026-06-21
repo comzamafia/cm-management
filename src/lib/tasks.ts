@@ -96,6 +96,7 @@ export async function createTask(input: {
       body: `"${input.title.trim()}" — due ${dueText}.`,
       url: `/tasks/${newTaskId}`,
       tag: `task-${newTaskId}`,
+      category: "tasks",
     });
   }
 
@@ -230,6 +231,7 @@ export async function assignTask(taskId: string, assigneeId: string): Promise<Ac
       body: `"${task.title}" has been assigned to you.`,
       url: `/tasks/${taskId}`,
       tag: `task-${taskId}`,
+      category: "tasks",
     });
   }
 

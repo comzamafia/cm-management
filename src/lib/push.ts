@@ -2,6 +2,10 @@
 // devices via VAPID, and prunes dead subscriptions (410/404).
 import webpush from "web-push";
 import { prisma } from "./prisma";
+import type { PushPayload } from "./push-meta";
+
+export type { PushCategory, PushPayload } from "./push-meta";
+export { PUSH_CATEGORY_LABEL } from "./push-meta";
 
 let configured = false;
 
@@ -16,16 +20,15 @@ function ensureConfigured(): boolean {
   return true;
 }
 
-export type PushPayload = {
-  title: string;
-  body: string;
-  url?: string; // path to open on click, e.g. /tasks/123
-  tag?: string; // collapse key
-};
-
 /** Send a push to every device a user has subscribed. Fire-and-forget safe. */
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
   if (!ensureConfigured()) return;
+
+  // Respect the user's per-category opt-out.
+  if (payload.category) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { mutedPush: true } });
+    if (u?.mutedPush?.includes(payload.category)) return;
+  }
 
   const subs = await prisma.pushSubscription.findMany({ where: { userId } });
   if (subs.length === 0) return;
