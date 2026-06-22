@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LessonType, TrainingCategory } from "@prisma/client";
-import { uploadFiles } from "@/lib/upload-client";
+import { FileDropzone } from "./FileDropzone";
 import {
   addLesson,
   updateLesson,
@@ -423,30 +423,8 @@ function LessonForm({
   const [imageUrls, setImageUrls] = useState<string[]>(lesson?.imageUrls ?? []);
   const [fileUrls, setFileUrls] = useState<string[]>(lesson?.fileUrls ?? []);
   const [err, setErr] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const imgRef = useRef<HTMLInputElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const field = "w-full rounded-lg border border-[#E4DDE4] px-3 py-2 text-sm outline-none focus:border-[#440E48]";
-
-  async function handleUpload(files: FileList | null, kind: "image" | "file") {
-    if (!files || files.length === 0) return;
-    setErr(null);
-    setUploading(true);
-    try {
-      const folder = kind === "image" ? "lessons/images" : "lessons/files";
-      const urls = await uploadFiles(Array.from(files), folder);
-      if (kind === "image") setImageUrls((prev) => [...prev, ...urls]);
-      else setFileUrls((prev) => [...prev, ...urls]);
-    } catch (e) {
-      setErr(`Upload failed: ${(e as Error).message}`);
-    } finally {
-      setUploading(false);
-      if (imgRef.current) imgRef.current.value = "";
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
 
   const submit = () =>
     startTransition(async () => {
@@ -515,65 +493,18 @@ function LessonForm({
       {/* Image upload */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#726973]">Images</p>
-        {imageUrls.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2">
-            {imageUrls.map((url, i) => (
-              <div key={i} className="relative h-24 w-24 overflow-hidden rounded-lg border border-[#E4DDE4]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt={`upload ${i + 1}`} className="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setImageUrls((prev) => prev.filter((_, idx) => idx !== i))}
-                  className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <input ref={imgRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleUpload(e.target.files, "image")} />
-        <button type="button" onClick={() => imgRef.current?.click()} disabled={uploading}
-          className="inline-flex items-center gap-2 rounded-md border border-[#440E48] px-3 py-1.5 text-xs font-medium text-[#440E48] hover:bg-[#FAF6FA] disabled:opacity-60">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-          </svg>
-          {uploading ? "Uploading…" : "Upload Images"}
-        </button>
+        <FileDropzone value={imageUrls} onChange={setImageUrls} kind="image" folder="lessons/images" />
       </div>
 
       {/* File upload */}
       <div>
         <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#726973]">Files</p>
-        {fileUrls.length > 0 && (
-          <div className="mb-2 space-y-1">
-            {fileUrls.map((url, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-lg border border-[#E4DDE4] px-3 py-2 text-sm">
-                <FileIcon url={url} />
-                <span className="min-w-0 flex-1 truncate text-[#433745]">{decodeFileName(url)}</span>
-                <button type="button" onClick={() => setFileUrls((prev) => prev.filter((_, idx) => idx !== i))}
-                  className="shrink-0 text-[#A19BA2] hover:text-[#e2445c]">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.xlsx,.pptx,.txt" multiple className="hidden" onChange={(e) => handleUpload(e.target.files, "file")} />
-        <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-          className="inline-flex items-center gap-2 rounded-md border border-[#440E48] px-3 py-1.5 text-xs font-medium text-[#440E48] hover:bg-[#FAF6FA] disabled:opacity-60">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-          </svg>
-          {uploading ? "Uploading…" : "Upload Files (PDF, Doc, etc.)"}
-        </button>
+        <FileDropzone value={fileUrls} onChange={setFileUrls} kind="file" folder="lessons/files" />
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-3 border-t border-[#F0EBF0] pt-3">
-        <button onClick={submit} disabled={pending || uploading || !title.trim()} className="m-btn disabled:opacity-60">
+        <button onClick={submit} disabled={pending || !title.trim()} className="m-btn disabled:opacity-60">
           {pending ? "Saving…" : mode === "add" ? "Add Lesson" : "Save Changes"}
         </button>
         <button onClick={onCancel} className="text-sm text-[#726973] hover:text-[#140516]">Cancel</button>
