@@ -174,7 +174,7 @@ function NavList({
             key={item.href}
             href={item.href}
             onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+            className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
               active
                 ? "bg-[#F4A626]/15 text-[#F4A626]"
                 : "text-white/65 hover:bg-white/8 hover:text-white/90"
@@ -264,11 +264,11 @@ export function Sidebar({
           className="h-[2px] w-full shrink-0"
           style={{ background: "linear-gradient(90deg, transparent, #F4A626 40%, #F4A626 60%, transparent)" }}
         />
-        <div className="px-5 py-5">
+        <div className="px-5 py-4">
           <Logo />
         </div>
-        <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">
+        <div className="flex-1 overflow-y-auto px-3 pb-2 pt-0">
+          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">
             Workspace
           </p>
           <NavList pathname={pathname} nav={nav} />
