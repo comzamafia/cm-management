@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { uploadFile } from "@/lib/upload-client";
 import { Priority, ProjectStatus, TaskStatus } from "@prisma/client";
 import {
   changeProjectStatus,
@@ -486,6 +487,26 @@ function FilesCell({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run: 
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onPick(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const f = files[0];
+      const fileUrl = await uploadFile(f, "projects");
+      run(() => addProjectFile(p.id, fileUrl, f.name));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   return (
     <div className="relative">
       <button
@@ -518,6 +539,21 @@ function FilesCell({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run: 
             </ul>
             {canEdit && (
               <div className="space-y-1.5 border-t border-[#f3eef3] pt-2">
+                {/* Upload a real file (image, PDF, doc…) to S3 */}
+                <input ref={fileRef} type="file" className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.xlsx,.pptx,.txt"
+                  onChange={(e) => onPick(e.target.files)} />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={busy}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-md border border-[#440E48] px-2 py-1.5 text-xs font-semibold text-[#440E48] hover:bg-[#FAF6FA] disabled:opacity-60"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  {busy ? "Uploading…" : "Upload file"}
+                </button>
+                {err && <p className="text-[11px] font-medium text-[#e2445c]">{err}</p>}
+
+                <div className="pt-1 text-center text-[10px] text-[#A19BA2]">or paste a link</div>
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Label (optional)"
                   className="w-full rounded-md border border-[#E4DDE4] px-2 py-1 text-xs outline-none focus:border-[#440E48]" />
                 <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…"
