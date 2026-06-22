@@ -382,7 +382,7 @@ function Row({
               </svg>
             </button>
             <span className="h-7 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-            <NameCell p={p} canEdit={canEdit} run={run} />
+            <NameCell p={p} users={users} canEdit={canEdit} run={run} />
             {showLocation && p.locationName && (
               <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f0ebf0] px-1.5 py-0.5 text-[10px] font-semibold text-[#726973]" title="Location">
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -399,7 +399,7 @@ function Row({
         <td className="px-4 py-2.5"><StatusCell p={p} canEdit={canEdit} run={run} /></td>
         <td className="px-4 py-2.5"><PriorityCell p={p} canEdit={canEdit} run={run} /></td>
         <td className="px-4 py-2.5"><TimelineCell p={p} canEdit={canEdit} run={run} /></td>
-        <td className="px-4 py-2.5"><FilesCell p={p} canEdit={canEdit} run={run} /></td>
+        <td className="px-4 py-2.5"><FilesCell p={p} users={users} canEdit={canEdit} run={run} /></td>
         <td className="px-4 py-2.5"><ProgressCell p={p} /></td>
         {canEdit && (
           <td className="px-2 py-2.5">
@@ -482,98 +482,169 @@ function Subitems({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run: (
   );
 }
 
-/* ── Files cell with popover ── */
-function FilesCell({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run: (fn: Action) => void }) {
+/* ── Files cell → opens the project editor (files section) ── */
+function FilesCell({ p, users, canEdit, run }: { p: ProjectRow; users: UserOpt[]; canEdit: boolean; run: (fn: Action) => void }) {
   const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState("");
-  const [name, setName] = useState("");
-
   return (
-    <div className="relative">
+    <>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(true)}
         className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold ${p.files.length ? "bg-[#f3eef3] text-[#440E48]" : "text-[#A19BA2] hover:bg-[#f3eef3]"}`}
         title="Files"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
         {p.files.length || "—"}
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-lg border border-[#E4DDE4] bg-white p-3 shadow-lg">
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]">Files</div>
-            <ul className="mb-2 max-h-40 space-y-1 overflow-y-auto">
-              {p.files.map((f) => (
-                <li key={f.id} className="flex items-center gap-2">
-                  <a href={f.url} target="_blank" rel="noreferrer" className="flex-1 truncate text-xs text-[#440E48] hover:underline" title={f.url}>
-                    {f.name || f.url.replace(/^https?:\/\//, "")}
-                  </a>
-                  {canEdit && (
-                    <button onClick={() => run(() => removeProjectFile(f.id))} className="text-[#A19BA2] hover:text-[#e2445c]" title="Remove">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                  )}
-                </li>
-              ))}
-              {p.files.length === 0 && <li className="text-xs text-[#A19BA2]">No files yet.</li>}
-            </ul>
-            {canEdit && (
-              <div className="space-y-1.5 border-t border-[#f3eef3] pt-2">
-                {/* Upload a real file (image, PDF, doc…) to S3 */}
-                <FileDropzone
-                  value={[]}
-                  onChange={() => {}}
-                  kind="file"
-                  compact
-                  folder="projects"
-                  onUploaded={(fileUrl, fileName) => run(() => addProjectFile(p.id, fileUrl, fileName))}
-                />
-
-                <div className="pt-1 text-center text-[10px] text-[#A19BA2]">or paste a link</div>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Label (optional)"
-                  className="w-full rounded-md border border-[#E4DDE4] px-2 py-1 text-xs outline-none focus:border-[#440E48]" />
-                <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…"
-                  onKeyDown={(e) => { if (e.key === "Enter" && url.trim()) { run(() => addProjectFile(p.id, url, name)); setUrl(""); setName(""); } }}
-                  className="w-full rounded-md border border-[#E4DDE4] px-2 py-1 text-xs outline-none focus:border-[#440E48]" />
-                <button
-                  onClick={() => { if (url.trim()) { run(() => addProjectFile(p.id, url, name)); setUrl(""); setName(""); } }}
-                  className="w-full rounded-md bg-[#440E48] px-2 py-1 text-xs font-semibold text-white"
-                >
-                  Add file link
-                </button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+      {open && <ProjectEditModal p={p} users={users} canEdit={canEdit} run={run} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
 /* ── Editable cells ── */
-function NameCell({ p, canEdit, run }: { p: ProjectRow; canEdit: boolean; run: (fn: Action) => void }) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(p.name);
-  if (!canEdit || !editing)
-    return (
-      <span
-        className="font-semibold text-[#140516]"
-        onDoubleClick={() => canEdit && setEditing(true)}
-        title={canEdit ? "Double-click to rename" : undefined}
+function NameCell({ p, users, canEdit, run }: { p: ProjectRow; users: UserOpt[]; canEdit: boolean; run: (fn: Action) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => canEdit && setOpen(true)}
+        disabled={!canEdit}
+        className={`text-left font-semibold text-[#140516] ${canEdit ? "hover:text-[#440E48] hover:underline" : "cursor-default"}`}
+        title={canEdit ? "Open project" : undefined}
       >
         {p.name}
-      </span>
-    );
+      </button>
+      {open && <ProjectEditModal p={p} users={users} canEdit={canEdit} run={run} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/* ── Project editor modal: all fields in one vertical form (no side-scroll) ── */
+function ProjectEditModal({
+  p, users, canEdit, run, onClose,
+}: {
+  p: ProjectRow; users: UserOpt[]; canEdit: boolean; run: (fn: Action) => void; onClose: () => void;
+}) {
+  const [name, setName] = useState(p.name);
+  const [client, setClient] = useState(p.client ?? "");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkName, setLinkName] = useState("");
+  const field = "w-full rounded-lg border border-[#E4DDE4] bg-white px-3 py-2 text-sm text-[#140516] outline-none focus:border-[#440E48]";
+  const toDate = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
+  const ro = !canEdit;
+
   return (
-    <input
-      autoFocus
-      value={name}
-      onChange={(e) => setName(e.target.value)}
-      onBlur={() => { setEditing(false); if (name.trim() && name !== p.name) run(() => renameProject(p.id, name)); }}
-      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-      className="w-full rounded-md border border-[#440E48] px-2 py-1 text-sm font-semibold text-[#140516] outline-none"
-    />
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 flex items-center justify-between gap-3 border-b border-[#E4DDE4] bg-white px-5 py-3.5">
+          <h2 className="text-base font-bold text-[#140516]">Project details</h2>
+          <button onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-[#726973] hover:bg-[#F0EBF0]">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <Labeled label="Project name">
+            <input className={field} value={name} disabled={ro} onChange={(e) => setName(e.target.value)}
+              onBlur={() => { if (name.trim() && name !== p.name) run(() => renameProject(p.id, name)); }} />
+          </Labeled>
+
+          <Labeled label="Client">
+            <input className={field} value={client} disabled={ro} placeholder="—" onChange={(e) => setClient(e.target.value)}
+              onBlur={() => { if ((client.trim() || null) !== p.client) run(() => setProjectClient(p.id, client)); }} />
+          </Labeled>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Labeled label="Owner">
+              <select className={field} value={p.ownerId ?? ""} disabled={ro} onChange={(e) => run(() => assignProjectOwner(p.id, e.target.value))}>
+                <option value="">— Unassigned —</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </Labeled>
+            <Labeled label="Priority">
+              <select className={field} value={p.priority} disabled={ro} onChange={(e) => run(() => setProjectPriority(p.id, e.target.value as Priority))}>
+                {PRIORITY_OPTIONS.map((pr) => <option key={pr} value={pr}>{PRIORITY_LABEL[pr]}</option>)}
+              </select>
+            </Labeled>
+          </div>
+
+          <Labeled label="Status">
+            <select className={field} value={p.status} disabled={ro} onChange={(e) => run(() => changeProjectStatus(p.id, e.target.value as ProjectStatus))}>
+              {PROJECT_STATUS_ORDER.map((s) => <option key={s} value={s}>{PROJECT_STATUS_LABEL[s]}</option>)}
+            </select>
+          </Labeled>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Labeled label="Start date">
+              <input type="date" className={field} defaultValue={toDate(p.startAt)} disabled={ro}
+                onChange={(e) => run(() => setProjectTimeline(p.id, e.target.value ? new Date(`${e.target.value}T09:00:00Z`).toISOString() : null, p.dueAt))} />
+            </Labeled>
+            <Labeled label="Due date">
+              <input type="date" className={field} defaultValue={toDate(p.dueAt)} disabled={ro}
+                onChange={(e) => run(() => setProjectTimeline(p.id, p.startAt, e.target.value ? new Date(`${e.target.value}T17:00:00Z`).toISOString() : null))} />
+            </Labeled>
+          </div>
+
+          {/* Progress (read-only) */}
+          <Labeled label={`Progress · ${p.taskDone}/${p.taskTotal} tasks`}>
+            <div className="h-2.5 overflow-hidden rounded-full bg-[#eee]">
+              <div className="h-full rounded-full" style={{ width: `${p.progress}%`, backgroundColor: p.progress === 100 ? "#1DBA87" : "#440E48" }} />
+            </div>
+          </Labeled>
+
+          {/* Files */}
+          <div className="border-t border-[#F0EBF0] pt-4">
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-[#726973]">Files</div>
+            {p.files.length > 0 && (
+              <ul className="mb-3 space-y-1.5">
+                {p.files.map((f) => (
+                  <li key={f.id} className="flex items-center gap-2 rounded-lg border border-[#E4DDE4] px-3 py-2 text-sm">
+                    <a href={f.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-[#440E48] hover:underline" title={f.url}>
+                      {f.name || f.url.replace(/^https?:\/\//, "")}
+                    </a>
+                    {canEdit && (
+                      <button onClick={() => run(() => removeProjectFile(f.id))} className="shrink-0 text-[#A19BA2] hover:text-[#e2445c]" title="Remove">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canEdit && (
+              <div className="space-y-2">
+                <FileDropzone value={[]} onChange={() => {}} kind="file" folder="projects"
+                  onUploaded={(fileUrl, fileName) => run(() => addProjectFile(p.id, fileUrl, fileName))} />
+                <div className="text-center text-[10px] text-[#A19BA2]">or paste a link</div>
+                <div className="flex gap-2">
+                  <input value={linkName} onChange={(e) => setLinkName(e.target.value)} placeholder="Label" className={`${field} w-28`} />
+                  <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" className={`${field} flex-1`}
+                    onKeyDown={(e) => { if (e.key === "Enter" && linkUrl.trim()) { run(() => addProjectFile(p.id, linkUrl, linkName)); setLinkUrl(""); setLinkName(""); } }} />
+                  <button onClick={() => { if (linkUrl.trim()) { run(() => addProjectFile(p.id, linkUrl, linkName)); setLinkUrl(""); setLinkName(""); } }}
+                    className="shrink-0 rounded-lg bg-[#440E48] px-3 text-xs font-semibold text-white">Add</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 border-t border-[#E4DDE4] bg-white px-5 py-3">
+          <button onClick={onClose} className="m-btn w-full justify-center">Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-semibold text-[#726973]">{label}</span>
+      {children}
+    </label>
   );
 }
 
@@ -726,7 +797,7 @@ function ProjectCard({
       <div className="flex items-start gap-2">
         <span className="mt-0.5 h-5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
         <div className="flex-1">
-          <NameCell p={p} canEdit={canEdit} run={run} />
+          <NameCell p={p} users={users} canEdit={canEdit} run={run} />
           <div className="flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
             {p.client && <span>{p.client}</span>}
             {showLocation && p.locationName && <span>· 📍 {p.locationName}</span>}
@@ -745,7 +816,7 @@ function ProjectCard({
       </div>
       <ProgressCell p={p} />
       <div className="flex items-center justify-between">
-        <FilesCell p={p} canEdit={canEdit} run={run} />
+        <FilesCell p={p} users={users} canEdit={canEdit} run={run} />
         <button onClick={() => setExpanded((e) => !e)} className="text-xs font-semibold text-[#440E48]">
           {expanded ? "Hide" : `Subitems (${p.taskTotal})`}
         </button>
