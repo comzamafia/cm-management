@@ -20,8 +20,17 @@ jobs:
     steps:
       - name: Trigger /api/cron/run-all
         run: |
+          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "::error::CRON_SECRET GitHub Actions secret is not set. Add it under repo Settings → Secrets and variables → Actions, using the SAME value as Vercel's CRON_SECRET."
+            exit 1
+          fi
           BASE="${{ secrets.CRON_URL }}"
           if [ -z "$BASE" ]; then BASE="https://cm.sujeevan.ca"; fi
-          curl -fsS -X GET \
+          code=$(curl -sS -o /tmp/cron-out.txt -w "%{http_code}" -X GET \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "$BASE/api/cron/run-all"
+            "$BASE/api/cron/run-all")
+          echo "HTTP $code"; cat /tmp/cron-out.txt; echo
+          if [ "$code" != "200" ]; then
+            echo "::error::cron run-all returned HTTP $code. A 401 means the GitHub CRON_SECRET doesn't match Vercel's CRON_SECRET."
+            exit 1
+          fi
