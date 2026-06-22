@@ -42,19 +42,20 @@ function dueText(days: number): string {
 export function ComplianceView({
   rows,
   users,
-  totals,
+  locations,
   canEdit,
   showLocation,
 }: {
   rows: ComplianceRow[];
   users: UserOpt[];
-  totals: Totals;
+  locations: { id: string; name: string }[];
   canEdit: boolean;
   showLocation: boolean;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const [loc, setLoc] = useState<string>("ALL");
 
   const run = (fn: Action) =>
     startTransition(async () => {
@@ -64,17 +65,45 @@ export function ComplianceView({
       router.refresh();
     });
 
-  const active = rows.filter((r) => r.active);
-  const inactive = rows.filter((r) => !r.active);
+  // Location tabs only matter when the user can see more than one location.
+  const showTabs = locations.length > 1;
+  const visible = !showTabs || loc === "ALL" ? rows : rows.filter((r) => r.locationId === loc);
+  // When a specific location is selected, the per-row Location column is redundant.
+  const showLoc = showLocation && (!showTabs || loc === "ALL");
+
+  const active = visible.filter((r) => r.active);
+  const inactive = visible.filter((r) => !r.active);
+
+  const tiles: Totals = {
+    total: active.length,
+    overdue: active.filter((r) => r.status === "OVERDUE").length,
+    dueSoon: active.filter((r) => r.status === "DUE_SOON").length,
+    upcoming: active.filter((r) => r.status === "UPCOMING").length,
+  };
+
+  // Per-location overdue counts for the tab badges.
+  const overdueByLoc = (id: string) =>
+    rows.filter((r) => r.active && r.locationId === id && r.status === "OVERDUE").length;
+  const allOverdue = rows.filter((r) => r.active && r.status === "OVERDUE").length;
 
   return (
     <div className="space-y-6">
+      {/* Location tabs */}
+      {showTabs && (
+        <div className="flex gap-2 overflow-x-auto border-b border-[#E4DDE4] pb-px">
+          <LocTab label="All Locations" active={loc === "ALL"} badge={allOverdue} onClick={() => setLoc("ALL")} />
+          {locations.map((l) => (
+            <LocTab key={l.id} label={l.name} active={loc === l.id} badge={overdueByLoc(l.id)} onClick={() => setLoc(l.id)} />
+          ))}
+        </div>
+      )}
+
       {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi label="Schedules" value={totals.total} color="#440E48" />
-        <Kpi label="Overdue" value={totals.overdue} color="#e2445c" />
-        <Kpi label="Due Soon" value={totals.dueSoon} color="#F4A626" />
-        <Kpi label="Upcoming" value={totals.upcoming} color="#1DBA87" />
+        <Kpi label="Schedules" value={tiles.total} color="#440E48" />
+        <Kpi label="Overdue" value={tiles.overdue} color="#e2445c" />
+        <Kpi label="Due Soon" value={tiles.dueSoon} color="#F4A626" />
+        <Kpi label="Upcoming" value={tiles.upcoming} color="#1DBA87" />
       </div>
 
       {err && (
@@ -102,7 +131,7 @@ export function ComplianceView({
                 <thead className="border-b border-[#eee] bg-[#faf8fa] text-left text-xs font-semibold uppercase tracking-wider text-[#726973]">
                   <tr>
                     <th className="px-4 py-2.5">Service</th>
-                    {showLocation && <th className="px-4 py-2.5 w-32">Location</th>}
+                    {showLoc && <th className="px-4 py-2.5 w-32">Location</th>}
                     <th className="px-4 py-2.5 w-40">Vendor</th>
                     <th className="px-4 py-2.5 w-28">Frequency</th>
                     <th className="px-4 py-2.5 w-32">Last service</th>
@@ -114,7 +143,7 @@ export function ComplianceView({
                 </thead>
                 <tbody className="divide-y divide-[#f3eef3]">
                   {group.map((r) => (
-                    <Row key={r.id} r={r} users={users} canEdit={canEdit} run={run} showLocation={showLocation} />
+                    <Row key={r.id} r={r} users={users} canEdit={canEdit} run={run} showLocation={showLoc} />
                   ))}
                 </tbody>
               </table>
@@ -122,7 +151,7 @@ export function ComplianceView({
             {/* Mobile cards */}
             <div className="divide-y divide-[#f3eef3] sm:hidden">
               {group.map((r) => (
-                <Card key={r.id} r={r} users={users} canEdit={canEdit} run={run} showLocation={showLocation} />
+                <Card key={r.id} r={r} users={users} canEdit={canEdit} run={run} showLocation={showLoc} />
               ))}
             </div>
           </section>
@@ -305,6 +334,22 @@ function Card({
         </div>
       )}
     </div>
+  );
+}
+
+function LocTab({ label, active, badge, onClick }: { label: string; active: boolean; badge: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`relative -mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+        active ? "border-[#440E48] text-[#440E48]" : "border-transparent text-[#726973] hover:text-[#140516]"
+      }`}
+    >
+      {label}
+      {badge > 0 && (
+        <span className="rounded-full bg-[#fdecef] px-1.5 py-0.5 text-[10px] font-bold text-[#e2445c]">{badge}</span>
+      )}
+    </button>
   );
 }
 

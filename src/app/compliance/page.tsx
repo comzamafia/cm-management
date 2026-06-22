@@ -10,7 +10,7 @@ export default async function CompliancePage() {
   if (!user) return <div className="text-[#726973]">Sign in to view compliance schedules.</div>;
 
   const canEdit = isManager(user.role) || user.role === "SHIFT_LEAD";
-  const { rows, users, locations, totals } = await getComplianceSchedules(user);
+  const { rows, users, locations } = await getComplianceSchedules(user);
   const multiLoc = locations.length > 1;
 
   return (
@@ -30,7 +30,7 @@ export default async function CompliancePage() {
         )}
       </div>
 
-      <ComplianceView rows={rows} users={users} totals={totals} canEdit={canEdit} showLocation={multiLoc} />
+      <ComplianceView rows={rows} users={users} locations={locations} canEdit={canEdit} showLocation={multiLoc} />
     </div>
   );
 }
