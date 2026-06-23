@@ -5,7 +5,7 @@ import { Frequency, Priority } from "@prisma/client";
 import { prisma } from "./prisma";
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
-import { getCurrentUser, isManager, locationScopeWhere, scopedLocationIds } from "./auth";
+import { getCurrentUser, isManager, hasGlobalScope, locationScopeWhere, scopedLocationIds } from "./auth";
 import { startOfDayTZ, atLocalHourTZ, localHour, localWeekday, localDayOfMonth } from "./time";
 import type { ActionResult } from "./tasks";
 
@@ -62,6 +62,65 @@ export async function generateNow(): Promise<ActionResult & { tasksCreated?: num
   revalidatePath("/dashboard");
   revalidatePath("/tasks");
   return { ok: true, tasksCreated: res.tasksCreated };
+}
+
+/** Edit an existing template. Restricted to OWNER / AREA_MANAGER. */
+export async function updateChecklistTemplate(
+  id: string,
+  input: {
+    name: string;
+    frequency: Frequency;
+    items: string[];
+    locationId?: string;
+    autoGenerateHour: number;
+    weekDay?: number;
+    monthDay?: number;
+    priority: Priority;
+    department?: string;
+    proofRequired: boolean;
+  },
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!hasGlobalScope(user.role)) return { ok: false, error: "Owner / Area Manager only" };
+
+  const tpl = await prisma.checklistTemplate.findUnique({ where: { id } });
+  if (!tpl) return { ok: false, error: "Template not found" };
+
+  const cleanItems = input.items.map((i) => i.trim()).filter(Boolean);
+  if (!input.name.trim()) return { ok: false, error: "Name is required" };
+  if (cleanItems.length === 0) return { ok: false, error: "At least one item is required" };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.checklistTemplate.update({
+      where: { id },
+      data: {
+        name: input.name.trim(),
+        frequency: input.frequency,
+        items: cleanItems,
+        locationId: input.locationId || null,
+        autoGenerateHour: input.autoGenerateHour,
+        weekDay: input.frequency === "WEEKLY" ? (input.weekDay ?? null) : null,
+        monthDay: input.frequency === "MONTHLY" ? (input.monthDay ?? null) : null,
+        priority: input.priority,
+        department: input.department?.trim() || null,
+        proofRequired: input.proofRequired,
+      },
+    });
+    await tx.activityLog.create({
+      data: {
+        userId: user.id,
+        action: "checklist.updated",
+        entity: "ChecklistTemplate",
+        entityId: id,
+        locationId: input.locationId || null,
+        meta: { name: input.name.trim(), frequency: input.frequency, items: cleanItems.length },
+      },
+    });
+  });
+
+  revalidatePath("/checklists");
+  return { ok: true };
 }
 
 export async function toggleTemplate(id: string): Promise<ActionResult> {

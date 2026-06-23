@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { getCurrentUser, isManager, locationScopeWhere } from "@/lib/auth";
+import { getCurrentUser, isManager, hasGlobalScope, locationScopeWhere } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getChecklistTemplates } from "@/lib/checklists";
+import { getChecklistTemplates, getScopedLocations } from "@/lib/checklists";
 import { FREQUENCY_LABEL, PRIORITY_LABEL, WEEK_DAYS } from "@/lib/labels";
 import { ToggleTemplateButton, GenerateNowButton, AssignTemplateSelect } from "@/components/ChecklistActions";
+import { EditChecklistModal } from "@/components/EditChecklistModal";
 
 export default async function ChecklistsPage() {
   const user = await getCurrentUser();
@@ -14,10 +15,14 @@ export default async function ChecklistsPage() {
     return <div className="text-slate-600">Checklist templates are visible to managers and above.</div>;
   }
 
-  const [templates, scope] = await Promise.all([
+  const [templates, scope, editLocations] = await Promise.all([
     getChecklistTemplates(),
     locationScopeWhere(user),
+    getScopedLocations(),
   ]);
+
+  // Editing checklist templates is restricted to Owner / Area Manager.
+  const canEditTemplates = hasGlobalScope(user.role);
 
   // Employees to show in the assign dropdown — scoped to manager's location(s).
   const assignableUsers = await prisma.user.findMany({
@@ -82,6 +87,24 @@ export default async function ChecklistsPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-xs text-slate-500">{items.length} item{items.length !== 1 ? "s" : ""}</span>
+                  {canEditTemplates && (
+                    <EditChecklistModal
+                      template={{
+                        id: t.id,
+                        name: t.name,
+                        frequency: t.frequency,
+                        items,
+                        locationId: t.locationId,
+                        autoGenerateHour: t.autoGenerateHour,
+                        weekDay: t.weekDay,
+                        monthDay: t.monthDay,
+                        priority: t.priority,
+                        department: t.department,
+                        proofRequired: t.proofRequired,
+                      }}
+                      locations={editLocations}
+                    />
+                  )}
                   <ToggleTemplateButton id={t.id} active={t.active} />
                 </div>
               </div>
