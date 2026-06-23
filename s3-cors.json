@@ -4,7 +4,7 @@
     "AllowedMethods": ["POST", "PUT", "GET"],
     "AllowedOrigins": [
       "http://localhost:3000",
-      "https://cm-management.vercel.app"
+      "https://cm.sujeevan.ca"
     ],
     "ExposeHeaders": ["ETag"],
     "MaxAgeSeconds": 3600

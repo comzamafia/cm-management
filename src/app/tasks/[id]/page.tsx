@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser, isManager } from "@/lib/auth";
+import { getCurrentUser, isManager, locationScopeWhere } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTaskDetail } from "@/lib/queries";
 import { TYPE_LABEL, STATUS_LABEL, PRIORITY_LABEL, formatDateTime } from "@/lib/labels";
@@ -48,10 +48,15 @@ export default async function TaskDetailPage({
   const manager = isManager(user.role);
   const canEditTask = manager || user.role === "SHIFT_LEAD";
 
+  // Assignees are scoped to the *acting manager's* reach, not the task's branch:
+  // Owner / Area Manager (global scope) can assign anyone; a store-scoped manager
+  // sees their location's staff. This matters because head-office managers oversee
+  // tasks that live on a branch with no staff of its own.
+  const scope = await locationScopeWhere(user);
   const [assignees, categories] = manager
     ? await Promise.all([
         prisma.user.findMany({
-          where: { locationId: task.locationId, status: "ACTIVE" },
+          where: { ...scope, status: "ACTIVE" },
           orderBy: { name: "asc" },
           select: { id: true, name: true, role: true },
         }),

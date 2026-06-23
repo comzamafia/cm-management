@@ -41,9 +41,16 @@ export function NewTaskForm({
   const [dueAt, setDueAt] = useState("");
   const [proofRequired, setProofRequired] = useState(false);
 
-  const assignees = users.filter(
-    (u) => !locationId || u.locationId === locationId || u.locationId === null,
-  );
+  // The server already scoped `users` to the creator's reach. Don't hide cross-branch
+  // staff by the selected branch — head-office managers are assigned to branch tasks,
+  // and several branches have no staff of their own. Surface the selected branch's
+  // people first, then everyone else, so the common pick stays on top.
+  const assignees = [...users].sort((a, b) => {
+    const aHere = a.locationId === locationId ? 0 : 1;
+    const bHere = b.locationId === locationId ? 0 : 1;
+    if (aHere !== bHere) return aHere - bHere;
+    return a.name.localeCompare(b.name);
+  });
 
   function submit() {
     setError(null);
