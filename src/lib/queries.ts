@@ -163,7 +163,7 @@ export async function getManagerDashboard(
   // The landing dashboard is PERSONAL: every task widget shows only the
   // signed-in user's own work. Cross-team task visibility lives in /tasks.
   const mine = { assigneeId: subject };
-  const [completedToday, todayRaw, templates, weekTasks, upcomingRaw, overdueRaw, categories, myCatCounts, genToday, users, activity] = await Promise.all([
+  const [completedToday, todayRaw, templates, weekTasks, weekAllTasks, upcomingRaw, overdueRaw, categories, myCatCounts, genToday, users, activity] = await Promise.all([
     prisma.taskCompletion.count({ where: { completedById: subject, completedAt: { gte: startToday } } }),
     // My tasks due today, still open.
     prisma.task.findMany({
@@ -185,6 +185,12 @@ export async function getManagerDashboard(
       select: { id: true, title: true, dueAt: true },
       orderBy: { dueAt: "asc" },
       take: 8,
+    }),
+    // All my tasks this week (any status) for planner completion status.
+    prisma.task.findMany({
+      where: { ...mine, dueAt: { gte: monday, lt: weekEnd } },
+      select: { id: true, title: true, status: true, dueAt: true, proofRequired: true },
+      orderBy: { dueAt: "asc" },
     }),
     // My upcoming tasks.
     prisma.task.findMany({
@@ -264,7 +270,25 @@ export async function getManagerDashboard(
     if (!t.dueAt) continue;
     addPlanner(t.title, "SCHEDULED", [col(new Date(t.dueAt))]);
   }
-  const plannerRows = [...plannerMap.values()].map((r) => ({ label: r.label, cadence: r.cadence, days: [...r.days].sort() }));
+  // Match week tasks to planner rows by title prefix (checklist tasks start with "[TemplateName] item").
+  type CellTask = { id: string; status: string; proofRequired: boolean };
+  type PlannerRow = { label: string; cadence: Cadence; days: number[]; cells: Record<number, CellTask | null> };
+
+  const plannerRows: PlannerRow[] = [...plannerMap.values()].map((r) => {
+    const days = [...r.days].sort();
+    const cells: Record<number, CellTask | null> = {};
+    for (const d of days) {
+      const dayStart = weekDates[d];
+      if (!dayStart) { cells[d] = null; continue; }
+      const dayEnd = new Date(dayStart.getTime() + 86400000);
+      const match = weekAllTasks.find(
+        (t) => t.dueAt && t.dueAt >= dayStart && t.dueAt < dayEnd
+          && (t.title === r.label || t.title.startsWith(`[${r.label}]`)),
+      );
+      cells[d] = match ? { id: match.id, status: match.status, proofRequired: match.proofRequired } : null;
+    }
+    return { label: r.label, cadence: r.cadence, days, cells };
+  });
   const dayCounts = weekDates.map((_, i) => plannerRows.filter((r) => r.days.includes(i)).length);
 
   const upcoming = upcomingRaw.map((t) => ({

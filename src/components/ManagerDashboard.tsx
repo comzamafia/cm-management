@@ -7,18 +7,13 @@ import { getStickyNotes } from "@/lib/person-notes";
 import { ROLE_LABEL, formatDateTime } from "@/lib/labels";
 import { APP_TZ } from "@/lib/time";
 import { DashboardTodayTasks } from "./DashboardTodayTasks";
+import { DashboardWeeklyPlanner } from "./DashboardWeeklyPlanner";
 import { DashboardCategories } from "./DashboardCategories";
 import { DashboardViewAs } from "./DashboardViewAs";
 import { DashboardNotesSection } from "./DashboardNotesSection";
 import { DashboardStickyNotes } from "./DashboardStickyNotes";
 
 type MgrUser = { id: string; name: string; role: Role; locationId: string | null; location: { name: string } | null };
-
-const CADENCE_HEX: Record<"DAILY" | "WEEKLY" | "SCHEDULED", string> = {
-  DAILY: "#440E48",
-  WEEKLY: "#5B8DD9",
-  SCHEDULED: "#F4A626",
-};
 
 const ACTION_VERB: Record<string, string> = {
   "task.created": "created", "task.assigned": "assigned", "task.status_changed": "updated",
@@ -36,7 +31,6 @@ function upcomingLabel(iso: string | null): string {
 }
 
 export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUser; viewAs?: string; noteDate?: string }) {
-  // A manager may view a teammate's board (?view=<id>) — validate location scope.
   let subject: MgrUser = user;
   if (viewAs && viewAs !== user.id && isManager(user.role)) {
     const ids = await scopedLocationIds(user);
@@ -52,9 +46,7 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
   ]);
   const firstName = subject.name.split(/\s+/)[0];
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: APP_TZ });
-  const weekDates = md.planner.weekDates.map((d) => new Date(d));
 
-  // Sticky notes: own board → manage your own; OWNER/AREA_MANAGER → manage anyone's.
   const canSeeNotes = subject.id === user.id || hasGlobalScope(user.role);
   const stickyNotes = canSeeNotes ? await getStickyNotes(subject.id) : [];
 
@@ -75,15 +67,9 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           {viewingOther ? (
             <Link href="/dashboard" className="m-btn-ghost">← My board</Link>
           ) : (
-            <Link href="/calendar" className="m-btn-ghost">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Calendar
-            </Link>
+            <Link href="/calendar" className="m-btn-ghost">Calendar</Link>
           )}
-          <Link href={tasksHref} className="m-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            {viewingOther ? "Their Tasks" : "All Tasks"}
-          </Link>
+          <Link href={tasksHref} className="m-btn">{viewingOther ? "Their Tasks" : "All Tasks"}</Link>
         </div>
       </div>
 
@@ -99,65 +85,44 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           icon={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>} />
       </div>
 
-      {/* Today's Tasks + Weekly Planner (left) · Sticky Notes (right rail) */}
-      <div className={`grid gap-5 ${canSeeNotes ? "lg:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
-        <div className="grid min-w-0 gap-5 lg:grid-cols-5">
-        <DashboardTodayTasks tasks={md.todayTasks} pending={md.pendingChecklists} users={md.users} canEdit />
-        <section className="m-card lg:col-span-2">
-          <div className="flex items-center gap-2 px-5 py-4">
-            <span className="text-[#440E48]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/></svg></span>
-            <h2 className="text-base font-bold text-[#140516]">Weekly Planner</h2>
-          </div>
-          <div className="overflow-x-auto px-3 pb-4">
-            <table className="w-full min-w-[420px]">
-              <thead>
-                <tr>
-                  <th className="w-40" />
-                  {weekDates.map((d, i) => (
-                    <th key={i} className="px-1 pb-2 text-center">
-                      <div className="text-[10px] font-semibold uppercase text-[#A19BA2]">{d.toLocaleDateString("en-US", { weekday: "short" })}</div>
-                      <div className="text-[11px] text-[#726973]">{d.getDate()}</div>
-                      <div className="mx-auto mt-1 grid h-5 w-5 place-items-center rounded-full bg-[#f3eef3] text-[10px] font-bold text-[#726973]">{md.planner.dayCounts[i]}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {md.planner.rows.map((r, ri) => (
-                  <tr key={ri} className="border-t border-[#f4f0f4]">
-                    <td className="py-1.5 pr-2"><span className="block truncate text-xs text-[#140516]" title={r.label}>{r.label}</span></td>
-                    {weekDates.map((_, i) => (
-                      <td key={i} className="px-1 py-1.5 text-center">
-                        {r.days.includes(i) && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: CADENCE_HEX[r.cadence] }} />}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {md.planner.rows.length === 0 && (
-                  <tr><td colSpan={8} className="py-6 text-center text-xs text-[#A19BA2]">No recurring items this week.</td></tr>
-                )}
-              </tbody>
-            </table>
-            <div className="mt-3 flex flex-wrap items-center gap-4 px-2 text-[11px] text-[#726973]">
-              {(["DAILY", "WEEKLY", "SCHEDULED"] as const).map((c) => (
-                <span key={c} className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: CADENCE_HEX[c] }} />{c[0] + c.slice(1).toLowerCase()}</span>
-              ))}
-            </div>
-          </div>
-        </section>
-        </div>
-
-        {/* Sticky Notes — right rail */}
+      {/* ─── ROW: Sticky Notes + Recent Activity (50/50) ─── */}
+      <div className="grid gap-5 lg:grid-cols-2">
         {canSeeNotes && (
-          <aside className="lg:sticky lg:top-4 lg:self-start">
-            <DashboardStickyNotes subjectId={subject.id} notes={stickyNotes} currentUserId={user.id} canManage />
-          </aside>
+          <DashboardStickyNotes subjectId={subject.id} notes={stickyNotes} currentUserId={user.id} canManage />
         )}
+        <section className="m-card p-5">
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#726973]">My Recent Activity</h3>
+          <ul className="divide-y divide-[#f3eef3]">
+            {md.activity.slice(0, 6).map((a) => {
+              const meta = a.meta as { title?: string; to?: string };
+              return (
+                <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-[#433745]">
+                    <span className="font-semibold text-[#140516]">{a.user.name}</span> {ACTION_VERB[a.action] ?? a.action}{" "}
+                    {meta.title ? <span className="font-semibold text-[#140516]">&ldquo;{meta.title}&rdquo;</span> : a.entity}
+                    {a.location ? <span className="text-[#A19BA2]"> @ {a.location.name}</span> : null}
+                  </span>
+                  <span className="shrink-0 text-xs text-[#A19BA2]">{formatDateTime(a.timestamp)}</span>
+                </li>
+              );
+            })}
+            {md.activity.length === 0 && <Empty>No recent activity.</Empty>}
+          </ul>
+        </section>
       </div>
+
+      {/* ─── ROW: Today's Tasks (full width) ─── */}
+      <DashboardTodayTasks tasks={md.todayTasks} pending={md.pendingChecklists} users={md.users} canEdit />
+
+      {/* ─── ROW: Weekly Planner (full width, with checkboxes) ─── */}
+      <DashboardWeeklyPlanner
+        weekDates={md.planner.weekDates}
+        rows={md.planner.rows}
+        dayCounts={md.planner.dayCounts}
+      />
 
       {/* Overdue · Upcoming · Quick Links · Task Categories */}
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {/* Overdue */}
         <section className="m-card p-5">
           <CardHead title="Overdue Tasks" href="/tasks" />
           <div className="space-y-2">
@@ -177,7 +142,6 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           </div>
         </section>
 
-        {/* Upcoming */}
         <section className="m-card p-5">
           <CardHead title="Upcoming" href="/calendar" />
           <ul className="space-y-2.5">
@@ -197,7 +161,6 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           </ul>
         </section>
 
-        {/* Quick Links */}
         <section className="m-card p-5">
           <h3 className="mb-3 text-base font-bold text-[#140516]">Quick Links</h3>
           <div className="space-y-1">
@@ -219,32 +182,10 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           </div>
         </section>
 
-        {/* Task Categories */}
         <DashboardCategories categories={md.categories} canEdit />
       </div>
 
-      {/* Activity feed */}
-      <section className="m-card p-5">
-        <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#726973]">My Recent Activity</h3>
-        <ul className="divide-y divide-[#f3eef3]">
-          {md.activity.slice(0, 8).map((a) => {
-            const meta = a.meta as { title?: string; to?: string };
-            return (
-              <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span className="text-[#433745]">
-                  <span className="font-semibold text-[#140516]">{a.user.name}</span> {ACTION_VERB[a.action] ?? a.action}{" "}
-                  {meta.title ? <span className="font-semibold text-[#140516]">“{meta.title}”</span> : a.entity}
-                  {a.location ? <span className="text-[#A19BA2]"> @ {a.location.name}</span> : null}
-                </span>
-                <span className="shrink-0 text-xs text-[#A19BA2]">{formatDateTime(a.timestamp)}</span>
-              </li>
-            );
-          })}
-          {md.activity.length === 0 && <Empty>No recent activity.</Empty>}
-        </ul>
-      </section>
-
-      {/* Daily notes (your own log, regardless of whose board you're viewing) */}
+      {/* Daily notes */}
       <DashboardNotesSection userId={user.id} noteDate={noteDate} />
     </div>
   );
