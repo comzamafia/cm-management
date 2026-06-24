@@ -2,7 +2,6 @@ import { getCurrentUser, isManager } from "@/lib/auth";
 import { localDateISO } from "@/lib/time";
 import { fetchServerPerformance, configuredBranches, type BohResult } from "@/lib/boh-api";
 import { PerformanceControls } from "@/components/PerformanceControls";
-import { PerformanceReport } from "@/components/PerformanceReport";
 import { PerformanceUpsell } from "@/components/PerformanceUpsell";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +40,8 @@ export default async function PerformancePage({
   const fallback = branchesWithKeys.find((b) => b.hasKey) ?? branchesWithKeys[0];
   const selected = requested ?? fallback;
   const branchId = selected.branch.id;
-  const view = sp.view === "upsell" ? "upsell" : "score";
+  // Only the Upsell view is exposed now — the Performance Score tab was removed.
+  const view = "upsell" as const;
 
   // Default range: last 7 days (Toronto business dates).
   const today = localDateISO(new Date());
@@ -110,8 +110,7 @@ export default async function PerformancePage({
         </Panel>
       )}
 
-      {result && result.ok && view === "score" && <PerformanceReport data={result.data} />}
-      {result && result.ok && view === "upsell" && <PerformanceUpsell data={result.data} />}
+      {result && result.ok && <PerformanceUpsell data={result.data} />}
     </div>
   );
 }

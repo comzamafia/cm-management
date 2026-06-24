@@ -19,11 +19,6 @@ const PRESETS = [
   { days: 30, label: "30 days" },
 ];
 
-const VIEWS = [
-  { id: "score", label: "Performance Score" },
-  { id: "upsell", label: "Upsell % (Bev / Liquor / Dessert)" },
-];
-
 function isoDaysAgo(to: string, days: number): string {
   const end = new Date(`${to}T00:00:00Z`);
   const start = new Date(end.getTime() - (days - 1) * 86400000);
@@ -45,24 +40,6 @@ export function PerformanceControls({ branches, branchId, from, to, view }: Prop
 
   return (
     <div className="space-y-3 print:hidden">
-      {/* View tabs */}
-      <div className="flex gap-2">
-        {VIEWS.map((v) => (
-          <button
-            key={v.id}
-            onClick={() => push({ view: v.id })}
-            disabled={pending}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              view === v.id
-                ? "bg-[#440E48] text-white shadow-sm"
-                : "bg-white text-[#726973] ring-1 ring-inset ring-[#E4DDE4] hover:bg-[#FAF6FA]"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-
       {/* Controls row */}
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">
