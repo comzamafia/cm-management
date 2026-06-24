@@ -85,6 +85,11 @@ const I = {
       <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
+  actionPlan: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="0.5" fill="currentColor" />
+    </svg>
+  ),
 };
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: number };
@@ -227,11 +232,13 @@ export function Sidebar({
   notifications,
   unreadCount,
   unreadAnnouncements,
+  showActionPlan,
 }: {
   user: SidebarUser;
   notifications: NotificationItem[];
   unreadCount: number;
   unreadAnnouncements: number;
+  showActionPlan?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -239,11 +246,20 @@ export function Sidebar({
   // Compliance-support accounts only ever see the Compliance page.
   const complianceOnly = user.role === "COMPLIANCE";
   const myRank = RANK[user.role] ?? 0;
-  const nav: NavItem[] = (
-    complianceOnly
-      ? NAV_BASE.filter((item) => item.href === "/compliance")
-      : NAV_BASE.filter((item) => item.minRank == null || myRank >= item.minRank)
-  ).map((item) => ({
+
+  // Action Plan is gated to specific owners (Sujee / Hang), shown right under Dashboard.
+  const baseNav = complianceOnly
+    ? NAV_BASE.filter((item) => item.href === "/compliance")
+    : NAV_BASE.filter((item) => item.minRank == null || myRank >= item.minRank);
+  const withActionPlan: NavDef[] = showActionPlan && !complianceOnly
+    ? baseNav.flatMap((item) =>
+        item.href === "/dashboard"
+          ? [item, { href: "/action-plan", label: "Action Plan", icon: I.actionPlan }]
+          : [item],
+      )
+    : baseNav;
+
+  const nav: NavItem[] = withActionPlan.map((item) => ({
     href: item.href,
     label: item.label,
     icon: item.icon,

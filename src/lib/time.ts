@@ -63,3 +63,26 @@ export function localDayOfMonth(date: Date = new Date(), tz: string = APP_TZ): n
 export function localHour(date: Date = new Date(), tz: string = APP_TZ): number {
   return +parts(date, tz).hour;
 }
+
+/** Local calendar month as `YYYY-MM` in the configured timezone. */
+export function monthId(date: Date = new Date(), tz: string = APP_TZ): string {
+  const p = parts(date, tz);
+  return `${p.year}-${p.month}`;
+}
+
+/**
+ * ISO-8601 week id (`YYYY-Www`) for the local day in the configured timezone.
+ * Week starts Monday; the week containing the year's first Thursday is week 1.
+ */
+export function isoWeekId(date: Date = new Date(), tz: string = APP_TZ): string {
+  const p = parts(date, tz);
+  // Work in a UTC-anchored date for the local calendar day (no DST drift here).
+  const d = new Date(Date.UTC(+p.year, +p.month - 1, +p.day));
+  const day = d.getUTCDay() || 7; // Mon=1 … Sun=7
+  // Shift to the Thursday of this week, then derive the year + week number.
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const isoYear = d.getUTCFullYear();
+  const yearStart = Date.UTC(isoYear, 0, 1);
+  const week = Math.ceil(((d.getTime() - yearStart) / 86400000 + 1) / 7);
+  return `${isoYear}-W${String(week).padStart(2, "0")}`;
+}

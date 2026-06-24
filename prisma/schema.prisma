@@ -408,6 +408,22 @@ model DailyNote {
   @@index([userId, createdAt])
 }
 
+// Area Manager Action Plan tracker (Hang / Sujee). A flat key/value store: one
+// row per (period, key). period is an ISO week ("2026-W26") for weekly + summary
+// data, or a calendar month ("2026-06") for monthly + vendor data. Shared by both
+// users — no per-user dimension. updatedById is audit-only (no FK on purpose).
+model ActionPlanEntry {
+  id          String   @id @default(cuid())
+  period      String
+  key         String
+  value       String
+  updatedById String
+  updatedAt   DateTime @updatedAt
+
+  @@unique([period, key])
+  @@index([period])
+}
+
 // Phase 2: In-app notifications
 model Notification {
   id         String           @id @default(cuid())
