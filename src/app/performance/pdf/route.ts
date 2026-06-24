@@ -45,13 +45,15 @@ export async function GET(req: Request): Promise<Response> {
     return new Response(`Date range exceeds ${MAX_RANGE_DAYS} days.`, { status: 400 });
   }
 
+  const view = url.searchParams.get("view") === "upsell" ? "upsell" : "score";
+
   const result = await fetchServerPerformance(selected.branch.id, from, to);
   if (!result.ok) {
     return new Response(`Could not load report: ${result.error}`, { status: 502 });
   }
 
-  const pdf = await renderPerformancePdf(result.data);
-  const filename = `server-performance-${selected.branch.id}-${from}_${to}.pdf`;
+  const pdf = await renderPerformancePdf(result.data, view);
+  const filename = `server-${view}-${selected.branch.id}-${from}_${to}.pdf`;
 
   return new Response(new Uint8Array(pdf), {
     status: 200,

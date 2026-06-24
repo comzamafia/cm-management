@@ -104,7 +104,7 @@ export function PerformanceControls({ branches, branchId, from, to, view }: Prop
         </div>
 
         <a
-          href={`/performance/pdf?branch=${encodeURIComponent(branchId)}&from=${from}&to=${to}`}
+          href={`/performance/pdf?branch=${encodeURIComponent(branchId)}&from=${from}&to=${to}&view=${view}`}
           className="ml-auto inline-flex items-center gap-2 rounded-lg bg-[#440E48] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

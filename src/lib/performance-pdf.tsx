@@ -72,7 +72,18 @@ function cellText(colKey: string, v: BohServerPerformance["servers"][number], ra
   }
 }
 
-function PerformancePdf({ data }: { data: BohServerPerformance }) {
+export type PerformanceView = "score" | "upsell";
+
+function PerformancePdf({ data, view }: { data: BohServerPerformance; view: PerformanceView }) {
+  const { branch } = data;
+  return (
+    <Document title={`Server Performance — ${branch.name}`} author="CM Operations">
+      {view === "upsell" ? <UpsellPage data={data} /> : <ScorePage data={data} />}
+    </Document>
+  );
+}
+
+function ScorePage({ data }: { data: BohServerPerformance }) {
   const { branch, range, generatedAt, team, servers, weights } = data;
   const ranked = servers.filter((x) => !x.isStation).sort((a, b) => b.score - a.score);
 
@@ -85,8 +96,7 @@ function PerformancePdf({ data }: { data: BohServerPerformance }) {
   ];
 
   return (
-    <Document title={`Server Performance — ${branch.name}`} author="CM Operations">
-      <Page size="A4" orientation="landscape" style={s.page}>
+    <Page size="A4" orientation="landscape" style={s.page}>
         {/* Navy header band */}
         <View style={s.header} fixed>
           <View>
@@ -151,11 +161,7 @@ function PerformancePdf({ data }: { data: BohServerPerformance }) {
           {/* Footer formula */}
           <Text style={s.footer}>{scoreFormula(weights)}</Text>
         </View>
-      </Page>
-
-      {/* ═══ Page 2: Upsell Breakdown ═══ */}
-      <UpsellPage data={data} />
-    </Document>
+    </Page>
   );
 }
 
@@ -312,7 +318,10 @@ function UpsellPage({ data }: { data: BohServerPerformance }) {
   );
 }
 
-/** Render the full report (score + upsell) to a PDF buffer. */
-export function renderPerformancePdf(data: BohServerPerformance): Promise<Buffer> {
-  return renderToBuffer(<PerformancePdf data={data} />);
+/** Render the selected view (score leaderboard OR upsell breakdown) to a PDF buffer. */
+export function renderPerformancePdf(
+  data: BohServerPerformance,
+  view: PerformanceView = "score",
+): Promise<Buffer> {
+  return renderToBuffer(<PerformancePdf data={data} view={view} />);
 }
