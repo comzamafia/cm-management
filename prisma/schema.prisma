@@ -154,6 +154,9 @@ enum ComplianceInterval {
   QUARTERLY
   SEMI_ANNUAL
   ANNUAL
+  WEEKLY
+  BIWEEKLY
+  BIMONTHLY
 }
 
 model Location {

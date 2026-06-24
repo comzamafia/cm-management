@@ -247,19 +247,35 @@ export const COMPLIANCE_CATEGORY_LABEL: Record<ComplianceCategory, string> = {
   OTHER: "Other",
 };
 
+// Display order follows this object's key order (the form/dropdowns read Object.keys).
 export const COMPLIANCE_INTERVAL_LABEL: Record<ComplianceInterval, string> = {
+  WEEKLY: "Weekly",
+  BIWEEKLY: "Bi-weekly",
   MONTHLY: "Monthly",
+  BIMONTHLY: "Every 8 weeks",
   QUARTERLY: "Quarterly",
   SEMI_ANNUAL: "Semi-annual",
   ANNUAL: "Annual",
 };
 
-// Number of months each interval advances the next due date.
+// Number of months each month-based interval advances the next due date.
 export const COMPLIANCE_INTERVAL_MONTHS: Record<ComplianceInterval, number> = {
   MONTHLY: 1,
   QUARTERLY: 3,
   SEMI_ANNUAL: 6,
   ANNUAL: 12,
+  // Day-based intervals (see COMPLIANCE_INTERVAL_DAYS) — 0 here so any month-based
+  // consumer treats them as "no month roll".
+  WEEKLY: 0,
+  BIWEEKLY: 0,
+  BIMONTHLY: 0,
+};
+
+// Day-based intervals that don't map cleanly onto calendar months.
+export const COMPLIANCE_INTERVAL_DAYS: Partial<Record<ComplianceInterval, number>> = {
+  WEEKLY: 7,
+  BIWEEKLY: 14,
+  BIMONTHLY: 56, // 8 weeks
 };
 
 export type ComplianceStatus = "UPCOMING" | "DUE_SOON" | "OVERDUE";
@@ -287,7 +303,16 @@ export function addMonths(date: Date, months: number): Date {
   return result;
 }
 
+/** Advance a date by N days (UTC). */
+export function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 export function computeNextDue(lastServiceDate: Date, interval: ComplianceInterval): Date {
+  const days = COMPLIANCE_INTERVAL_DAYS[interval];
+  if (days) return addDays(lastServiceDate, days);
   return addMonths(lastServiceDate, COMPLIANCE_INTERVAL_MONTHS[interval]);
 }
 

@@ -223,6 +223,8 @@ async function main() {
   }
   const INTERVAL_MONTHS: Record<ComplianceInterval, number> = {
     MONTHLY: 1, QUARTERLY: 3, SEMI_ANNUAL: 6, ANNUAL: 12,
+    // Day-based intervals aren't used by the demo seeds below.
+    WEEKLY: 0, BIWEEKLY: 0, BIMONTHLY: 0,
   };
   type ComplianceSeed = {
     name: string; category: ComplianceCategory; interval: ComplianceInterval;
