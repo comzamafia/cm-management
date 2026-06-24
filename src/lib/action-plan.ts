@@ -29,6 +29,20 @@ export async function getActionPlan(week: string, month: string): Promise<Entrie
   return out;
 }
 
+/** Reset all check/input data for the given periods. */
+export async function resetActionPlan(
+  week: string,
+  month: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!(await canSeeActionPlan(user))) return { ok: false, error: "Not authorized" };
+  await prisma.actionPlanEntry.deleteMany({
+    where: { period: { in: [week, month] } },
+  });
+  revalidatePath("/action-plan");
+  return { ok: true };
+}
+
 /** Upsert a single entry. Empty value clears it. */
 export async function setActionPlanEntry(
   period: string,

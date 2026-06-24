@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { setActionPlanEntry } from "@/lib/action-plan";
+import { useRouter } from "next/navigation";
+import { setActionPlanEntry, resetActionPlan } from "@/lib/action-plan";
 import {
   WEEKLY_TASKS, MONTHLY_TASKS, VENDORS, RESTAURANTS, DAYS,
   keys, nextDue, deadline, weekdayOf, weeklyStats, monthlyStats,
@@ -43,9 +44,11 @@ export function ActionPlanTracker({
   todayISO: string;
   entries: Entries;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [entries, setEntries] = useState<Entries>(initial);
   const [, startTransition] = useTransition();
+  const [resetting, setResetting] = useState(false);
 
   const today = useMemo(() => {
     const [y, m, d] = todayISO.split("-").map(Number);
@@ -104,6 +107,34 @@ export function ActionPlanTracker({
             <span className="block h-full rounded-full bg-gradient-to-r from-[#440E48] to-[#F4A626]" style={{ width: `${o.pct}%` }} />
           </div>
           <div className="mt-1.5 text-xs font-semibold text-[#e2445c]">{o.overdue} overdue task{o.overdue === 1 ? "" : "s"}</div>
+          <div className="mt-3 flex gap-2">
+            <a
+              href="/action-plan/pdf"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#440E48] px-3 py-1.5 text-xs font-bold text-white hover:brightness-110"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><polyline points="9 15 12 18 15 15" />
+              </svg>
+              Export PDF
+            </a>
+            <button
+              disabled={resetting}
+              onClick={async () => {
+                if (!confirm("Reset all checkboxes and data for the current week/month? This cannot be undone.")) return;
+                setResetting(true);
+                await resetActionPlan(week, month);
+                setEntries({});
+                setResetting(false);
+                router.refresh();
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4DDE4] bg-white px-3 py-1.5 text-xs font-bold text-[#e2445c] hover:bg-[#FEE2E2] disabled:opacity-50"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+              {resetting ? "Resetting…" : "Reset"}
+            </button>
+          </div>
         </div>
       </div>
 
