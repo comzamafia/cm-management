@@ -255,7 +255,7 @@ export function Sidebar({
     : NAV_BASE.filter((item) => item.minRank == null || myRank >= item.minRank);
   // Inject gated nav items right after Dashboard.
   const extraItems: NavDef[] = [];
-  if (showActionPlan && !complianceOnly) extraItems.push({ href: "/action-plan", label: "Action Plan", icon: I.actionPlan });
+  if (showActionPlan && !complianceOnly) extraItems.push({ href: "/action-plan", label: "Hang", icon: I.actionPlan });
   if (showMarketing && !complianceOnly) extraItems.push({ href: "/marketing", label: "Marketing", icon: I.actionPlan });
   const withExtras: NavDef[] = extraItems.length > 0
     ? baseNav.flatMap((item) => item.href === "/dashboard" ? [item, ...extraItems] : [item])
