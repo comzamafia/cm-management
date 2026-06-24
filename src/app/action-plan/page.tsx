@@ -5,7 +5,11 @@ import { ActionPlanTracker } from "@/components/ActionPlanTracker";
 
 export const dynamic = "force-dynamic";
 
-export default async function ActionPlanPage() {
+export default async function ActionPlanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string; month?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user) return <div className="text-[#726973]">Sign in to continue.</div>;
 
@@ -19,9 +23,14 @@ export default async function ActionPlanPage() {
   }
 
   const now = new Date();
-  const week = isoWeekId(now);
-  const month = monthId(now);
+  const sp = await searchParams;
+  const currentWeek = isoWeekId(now);
+  const currentMonth = monthId(now);
+  const week = sp.week && /^\d{4}-W\d{2}$/.test(sp.week) ? sp.week : currentWeek;
+  const month = sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentMonth;
   const todayISO = localDateISO(now);
+  const isCurrentPeriod = week === currentWeek && month === currentMonth;
+
   const [entries, tasks] = await Promise.all([
     getActionPlan(week, month),
     getActionPlanTasks(),
@@ -31,11 +40,14 @@ export default async function ActionPlanPage() {
     <ActionPlanTracker
       week={week}
       month={month}
+      currentWeek={currentWeek}
+      currentMonth={currentMonth}
       todayISO={todayISO}
       entries={entries}
       weeklyTasks={tasks.weekly}
       monthlyTasks={tasks.monthly}
       vendors={tasks.vendors}
+      isCurrentPeriod={isCurrentPeriod}
     />
   );
 }
