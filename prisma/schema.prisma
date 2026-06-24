@@ -408,6 +408,25 @@ model DailyNote {
   @@index([userId, createdAt])
 }
 
+// Area Manager Action Plan task definitions. Editable from the UI so Hang/Sujee
+// can add/remove items without a code deploy.
+model ActionPlanTask {
+  id            String   @id @default(cuid())
+  tab           String   // "weekly" | "monthly" | "vendor"
+  taskKey       String   @unique // stable key used in ActionPlanEntry references
+  name          String
+  category      String?
+  location      String?
+  days          Int[]    @default([])
+  dueDay        Int?
+  deadlineMode  String?  // "same" | "next_month_15"
+  mode          String?  // "all" | "grid"
+  applicable    String[] @default([])
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+}
+
 // Area Manager Action Plan tracker (Hang / Sujee). A flat key/value store: one
 // row per (period, key). period is an ISO week ("2026-W26") for weekly + summary
 // data, or a calendar month ("2026-06") for monthly + vendor data. Shared by both

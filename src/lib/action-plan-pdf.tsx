@@ -1,8 +1,8 @@
 import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import {
-  WEEKLY_TASKS, MONTHLY_TASKS, VENDORS, RESTAURANTS, DAYS,
-  keys, nextDue, deadline, weekdayOf, weeklyStats, monthlyStats,
-  overall, vendorsPaid, type Entries,
+  RESTAURANTS, DAYS, keys, nextDue, deadline, weekdayOf,
+  weeklyStats, monthlyStats, overall, vendorsPaid,
+  type Entries, type WeeklyTask, type MonthlyTask, type VendorItem,
 } from "./action-plan-data";
 
 const PURPLE = "#440E48";
@@ -42,14 +42,15 @@ function fmtDate(d: Date) {
   return d.toLocaleDateString("en-CA", { month: "short", day: "2-digit", year: "numeric" });
 }
 
-function ActionPlanPdf({ entries, todayISO, week, month }: {
+function ActionPlanPdf({ entries, todayISO, week, month, weeklyTasks, monthlyTasks, vendors }: {
   entries: Entries; todayISO: string; week: string; month: string;
+  weeklyTasks: WeeklyTask[]; monthlyTasks: MonthlyTask[]; vendors: VendorItem[];
 }) {
   const [y, mo, d] = todayISO.split("-").map(Number);
   const today = new Date(y, mo - 1, d);
-  const o = overall(entries, today);
+  const o = overall(weeklyTasks, monthlyTasks, entries, today);
   const wd = weekdayOf(today);
-  const paid = vendorsPaid(entries);
+  const paid = vendorsPaid(vendors, entries);
 
   return (
     <Document title="Area Manager Action Plan" author="CM Operations">
@@ -70,7 +71,7 @@ function ActionPlanPdf({ entries, todayISO, week, month }: {
             <Tile label="Completed" value={String(o.done)} color={GREEN} />
             <Tile label="Total" value={String(o.total)} color={PURPLE} />
             <Tile label="Overdue" value={String(o.overdue)} color={RED} />
-            <Tile label="Vendor Payments" value={`${paid}/${VENDORS.length}`} color={GOLD} />
+            <Tile label="Vendor Payments" value={`${paid}/${vendors.length}`} color={GOLD} />
           </View>
 
           <Text style={s.sectionTitle}>Weekly Tasks (Mon–Fri)</Text>
@@ -81,7 +82,7 @@ function ActionPlanPdf({ entries, todayISO, week, month }: {
             {DAYS.map((d) => <Text key={d} style={[s.th, { flex: 0.5, textAlign: "center" }]}>{d}</Text>)}
             <Text style={[s.th, { flex: 0.6, textAlign: "center" }]}>Done</Text>
           </View>
-          {WEEKLY_TASKS.map((t, i) => {
+          {weeklyTasks.map((t, i) => {
             const st = weeklyStats(t, entries, today);
             const bg = i % 2 === 0 ? STRIPE : "#FFFFFF";
             return (
@@ -123,7 +124,7 @@ function ActionPlanPdf({ entries, todayISO, week, month }: {
             {RESTAURANTS.map((r) => <Text key={r} style={[s.th, { flex: 0.55, textAlign: "center" }]}>{r}</Text>)}
             <Text style={[s.th, { flex: 0.5, textAlign: "center" }]}>Done</Text>
           </View>
-          {MONTHLY_TASKS.map((t, i) => {
+          {monthlyTasks.map((t, i) => {
             const st = monthlyStats(t, entries, today);
             const bg = i % 2 === 0 ? STRIPE : "#FFFFFF";
             const past = today >= deadline(t, today);
@@ -158,14 +159,14 @@ function ActionPlanPdf({ entries, todayISO, week, month }: {
             <Text style={[s.th, { flex: 1.5 }]}>Payment Date</Text>
             <Text style={[s.th, { flex: 2 }]}>Notes</Text>
           </View>
-          {VENDORS.map((v, i) => {
-            const reviewed = entries[keys.vendor(v, "reviewed")] === "1";
-            const payDate = entries[keys.vendor(v, "payDate")] ?? "";
-            const note = entries[keys.vendor(v, "note")] ?? "";
+          {vendors.map((v, i) => {
+            const reviewed = entries[keys.vendor(v.id, "reviewed")] === "1";
+            const payDate = entries[keys.vendor(v.id, "payDate")] ?? "";
+            const note = entries[keys.vendor(v.id, "note")] ?? "";
             const bg = i % 2 === 0 ? STRIPE : "#FFFFFF";
             return (
-              <View key={v} style={[s.row, { backgroundColor: bg }]} wrap={false}>
-                <Text style={[s.cell, { flex: 2, fontFamily: "Helvetica-Bold" }]}>{v}</Text>
+              <View key={v.id} style={[s.row, { backgroundColor: bg }]} wrap={false}>
+                <Text style={[s.cell, { flex: 2, fontFamily: "Helvetica-Bold" }]}>{v.name}</Text>
                 <Text style={[s.check, { flex: 1, color: reviewed ? GREEN : GRAY }]}>{reviewed ? "✓" : "□"}</Text>
                 <Text style={[s.cell, { flex: 1.5, color: payDate ? GREEN : MID }]}>{payDate || "—"}</Text>
                 <Text style={[s.cell, { flex: 2, color: MID }]}>{note || "—"}</Text>
@@ -191,8 +192,10 @@ function Tile({ label, value, color }: { label: string; value: string; color: st
 
 export function renderActionPlanPdf(
   entries: Entries, todayISO: string, week: string, month: string,
+  weeklyTasks: WeeklyTask[], monthlyTasks: MonthlyTask[], vendors: VendorItem[],
 ): Promise<Buffer> {
   return renderToBuffer(
-    <ActionPlanPdf entries={entries} todayISO={todayISO} week={week} month={month} />,
+    <ActionPlanPdf entries={entries} todayISO={todayISO} week={week} month={month}
+      weeklyTasks={weeklyTasks} monthlyTasks={monthlyTasks} vendors={vendors} />,
   );
 }

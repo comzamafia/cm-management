@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { canSeeActionPlan, getActionPlan } from "@/lib/action-plan";
+import { canSeeActionPlan, getActionPlan, getActionPlanTasks } from "@/lib/action-plan";
 import { isoWeekId, monthId, localDateISO } from "@/lib/time";
 import { ActionPlanTracker } from "@/components/ActionPlanTracker";
 
@@ -22,7 +22,20 @@ export default async function ActionPlanPage() {
   const week = isoWeekId(now);
   const month = monthId(now);
   const todayISO = localDateISO(now);
-  const entries = await getActionPlan(week, month);
+  const [entries, tasks] = await Promise.all([
+    getActionPlan(week, month),
+    getActionPlanTasks(),
+  ]);
 
-  return <ActionPlanTracker week={week} month={month} todayISO={todayISO} entries={entries} />;
+  return (
+    <ActionPlanTracker
+      week={week}
+      month={month}
+      todayISO={todayISO}
+      entries={entries}
+      weeklyTasks={tasks.weekly}
+      monthlyTasks={tasks.monthly}
+      vendors={tasks.vendors}
+    />
+  );
 }

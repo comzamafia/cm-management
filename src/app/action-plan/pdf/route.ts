@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { canSeeActionPlan, getActionPlan } from "@/lib/action-plan";
+import { canSeeActionPlan, getActionPlan, getActionPlanTasks } from "@/lib/action-plan";
 import { isoWeekId, monthId, localDateISO } from "@/lib/time";
 import { renderActionPlanPdf } from "@/lib/action-plan-pdf";
 
@@ -17,9 +17,15 @@ export async function GET(): Promise<Response> {
   const week = isoWeekId(now);
   const month = monthId(now);
   const todayISO = localDateISO(now);
-  const entries = await getActionPlan(week, month);
+  const [entries, tasks] = await Promise.all([
+    getActionPlan(week, month),
+    getActionPlanTasks(),
+  ]);
 
-  const pdf = await renderActionPlanPdf(entries, todayISO, week, month);
+  const pdf = await renderActionPlanPdf(
+    entries, todayISO, week, month,
+    tasks.weekly, tasks.monthly, tasks.vendors,
+  );
   const filename = `action-plan-${week}-${month}.pdf`;
 
   return new Response(new Uint8Array(pdf), {
