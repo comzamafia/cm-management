@@ -233,12 +233,14 @@ export function Sidebar({
   unreadCount,
   unreadAnnouncements,
   showActionPlan,
+  showMarketing,
 }: {
   user: SidebarUser;
   notifications: NotificationItem[];
   unreadCount: number;
   unreadAnnouncements: number;
   showActionPlan?: boolean;
+  showMarketing?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -251,15 +253,15 @@ export function Sidebar({
   const baseNav = complianceOnly
     ? NAV_BASE.filter((item) => item.href === "/compliance")
     : NAV_BASE.filter((item) => item.minRank == null || myRank >= item.minRank);
-  const withActionPlan: NavDef[] = showActionPlan && !complianceOnly
-    ? baseNav.flatMap((item) =>
-        item.href === "/dashboard"
-          ? [item, { href: "/action-plan", label: "Action Plan", icon: I.actionPlan }]
-          : [item],
-      )
+  // Inject gated nav items right after Dashboard.
+  const extraItems: NavDef[] = [];
+  if (showActionPlan && !complianceOnly) extraItems.push({ href: "/action-plan", label: "Action Plan", icon: I.actionPlan });
+  if (showMarketing && !complianceOnly) extraItems.push({ href: "/marketing", label: "Marketing", icon: I.actionPlan });
+  const withExtras: NavDef[] = extraItems.length > 0
+    ? baseNav.flatMap((item) => item.href === "/dashboard" ? [item, ...extraItems] : [item])
     : baseNav;
 
-  const nav: NavItem[] = withActionPlan.map((item) => ({
+  const nav: NavItem[] = withExtras.map((item) => ({
     href: item.href,
     label: item.label,
     icon: item.icon,

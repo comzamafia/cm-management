@@ -412,6 +412,7 @@ model DailyNote {
 // can add/remove items without a code deploy.
 model ActionPlanTask {
   id            String   @id @default(cuid())
+  page          String   @default("action-plan") // "action-plan" | "marketing"
   tab           String   // "weekly" | "monthly" | "vendor"
   taskKey       String   @unique // stable key used in ActionPlanEntry references
   name          String
@@ -433,14 +434,15 @@ model ActionPlanTask {
 // users — no per-user dimension. updatedById is audit-only (no FK on purpose).
 model ActionPlanEntry {
   id          String   @id @default(cuid())
+  page        String   @default("action-plan") // "action-plan" | "marketing"
   period      String
   key         String
   value       String
   updatedById String
   updatedAt   DateTime @updatedAt
 
-  @@unique([period, key])
-  @@index([period])
+  @@unique([page, period, key])
+  @@index([page, period])
 }
 
 // Phase 2: In-app notifications

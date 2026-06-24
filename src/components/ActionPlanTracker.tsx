@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   setActionPlanEntry, resetActionPlan,
   addActionPlanTask, removeActionPlanTask, updateActionPlanTask, reorderActionPlanTask,
+  type PlanPage,
 } from "@/lib/action-plan";
 import {
   RESTAURANTS, DAYS, keys, nextDue, deadline, weekdayOf,
@@ -45,9 +46,11 @@ function shiftMonth(monthId: string, delta: number): string {
 
 // ── Main component ───────────────────────────────────────────────────────
 export function ActionPlanTracker({
+  page = "action-plan", title = "Area Manager Action Plan", basePath = "/action-plan",
   week, month, currentWeek, currentMonth, todayISO, entries: initial,
   weeklyTasks, monthlyTasks, vendors, isCurrentPeriod,
 }: {
+  page?: PlanPage; title?: string; basePath?: string;
   week: string; month: string; currentWeek: string; currentMonth: string;
   todayISO: string; entries: Entries;
   weeklyTasks: WeeklyTask[]; monthlyTasks: MonthlyTask[]; vendors: VendorItem[];
@@ -63,7 +66,7 @@ export function ActionPlanTracker({
 
   function setEntry(period: string, key: string, value: string) {
     setEntries((prev) => { const n = { ...prev }; if (value === "") delete n[key]; else n[key] = value; return n; });
-    startTransition(() => { void setActionPlanEntry(period, key, value); });
+    startTransition(() => { void setActionPlanEntry(page, period, key, value); });
   }
 
   const isOn = (key: string) => entries[key] === "1";
@@ -79,9 +82,9 @@ export function ActionPlanTracker({
   async function handleRemove(taskKey: string) { if (!confirm("Remove this item?")) return; await removeActionPlanTask(taskKey); refresh(); }
   async function handleReorder(taskKey: string, dir: "up" | "down") { await reorderActionPlanTask(taskKey, dir); refresh(); }
 
-  function goWeek(delta: number) { const w = shiftWeek(week, delta); const m = delta !== 0 ? month : month; router.push(`/action-plan?week=${w}&month=${m}`); }
-  function goMonth(delta: number) { const m = shiftMonth(month, delta); router.push(`/action-plan?week=${week}&month=${m}`); }
-  function goCurrent() { router.push("/action-plan"); }
+  function goWeek(delta: number) { const w = shiftWeek(week, delta); router.push(`${basePath}?week=${w}&month=${month}`); }
+  function goMonth(delta: number) { const m = shiftMonth(month, delta); router.push(`${basePath}?week=${week}&month=${m}`); }
+  function goCurrent() { router.push(basePath); }
 
   return (
     <div className="space-y-5">
@@ -89,7 +92,7 @@ export function ActionPlanTracker({
       <div className="m-card flex flex-wrap items-center justify-between gap-4 p-5">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#F4A626]">Operations Tracker</div>
-          <h1 className="mt-1 text-[24px] font-bold tracking-tight text-[#140516]">Area Manager Action Plan</h1>
+          <h1 className="mt-1 text-[24px] font-bold tracking-tight text-[#140516]">{title}</h1>
           <p className="mt-0.5 text-sm text-[#726973]">Today: {fmtDate(today)}</p>
         </div>
         <div className="min-w-[240px]">
@@ -102,14 +105,14 @@ export function ActionPlanTracker({
           </div>
           <div className="mt-1.5 text-xs font-semibold text-[#e2445c]">{o.overdue} overdue task{o.overdue === 1 ? "" : "s"}</div>
           <div className="mt-3 flex gap-2">
-            <a href="/action-plan/pdf" className="inline-flex items-center gap-1.5 rounded-lg bg-[#440E48] px-3 py-1.5 text-xs font-bold text-white hover:brightness-110">
+            <a href={`${basePath}/pdf`} className="inline-flex items-center gap-1.5 rounded-lg bg-[#440E48] px-3 py-1.5 text-xs font-bold text-white hover:brightness-110">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><polyline points="9 15 12 18 15 15" /></svg>
               Export PDF
             </a>
             {isCurrentPeriod && (
               <button disabled={resetting} onClick={async () => {
                 if (!confirm("Reset all data for current week/month?")) return;
-                setResetting(true); await resetActionPlan(week, month); setEntries({}); setResetting(false); refresh();
+                setResetting(true); await resetActionPlan(page, week, month); setEntries({}); setResetting(false); refresh();
               }} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4DDE4] bg-white px-3 py-1.5 text-xs font-bold text-[#e2445c] hover:bg-[#FEE2E2] disabled:opacity-50">
                 {resetting ? "Resetting…" : "Reset"}
               </button>
@@ -154,9 +157,9 @@ export function ActionPlanTracker({
       </div>
 
       {tab === "dashboard" && <DashboardTab weeklyTasks={weeklyTasks} monthlyTasks={monthlyTasks} entries={entries} today={today} o={o} />}
-      {tab === "weekly" && <WeeklyTab tasks={weeklyTasks} entries={entries} today={today} wd={wd} toggle={toggleWeekly} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
-      {tab === "monthly" && <MonthlyTab tasks={monthlyTasks} entries={entries} today={today} toggleAll={toggleMonthlyAll} toggleGrid={toggleMonthlyGrid} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
-      {tab === "vendors" && <VendorsTab vendors={vendors} entries={entries} today={today} month={month} toggleReviewed={toggleVendorReviewed} setEntry={setEntry} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
+      {tab === "weekly" && <WeeklyTab page={page} tasks={weeklyTasks} entries={entries} today={today} wd={wd} toggle={toggleWeekly} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
+      {tab === "monthly" && <MonthlyTab page={page} tasks={monthlyTasks} entries={entries} today={today} toggleAll={toggleMonthlyAll} toggleGrid={toggleMonthlyGrid} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
+      {tab === "vendors" && <VendorsTab page={page} vendors={vendors} entries={entries} today={today} month={month} toggleReviewed={toggleVendorReviewed} setEntry={setEntry} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
       {tab === "summary" && <SummaryTab entries={entries} week={week} setEntry={setEntry} editable={isCurrentPeriod} />}
     </div>
   );
@@ -272,7 +275,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 // ── Add forms ────────────────────────────────────────────────────────────
-function AddWeeklyForm({ refresh }: { refresh: () => void }) {
+function AddWeeklyForm({ page, refresh }: { page: PlanPage; refresh: () => void }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [name, setName] = useState(""); const [category, setCat] = useState("Operations"); const [location, setLoc] = useState("All"); const [days, setDays] = useState<number[]>([1,2,3,4,5]);
@@ -281,10 +284,10 @@ function AddWeeklyForm({ refresh }: { refresh: () => void }) {
   return (<div className="m-card space-y-3 p-4">
     <div className="grid gap-3 sm:grid-cols-3"><div><label className={LABEL}>Task name *</label><input className={INP} value={name} onChange={(e) => setName(e.target.value)} /></div><div><label className={LABEL}>Category</label><input className={INP} value={category} onChange={(e) => setCat(e.target.value)} /></div><div><label className={LABEL}>Location</label><input className={INP} value={location} onChange={(e) => setLoc(e.target.value)} /></div></div>
     <div><label className={LABEL}>Days</label><div className="flex gap-2">{DAYS.map((d, i) => (<button key={i} onClick={() => toggleDay(i + 1)} className={`rounded-full px-3 py-1 text-xs font-bold ${days.includes(i + 1) ? "bg-[#440E48] text-white" : "bg-[#F0EBF0] text-[#726973]"}`}>{d}</button>))}</div></div>
-    <div className="flex gap-2"><button disabled={pending} onClick={() => start(async () => { await addActionPlanTask({ tab: "weekly", name, category, location: location || "All", days }); setName(""); setOpen(false); refresh(); })} className="m-btn text-xs disabled:opacity-50">{pending ? "Adding…" : "Add"}</button><button onClick={() => setOpen(false)} className="m-btn-ghost text-xs">Cancel</button></div>
+    <div className="flex gap-2"><button disabled={pending} onClick={() => start(async () => { await addActionPlanTask({ page, tab: "weekly", name, category, location: location || "All", days }); setName(""); setOpen(false); refresh(); })} className="m-btn text-xs disabled:opacity-50">{pending ? "Adding…" : "Add"}</button><button onClick={() => setOpen(false)} className="m-btn-ghost text-xs">Cancel</button></div>
   </div>);
 }
-function AddMonthlyForm({ refresh }: { refresh: () => void }) {
+function AddMonthlyForm({ page, refresh }: { page: PlanPage; refresh: () => void }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [name, setName] = useState(""); const [dueDay, setDueDay] = useState(1); const [deadlineMode, setDM] = useState<"same" | "next_month_15">("same"); const [mode, setMode] = useState<"all" | "grid">("all"); const [applicable, setApp] = useState<string[]>([...RESTAURANTS]);
@@ -294,17 +297,17 @@ function AddMonthlyForm({ refresh }: { refresh: () => void }) {
     <div className="grid gap-3 sm:grid-cols-3"><div><label className={LABEL}>Task name *</label><input className={INP} value={name} onChange={(e) => setName(e.target.value)} /></div><div><label className={LABEL}>Due day</label><input type="number" min={1} max={28} className={INP} value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))} /></div><div><label className={LABEL}>Deadline</label><select className={INP} value={deadlineMode} onChange={(e) => setDM(e.target.value as "same" | "next_month_15")}><option value="same">Same month</option><option value="next_month_15">Next month 15th</option></select></div></div>
     <div><label className={LABEL}>Mode</label><div className="flex gap-2"><button onClick={() => setMode("all")} className={`rounded-full px-3 py-1 text-xs font-bold ${mode === "all" ? "bg-[#440E48] text-white" : "bg-[#F0EBF0] text-[#726973]"}`}>All locations</button><button onClick={() => setMode("grid")} className={`rounded-full px-3 py-1 text-xs font-bold ${mode === "grid" ? "bg-[#440E48] text-white" : "bg-[#F0EBF0] text-[#726973]"}`}>Per location</button></div></div>
     {mode === "grid" && <div><label className={LABEL}>Locations</label><div className="flex flex-wrap gap-2">{RESTAURANTS.map((l) => (<button key={l} onClick={() => toggleLoc(l)} className={`rounded-full px-3 py-1 text-xs font-bold ${applicable.includes(l) ? "bg-[#440E48] text-white" : "bg-[#F0EBF0] text-[#726973]"}`}>{l}</button>))}</div></div>}
-    <div className="flex gap-2"><button disabled={pending} onClick={() => start(async () => { await addActionPlanTask({ tab: "monthly", name, dueDay, deadlineMode, mode, applicable: mode === "grid" ? applicable : [] }); setName(""); setOpen(false); refresh(); })} className="m-btn text-xs disabled:opacity-50">{pending ? "Adding…" : "Add"}</button><button onClick={() => setOpen(false)} className="m-btn-ghost text-xs">Cancel</button></div>
+    <div className="flex gap-2"><button disabled={pending} onClick={() => start(async () => { await addActionPlanTask({ page, tab: "monthly", name, dueDay, deadlineMode, mode, applicable: mode === "grid" ? applicable : [] }); setName(""); setOpen(false); refresh(); })} className="m-btn text-xs disabled:opacity-50">{pending ? "Adding…" : "Add"}</button><button onClick={() => setOpen(false)} className="m-btn-ghost text-xs">Cancel</button></div>
   </div>);
 }
-function AddVendorForm({ refresh }: { refresh: () => void }) {
+function AddVendorForm({ page, refresh }: { page: PlanPage; refresh: () => void }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   if (!open) return <button onClick={() => setOpen(true)} className="m-btn-ghost text-xs">+ Add Vendor</button>;
   return (<div className="m-card flex items-end gap-3 p-4">
     <div className="flex-1"><label className={LABEL}>Vendor name *</label><input className={INP} value={name} onChange={(e) => setName(e.target.value)} /></div>
-    <button disabled={pending} onClick={() => start(async () => { await addActionPlanTask({ tab: "vendor", name }); setName(""); setOpen(false); refresh(); })} className="m-btn text-xs disabled:opacity-50">{pending ? "Adding…" : "Add"}</button>
+    <button disabled={pending} onClick={() => start(async () => { await addActionPlanTask({ page, tab: "vendor", name }); setName(""); setOpen(false); refresh(); })} className="m-btn text-xs disabled:opacity-50">{pending ? "Adding…" : "Add"}</button>
     <button onClick={() => setOpen(false)} className="m-btn-ghost text-xs">Cancel</button>
   </div>);
 }
@@ -328,8 +331,8 @@ function DashboardTab({ weeklyTasks, monthlyTasks, entries, today, o }: { weekly
   );
 }
 
-function WeeklyTab({ tasks, entries, today, wd, toggle, onRemove, onReorder, refresh, editable }: {
-  tasks: WeeklyTask[]; entries: Entries; today: Date; wd: number;
+function WeeklyTab({ page, tasks, entries, today, wd, toggle, onRemove, onReorder, refresh, editable }: {
+  page: PlanPage; tasks: WeeklyTask[]; entries: Entries; today: Date; wd: number;
   toggle: (id: string, day: number) => void; onRemove: (k: string) => void; onReorder: (k: string, d: "up" | "down") => void; refresh: () => void; editable: boolean;
 }) {
   const [editing, setEditing] = useState<WeeklyTask | null>(null);
@@ -361,13 +364,13 @@ function WeeklyTab({ tasks, entries, today, wd, toggle, onRemove, onReorder, ref
           </tr>);
         })}</tbody></table></div>
       </div>
-      {editable && <AddWeeklyForm refresh={refresh} />}
+      {editable && <AddWeeklyForm page={page} refresh={refresh} />}
     </section>
   );
 }
 
-function MonthlyTab({ tasks, entries, today, toggleAll, toggleGrid, onRemove, onReorder, refresh, editable }: {
-  tasks: MonthlyTask[]; entries: Entries; today: Date;
+function MonthlyTab({ page, tasks, entries, today, toggleAll, toggleGrid, onRemove, onReorder, refresh, editable }: {
+  page: PlanPage; tasks: MonthlyTask[]; entries: Entries; today: Date;
   toggleAll: (id: string) => void; toggleGrid: (id: string, loc: string) => void;
   onRemove: (k: string) => void; onReorder: (k: string, d: "up" | "down") => void; refresh: () => void; editable: boolean;
 }) {
@@ -402,13 +405,13 @@ function MonthlyTab({ tasks, entries, today, toggleAll, toggleGrid, onRemove, on
           </tr>);
         })}</tbody></table></div>
       </div>
-      {editable && <AddMonthlyForm refresh={refresh} />}
+      {editable && <AddMonthlyForm page={page} refresh={refresh} />}
     </section>
   );
 }
 
-function VendorsTab({ vendors, entries, today, month, toggleReviewed, setEntry, onRemove, onReorder, refresh, editable }: {
-  vendors: VendorItem[]; entries: Entries; today: Date; month: string;
+function VendorsTab({ page, vendors, entries, today, month, toggleReviewed, setEntry, onRemove, onReorder, refresh, editable }: {
+  page: PlanPage; vendors: VendorItem[]; entries: Entries; today: Date; month: string;
   toggleReviewed: (vid: string) => void; setEntry: (p: string, k: string, v: string) => void;
   onRemove: (k: string) => void; onReorder: (k: string, d: "up" | "down") => void; refresh: () => void; editable: boolean;
 }) {
@@ -437,7 +440,7 @@ function VendorsTab({ vendors, entries, today, month, toggleReviewed, setEntry, 
           </tr>);
         })}</tbody></table></div>
       </div>
-      {editable && <AddVendorForm refresh={refresh} />}
+      {editable && <AddVendorForm page={page} refresh={refresh} />}
     </section>
   );
 }

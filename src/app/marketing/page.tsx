@@ -1,11 +1,11 @@
 import { getCurrentUser } from "@/lib/auth";
-import { canSeeActionPlan, getActionPlan, getActionPlanTasks } from "@/lib/action-plan";
+import { canSeePlan, getActionPlan, getActionPlanTasks } from "@/lib/action-plan";
 import { isoWeekId, monthId, localDateISO } from "@/lib/time";
 import { ActionPlanTracker } from "@/components/ActionPlanTracker";
 
 export const dynamic = "force-dynamic";
 
-export default async function ActionPlanPage({
+export default async function MarketingPage({
   searchParams,
 }: {
   searchParams: Promise<{ week?: string; month?: string }>;
@@ -13,7 +13,7 @@ export default async function ActionPlanPage({
   const user = await getCurrentUser();
   if (!user) return <div className="text-[#726973]">Sign in to continue.</div>;
 
-  if (!(await canSeeActionPlan(user))) {
+  if (!(await canSeePlan("marketing", user))) {
     return (
       <div className="rounded-xl border border-[#F4D58A] bg-[#FDF6E7] p-5 text-sm text-[#8A5A00] print:hidden">
         <div className="font-bold">Access restricted</div>
@@ -32,12 +32,15 @@ export default async function ActionPlanPage({
   const isCurrentPeriod = week === currentWeek && month === currentMonth;
 
   const [entries, tasks] = await Promise.all([
-    getActionPlan("action-plan", week, month),
-    getActionPlanTasks("action-plan"),
+    getActionPlan("marketing", week, month),
+    getActionPlanTasks("marketing"),
   ]);
 
   return (
     <ActionPlanTracker
+      page="marketing"
+      title="Marketing & Operations Tracker"
+      basePath="/marketing"
       week={week}
       month={month}
       currentWeek={currentWeek}

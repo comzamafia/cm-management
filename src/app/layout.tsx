@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { canSeeActionPlan } from "@/lib/action-plan";
+import { canSeeActionPlan, canSeeMarketing } from "@/lib/action-plan";
 import { getSession, clearSession } from "@/lib/session";
 import { ROLE_LABEL } from "@/lib/labels";
 import { Sidebar } from "@/components/Sidebar";
@@ -70,6 +70,7 @@ export default async function RootLayout({
   const unreadCount = notifications.filter((n) => !n.read).length;
   const unreadAnnouncements = user ? await getUnreadAnnouncementCount() : 0;
   const showActionPlan = await canSeeActionPlan(user);
+  const showMarketing = await canSeeMarketing(user);
 
   const locationLabel = user
     ? user.location
@@ -94,6 +95,7 @@ export default async function RootLayout({
               unreadCount={unreadCount}
               unreadAnnouncements={unreadAnnouncements}
               showActionPlan={showActionPlan}
+              showMarketing={showMarketing}
             />
             <div className="lg:pl-60 print:pl-0">
               {/* Desktop top bar */}

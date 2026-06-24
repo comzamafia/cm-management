@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(): Promise<Response> {
   const user = await getCurrentUser();
   if (!user) return new Response("Sign in required.", { status: 401 });
-  if (!(await canSeePlan("action-plan", user))) {
+  if (!(await canSeePlan("marketing", user))) {
     return new Response("Access restricted.", { status: 403 });
   }
 
@@ -18,15 +18,15 @@ export async function GET(): Promise<Response> {
   const month = monthId(now);
   const todayISO = localDateISO(now);
   const [entries, tasks] = await Promise.all([
-    getActionPlan("action-plan", week, month),
-    getActionPlanTasks("action-plan"),
+    getActionPlan("marketing", week, month),
+    getActionPlanTasks("marketing"),
   ]);
 
   const pdf = await renderActionPlanPdf(
     entries, todayISO, week, month,
     tasks.weekly, tasks.monthly, tasks.vendors,
   );
-  const filename = `action-plan-${week}-${month}.pdf`;
+  const filename = `marketing-plan-${week}-${month}.pdf`;
 
   return new Response(new Uint8Array(pdf), {
     status: 200,
