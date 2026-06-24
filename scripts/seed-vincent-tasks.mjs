@@ -4,6 +4,8 @@ const p = new PrismaClient();
 
 const VINCENT_ID = "cmql49svj0001kw046vqakazr";
 const ADMIN_ID = "cmq8jcoyy0003l2045vyu6suw";
+// Company-wide tasks pin to Head Office so the generator creates one task
+// instead of fanning out to every location (a null locationId hits them all).
 const HQ_ID = "cmq8rx9sh0000l104ivpmre50";
 
 async function main() {
@@ -196,7 +198,7 @@ async function main() {
         name: t.name,
         frequency: "DAILY",
         items: t.items,
-        locationId: null,
+        locationId: HQ_ID,
         autoGenerateHour: 9,
         priority: "MEDIUM",
         department: "Operations",
@@ -222,7 +224,7 @@ async function main() {
         name: t.name,
         frequency: "WEEKLY",
         items: t.items,
-        locationId: null,
+        locationId: HQ_ID,
         autoGenerateHour: 8,
         weekDay: t.weekDay,
         priority: "MEDIUM",
@@ -249,7 +251,7 @@ async function main() {
         name: t.name,
         frequency: "WEEKLY",
         items: t.items,
-        locationId: null,
+        locationId: HQ_ID,
         autoGenerateHour: 9,
         weekDay: t.weekDay,
         priority: "MEDIUM",
@@ -276,7 +278,7 @@ async function main() {
         name: t.name,
         frequency: "MONTHLY",
         items: t.items,
-        locationId: null,
+        locationId: HQ_ID,
         autoGenerateHour: 9,
         monthDay: t.monthDay,
         priority: "MEDIUM",
