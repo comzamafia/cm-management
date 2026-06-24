@@ -31,6 +31,20 @@ export function isManager(role: Role): boolean {
   return atLeast(role, Role.STORE_MANAGER);
 }
 
+/**
+ * Compliance-support role: a single-purpose account that only works the
+ * Compliance page. It is intentionally NOT part of the RANK hierarchy, so
+ * isManager()/hasGlobalScope() return false for it.
+ */
+export function isComplianceRole(role: Role): boolean {
+  return role === Role.COMPLIANCE;
+}
+
+/** Who may create / edit / mark-done compliance schedules. */
+export function canManageCompliance(role: Role): boolean {
+  return isManager(role) || role === Role.SHIFT_LEAD || isComplianceRole(role);
+}
+
 // ── Location scope ───────────────────────────────────────────────────────────
 
 /** Roles that see every location (no location filter applied). */
@@ -49,6 +63,8 @@ export function scopedLocationIdsFor(user: {
   locationId: string | null;
 }): string[] | null {
   if (hasGlobalScope(user.role)) return null;
+  // Compliance support works across every branch's schedules.
+  if (isComplianceRole(user.role)) return null;
   return user.locationId ? [user.locationId] : [];
 }
 

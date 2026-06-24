@@ -236,9 +236,13 @@ export function Sidebar({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  // Compliance-support accounts only ever see the Compliance page.
+  const complianceOnly = user.role === "COMPLIANCE";
   const myRank = RANK[user.role] ?? 0;
-  const nav: NavItem[] = NAV_BASE.filter(
-    (item) => item.minRank == null || myRank >= item.minRank,
+  const nav: NavItem[] = (
+    complianceOnly
+      ? NAV_BASE.filter((item) => item.href === "/compliance")
+      : NAV_BASE.filter((item) => item.minRank == null || myRank >= item.minRank)
   ).map((item) => ({
     href: item.href,
     label: item.label,
@@ -338,7 +342,10 @@ export function Sidebar({
       <nav
         className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-[#E4DDE4] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden print:hidden"
       >
-        {BOTTOM_NAV.map((item) => {
+        {(complianceOnly
+          ? [{ href: "/compliance", label: "Compliance", icon: I.compliance }]
+          : BOTTOM_NAV
+        ).map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link

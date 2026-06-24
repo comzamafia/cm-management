@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentUser, isManager } from "@/lib/auth";
+import { getCurrentUser, canManageCompliance } from "@/lib/auth";
 import { getComplianceSchedules } from "@/lib/compliance";
 import { ComplianceView } from "@/components/ComplianceView";
 
@@ -9,7 +9,7 @@ export default async function CompliancePage() {
   const user = await getCurrentUser();
   if (!user) return <div className="text-[#726973]">Sign in to view compliance schedules.</div>;
 
-  const canEdit = isManager(user.role) || user.role === "SHIFT_LEAD";
+  const canEdit = canManageCompliance(user.role);
   const { rows, users, locations } = await getComplianceSchedules(user);
   const multiLoc = locations.length > 1;
 

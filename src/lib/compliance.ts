@@ -7,7 +7,7 @@ import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
 import { sendPushToUser } from "./push";
 import { getNotificationSettings } from "./settings";
-import { getCurrentUser, isManager, locationScopeWhere, scopedLocationIds } from "./auth";
+import { getCurrentUser, isManager, canManageCompliance, locationScopeWhere, scopedLocationIds } from "./auth";
 import {
   computeNextDue,
   complianceDaysUntil,
@@ -92,7 +92,7 @@ type Editable =
 async function loadEditable(id: string): Promise<Editable> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  if (!isManager(user.role) && user.role !== "SHIFT_LEAD")
+  if (!canManageCompliance(user.role))
     return { ok: false, error: "Only managers can manage compliance schedules" };
   const schedule = await prisma.complianceSchedule.findUnique({ where: { id } });
   if (!schedule) return { ok: false, error: "Schedule not found" };
@@ -117,7 +117,7 @@ export async function createComplianceSchedule(input: {
 }): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  if (!isManager(user.role) && user.role !== "SHIFT_LEAD")
+  if (!canManageCompliance(user.role))
     return { ok: false, error: "Only managers can create compliance schedules" };
   if (!input.name.trim()) return { ok: false, error: "Name is required" };
 

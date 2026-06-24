@@ -18,6 +18,9 @@ enum Role {
   SHIFT_LEAD
   EMPLOYEE
   NEW_HIRE
+  // Single-purpose role: compliance support. Sees only the Compliance page;
+  // sits outside the management hierarchy (not a "manager").
+  COMPLIANCE
 }
 
 enum UserStatus {

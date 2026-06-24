@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, Cormorant_Garamond } from "next/font/google";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import "./globals.css";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -46,6 +47,15 @@ export default async function RootLayout({
     if (session) {
       await clearSession();
       redirect("/login");
+    }
+  }
+
+  // Compliance-support accounts are confined to the Compliance page. Any other
+  // route (typed URL, default /dashboard landing, etc.) bounces back there.
+  if (user?.role === "COMPLIANCE") {
+    const pathname = (await headers()).get("x-pathname") ?? "";
+    if (!pathname.startsWith("/compliance")) {
+      redirect("/compliance");
     }
   }
 

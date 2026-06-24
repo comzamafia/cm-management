@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser, isManager } from "@/lib/auth";
+import { getCurrentUser, canManageCompliance } from "@/lib/auth";
 import { getComplianceScheduleDetail } from "@/lib/compliance";
 import { ComplianceDetail } from "@/components/ComplianceDetail";
 import { prisma } from "@/lib/prisma";
@@ -20,7 +20,7 @@ export default async function ComplianceDetailPage({
   const result = await getComplianceScheduleDetail(id, user);
   if (!result) notFound();
 
-  const canEdit = isManager(user.role) || user.role === "SHIFT_LEAD";
+  const canEdit = canManageCompliance(user.role);
   const scope = await locationScopeWhere(user);
   const users = canEdit
     ? await prisma.user.findMany({

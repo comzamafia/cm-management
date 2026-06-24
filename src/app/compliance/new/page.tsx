@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { getCurrentUser, isManager, locationScopeWhere } from "@/lib/auth";
+import { getCurrentUser, canManageCompliance, locationScopeWhere } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ComplianceForm } from "@/components/ComplianceForm";
 
 export default async function NewCompliancePage() {
   const user = await getCurrentUser();
   if (!user) return <div className="text-[#726973]">Sign in to add a schedule.</div>;
-  if (!isManager(user.role) && user.role !== "SHIFT_LEAD") {
+  if (!canManageCompliance(user.role)) {
     return <div className="text-[#726973]">Only managers can create compliance schedules.</div>;
   }
 

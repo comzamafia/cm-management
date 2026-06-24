@@ -7,6 +7,14 @@ const SECRET = new TextEncoder().encode(
 
 const PUBLIC = ["/login", "/api/auth"];
 
+// Forward the current path to server components. The root layout reads this to
+// enforce role-based page access, which can't be done from the edge JWT alone.
+function withPathname(req: NextRequest) {
+  const headers = new Headers(req.headers);
+  headers.set("x-pathname", req.nextUrl.pathname);
+  return NextResponse.next({ request: { headers } });
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -21,7 +29,7 @@ export async function middleware(req: NextRequest) {
 
   try {
     await jwtVerify(token, SECRET);
-    return NextResponse.next();
+    return withPathname(req);
   } catch {
     // Expired or tampered token — clear cookie and redirect
     const res = NextResponse.redirect(new URL("/login", req.url));

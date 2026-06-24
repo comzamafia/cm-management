@@ -26,6 +26,7 @@ const ROLE_HEX: Record<Role, string> = {
   SHIFT_LEAD: "#F4A626",
   EMPLOYEE: "#726973",
   NEW_HIRE: "#A19BA2",
+  COMPLIANCE: "#0D9488",
 };
 
 const field =

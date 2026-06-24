@@ -8,6 +8,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   SHIFT_LEAD: "Shift Lead",
   EMPLOYEE: "Employee",
   NEW_HIRE: "New Hire",
+  COMPLIANCE: "Compliance Support",
 };
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
