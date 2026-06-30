@@ -69,8 +69,10 @@ export default async function RootLayout({
     : [];
   const unreadCount = notifications.filter((n) => !n.read).length;
   const unreadAnnouncements = user ? await getUnreadAnnouncementCount() : 0;
+  const SUJEE_ID = "cmq92qov50001jo04684n5q3c";
   const showActionPlan = await canSeeActionPlan(user);
   const showMarketing = await canSeeMarketing(user);
+  const showAuditLogs = user?.id === SUJEE_ID;
 
   const locationLabel = user
     ? user.location
@@ -96,6 +98,7 @@ export default async function RootLayout({
               unreadAnnouncements={unreadAnnouncements}
               showActionPlan={showActionPlan}
               showMarketing={showMarketing}
+              showAuditLogs={showAuditLogs}
             />
             <div className="lg:pl-60 print:pl-0">
               {/* Desktop top bar */}

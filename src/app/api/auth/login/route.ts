@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createSession } from "@/lib/session";
+import { logActivity } from "@/lib/activity";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -45,5 +46,6 @@ export async function POST(req: NextRequest) {
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await createSession(user.id);
+  logActivity(prisma, { userId: user.id, action: "user.login", entity: "User", entityId: user.id, meta: { name: user.name } }).catch(() => {});
   return NextResponse.json({ ok: true });
 }
