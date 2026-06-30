@@ -197,6 +197,7 @@ model User {
   locationId   String?
   phone        String?
   status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
   createdAt    DateTime   @default(now())
 
   location              Location?            @relation("UserLocation", fields: [locationId], references: [id])

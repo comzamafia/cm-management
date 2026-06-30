@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const hash = await bcrypt.hash(password, 12);
-    await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } });
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash, lastLoginAt: new Date() } });
     await createSession(user.id);
     return NextResponse.json({ ok: true });
   }
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
   }
 
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await createSession(user.id);
   return NextResponse.json({ ok: true });
 }

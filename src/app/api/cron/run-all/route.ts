@@ -6,6 +6,7 @@ import { runComplianceReminders } from "@/lib/compliance";
 import { runStartingToday } from "@/lib/scheduling";
 import { sendDailyDigest } from "@/lib/digest";
 import { pruneOldNotifications } from "@/lib/notifications";
+import { runLoginReport } from "@/lib/login-report";
 import { checkCronAuth } from "@/lib/cron-auth";
 
 // GET /api/cron/run-all
@@ -40,7 +41,10 @@ export async function GET(req: Request) {
   // 6. Send the daily digest to owners / area managers.
   const digest = await sendDailyDigest();
 
-  // 7. Housekeeping: drop read notifications older than 30 days.
+  // 7. Send Sujee the daily login-activity report (who hasn't logged in today).
+  const loginReport = await runLoginReport(now);
+
+  // 8. Housekeeping: drop read notifications older than 30 days.
   const pruned = await pruneOldNotifications(30);
 
   return NextResponse.json({
@@ -52,6 +56,7 @@ export async function GET(req: Request) {
     compliance,
     starting,
     digest: { sent: digest.sent, skipped: digest.skipped },
+    loginReport,
     pruned: pruned.deleted,
   });
 }
