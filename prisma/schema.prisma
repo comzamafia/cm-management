@@ -186,6 +186,7 @@ model Location {
   messages            Message[]
   serverPerformance   ServerPerformance[]
   dailyNotes          DailyNote[]
+  logEntries          LogEntry[]
 }
 
 model User {
@@ -234,6 +235,8 @@ model User {
   notesAuthored         PersonNote[]         @relation("NoteAuthor")
   pushSubscriptions     PushSubscription[]
   mutedPush             String[]             @default([]) // push categories this user opted out of
+  logEntriesAuthored    LogEntry[]           @relation("LogEntryAuthor")
+  logEntriesResolved    LogEntry[]           @relation("LogEntryResolver")
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -669,6 +672,55 @@ model MaintenanceComment {
   user    User               @relation(fields: [userId], references: [id])
 
   @@index([requestId, createdAt])
+}
+
+// Logbook — daily operational log per location (Operations / Sales-Metrics /
+// Customer Complaints / Action Needed). AI risk analysis runs automatically on
+// creation (see src/lib/logbook-ai.ts) and populates aiRiskLevel/aiSummary;
+// HIGH-risk entries surface in the Attention Queue until resolved.
+enum LogDepartment {
+  FOH
+  BOH
+}
+
+enum LogCategory {
+  OPERATIONS
+  SALES_METRICS
+  CUSTOMER_COMPLAINT
+  ACTION_NEEDED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model LogEntry {
+  id           String        @id @default(cuid())
+  locationId   String
+  authorId     String
+  category     LogCategory
+  department   LogDepartment
+  body         String
+  itemTag      String? // free-text dish/ingredient reference, autocompleted client-side
+  photoUrls    Json          @default("[]") // string[] via FileDropzone/upload-client
+
+  aiRiskLevel  RiskLevel?
+  aiSummary    String?
+  aiAnalyzedAt DateTime?
+
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime      @default(now())
+
+  location   Location @relation(fields: [locationId], references: [id])
+  author     User     @relation("LogEntryAuthor", fields: [authorId], references: [id])
+  resolvedBy User?    @relation("LogEntryResolver", fields: [resolvedById], references: [id])
+
+  @@index([locationId, createdAt])
+  @@index([locationId, category, createdAt])
+  @@index([aiRiskLevel, resolvedAt])
 }
 
 // Recurring compliance service schedule — spawns a Task each cycle and rolls the
