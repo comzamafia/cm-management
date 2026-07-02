@@ -38,6 +38,7 @@ export default async function TasksPage({
     categoryId?: string;
     sort?: string;
     dir?: string;
+    archived?: string;
   }>;
 }) {
   const user = await getCurrentUser();
@@ -57,6 +58,7 @@ export default async function TasksPage({
     ? (params.sort as SortCol)
     : undefined;
   const sortDir: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
+  const archivedView = params.archived === "1";
 
   const isEmployeeRole = user.role === "EMPLOYEE" || user.role === "NEW_HIRE";
   const assigneeId = isEmployeeRole
@@ -73,6 +75,7 @@ export default async function TasksPage({
     priority,
     categoryId,
     q,
+    archived: archivedView,
   });
 
   // Count by derived status for the pill badges.
@@ -125,7 +128,7 @@ export default async function TasksPage({
   const canManage = isManager(user.role);
 
   const scope = await locationScopeWhere(user);
-  const [assignees, categories] = await Promise.all([
+  const [assignees, categories, archivedCount] = await Promise.all([
     canManage
       ? prisma.user.findMany({
           where: { ...scope, status: "ACTIVE" },
@@ -140,6 +143,7 @@ export default async function TasksPage({
       orderBy: [{ position: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
+    canManage ? prisma.task.count({ where: { ...scope, archived: true } }) : Promise.resolve(0),
   ]);
 
   // Build URL for status pill links, preserving all other active filters.
@@ -162,32 +166,50 @@ export default async function TasksPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-[#140516]">
-            {isEmployeeRole ? "My Tasks" : "Tasks"}
+            {archivedView ? "Archived Tasks" : isEmployeeRole ? "My Tasks" : "Tasks"}
           </h1>
           <p className="mt-0.5 text-sm text-[#726973]">
             {tasks.length} item{tasks.length === 1 ? "" : "s"} in view
           </p>
         </div>
-        {canCreate && (
-          <Link href="/tasks/new" className="m-btn">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Task
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {canManage && !archivedView && (
+            <Link href="/tasks?archived=1" className="m-btn-ghost">
+              Archive ({archivedCount})
+            </Link>
+          )}
+          {archivedView && (
+            <Link href="/tasks" className="m-btn-ghost">
+              ← Back to active tasks
+            </Link>
+          )}
+          {canCreate && !archivedView && (
+            <Link href="/tasks/new" className="m-btn">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Task
+            </Link>
+          )}
+        </div>
       </div>
+
+      {archivedView && (
+        <div className="rounded-lg border border-[#E4DDE4] bg-[#FAF6FA] px-4 py-2.5 text-sm text-[#726973]">
+          Viewing archived tasks — hidden from the default view, boards, and dashboard. Select tasks below to restore them.
+        </div>
+      )}
 
       {/* Search + filters + status pills */}
       <div className="space-y-3">
@@ -202,29 +224,31 @@ export default async function TasksPage({
             showMine={!isEmployeeRole}
           />
         </Suspense>
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map((s) => {
-            const active = (s === "ALL" && !status) || s === status;
-            const count = statusCounts[s] ?? 0;
-            return (
-              <Link
-                key={s}
-                href={qs(s)}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-[#440E48] text-white shadow-sm"
-                    : "bg-white text-[#726973] ring-1 ring-inset ring-[#E4DDE4] hover:bg-[#F0EBF0]"
-                }`}
-              >
-                {s === "ALL" ? "All" : STATUS_LABEL[s]}
-                {" "}
-                <span className={active ? "text-white/70" : "text-[#A19BA2]"}>
-                  ({count})
-                </span>
-              </Link>
-            );
-          })}
-        </div>
+        {!archivedView && (
+          <div className="flex flex-wrap gap-2">
+            {STATUS_FILTERS.map((s) => {
+              const active = (s === "ALL" && !status) || s === status;
+              const count = statusCounts[s] ?? 0;
+              return (
+                <Link
+                  key={s}
+                  href={qs(s)}
+                  className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-[#440E48] text-white shadow-sm"
+                      : "bg-white text-[#726973] ring-1 ring-inset ring-[#E4DDE4] hover:bg-[#F0EBF0]"
+                  }`}
+                >
+                  {s === "ALL" ? "All" : STATUS_LABEL[s]}
+                  {" "}
+                  <span className={active ? "text-white/70" : "text-[#A19BA2]"}>
+                    ({count})
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <TaskTable
@@ -233,7 +257,14 @@ export default async function TasksPage({
         assignees={assignees}
         sort={sort}
         sortDir={sortDir}
-        emptyMessage={q ? `No tasks matching "${q}".` : "No tasks match this filter."}
+        archivedView={archivedView}
+        emptyMessage={
+          archivedView
+            ? "No archived tasks."
+            : q
+            ? `No tasks matching "${q}".`
+            : "No tasks match this filter."
+        }
       />
     </div>
   );

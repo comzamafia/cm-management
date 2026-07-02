@@ -47,6 +47,7 @@ export function TaskTable({
   assignees,
   sort,
   sortDir = "asc",
+  archivedView = false,
   emptyMessage,
 }: {
   tasks: TaskRow[];
@@ -54,6 +55,7 @@ export function TaskTable({
   assignees: { id: string; name: string }[];
   sort?: string;
   sortDir?: "asc" | "desc";
+  archivedView?: boolean;
   emptyMessage: string;
 }) {
   const router = useRouter();
@@ -131,7 +133,23 @@ export function TaskTable({
   return (
     <div className="space-y-3">
       {/* Bulk action bar */}
-      {canManage && selected.size > 0 && (
+      {canManage && selected.size > 0 && archivedView && (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl bg-[#440E48] px-4 py-2.5 text-white shadow-lg">
+          <span className="text-sm font-semibold">{selected.size} selected</span>
+          <span className="mx-1 h-4 w-px bg-white/25" />
+          <button
+            onClick={() => run(() => bulkTaskAction({ ids, action: "unarchive" }))}
+            disabled={pending}
+            className="rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/25 disabled:opacity-50"
+          >
+            Restore
+          </button>
+          <button onClick={() => setSelected(new Set())} className="ml-auto text-sm text-white/70 hover:text-white">
+            Clear
+          </button>
+        </div>
+      )}
+      {canManage && selected.size > 0 && !archivedView && (
         <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl bg-[#440E48] px-4 py-2.5 text-white shadow-lg">
           <span className="text-sm font-semibold">{selected.size} selected</span>
           <span className="mx-1 h-4 w-px bg-white/25" />
@@ -176,6 +194,13 @@ export function TaskTable({
             ))}
           </select>
 
+          <button
+            onClick={() => run(() => bulkTaskAction({ ids, action: "archive" }))}
+            disabled={pending}
+            className="rounded-lg bg-white/15 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/25 disabled:opacity-50"
+          >
+            Archive
+          </button>
           <button
             onClick={() => run(() => bulkTaskAction({ ids, action: "delete" }))}
             disabled={pending}

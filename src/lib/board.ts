@@ -12,7 +12,7 @@ export async function getBoard(user: ScopeUser) {
   const [categories, tasks, users] = await Promise.all([
     prisma.category.findMany({ orderBy: { position: "asc" } }),
     prisma.task.findMany({
-      where: { ...scope, categoryId: { not: null } },
+      where: { ...scope, archived: false, categoryId: { not: null } },
       include: { assignee: { select: { id: true, name: true } } },
       orderBy: [{ position: "asc" }, { dueAt: "asc" }],
     }),

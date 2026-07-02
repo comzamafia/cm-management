@@ -16,12 +16,14 @@ export async function getTasks(
     priority?: Priority;
     categoryId?: string;
     q?: string;
+    archived?: boolean;
   } = {},
 ) {
   const scope = await locationScopeWhere(user);
   const tasks = await prisma.task.findMany({
     where: {
       ...scope,
+      archived: filters.archived ?? false,
       ...(filters.locationId ? { locationId: filters.locationId } : {}),
       ...(filters.assigneeId ? { assigneeId: filters.assigneeId } : {}),
       ...(filters.priority ? { priority: filters.priority } : {}),
@@ -94,7 +96,7 @@ export async function getTaskDetail(id: string, user: ScopeUser & { id: string }
 /** Personal work for the signed-in user: their assigned tasks + quick counts. */
 export async function getMyWork(user: { id: string }) {
   const tasks = await prisma.task.findMany({
-    where: { assigneeId: user.id },
+    where: { assigneeId: user.id, archived: false },
     include: { location: { select: { name: true } } },
   });
 
@@ -162,7 +164,7 @@ export async function getManagerDashboard(
 
   // The landing dashboard is PERSONAL: every task widget shows only the
   // signed-in user's own work. Cross-team task visibility lives in /tasks.
-  const mine = { assigneeId: subject };
+  const mine = { assigneeId: subject, archived: false };
   const [completedToday, todayRaw, templates, weekTasks, weekAllTasks, upcomingRaw, overdueRaw, categories, myCatCounts, genToday, users, activity] = await Promise.all([
     prisma.taskCompletion.count({ where: { completedById: subject, completedAt: { gte: startToday } } }),
     // My tasks due today, still open.
@@ -212,7 +214,7 @@ export async function getManagerDashboard(
       select: { id: true, name: true, color: true },
       orderBy: { position: "asc" },
     }),
-    prisma.task.groupBy({ by: ["categoryId"], where: { assigneeId: subject, categoryId: { not: null } }, _count: { _all: true } }),
+    prisma.task.groupBy({ by: ["categoryId"], where: { assigneeId: subject, archived: false, categoryId: { not: null } }, _count: { _all: true } }),
     prisma.checklistGeneration.findMany({
       where: { generatedAt: { gte: startToday } },
       select: { templateId: true },
@@ -344,7 +346,7 @@ export async function getDashboardData(user: ScopeUser) {
       where: scope.locationId ? { id: scope.locationId } : {},
       orderBy: { name: "asc" },
     }),
-    prisma.task.findMany({ where: scope, include: { location: true, assignee: true } }),
+    prisma.task.findMany({ where: { ...scope, archived: false }, include: { location: true, assignee: true } }),
     prisma.activityLog.findMany({
       where: scope,
       include: { user: true, location: true },

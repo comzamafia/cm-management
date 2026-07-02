@@ -7,6 +7,7 @@ import { runStartingToday } from "@/lib/scheduling";
 import { sendDailyDigest } from "@/lib/digest";
 import { pruneOldNotifications } from "@/lib/notifications";
 import { runLoginReport } from "@/lib/login-report";
+import { archiveOldTasks } from "@/lib/tasks";
 import { checkCronAuth } from "@/lib/cron-auth";
 
 // GET /api/cron/run-all
@@ -47,6 +48,9 @@ export async function GET(req: Request) {
   // 8. Housekeeping: drop read notifications older than 30 days.
   const pruned = await pruneOldNotifications(30);
 
+  // 9. Archive DONE/VERIFIED tasks older than 30 days — keeps /tasks and the board fast.
+  const archived = await archiveOldTasks(now, 30);
+
   return NextResponse.json({
     ok: true,
     ranAt: now.toISOString(),
@@ -58,5 +62,6 @@ export async function GET(req: Request) {
     digest: { sent: digest.sent, skipped: digest.skipped },
     loginReport,
     pruned: pruned.deleted,
+    archived: archived.archived,
   });
 }

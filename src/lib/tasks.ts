@@ -388,7 +388,7 @@ export async function deleteTask(taskId: string): Promise<ActionResult> {
 /** Apply one action (status / assign / delete) to many tasks at once. Managers only. */
 export async function bulkTaskAction(input: {
   ids: string[];
-  action: "status" | "assign" | "delete";
+  action: "status" | "assign" | "delete" | "archive" | "unarchive";
   status?: TaskStatus;
   assigneeId?: string | null;
 }): Promise<ActionResult> {
@@ -423,6 +423,18 @@ export async function bulkTaskAction(input: {
           userId: user.id, action: "task.status_changed", entity: "Task", entityId: t.id,
           locationId: t.locationId, meta: { from: t.status, to: input.status, bulk: true },
         });
+      } else if (input.action === "archive") {
+        await tx.task.update({ where: { id: t.id }, data: { archived: true, archivedAt: new Date() } });
+        await logActivity(tx, {
+          userId: user.id, action: "task.archived", entity: "Task", entityId: t.id,
+          locationId: t.locationId, meta: { title: t.title, bulk: true },
+        });
+      } else if (input.action === "unarchive") {
+        await tx.task.update({ where: { id: t.id }, data: { archived: false, archivedAt: null } });
+        await logActivity(tx, {
+          userId: user.id, action: "task.unarchived", entity: "Task", entityId: t.id,
+          locationId: t.locationId, meta: { title: t.title, bulk: true },
+        });
       }
     }
   });
@@ -430,6 +442,37 @@ export async function bulkTaskAction(input: {
   revalidatePath("/tasks");
   revalidatePath("/board");
   return { ok: true };
+}
+
+// Attributes the cron's bulk-archive summary log entry — ActivityLog.userId is a
+// required FK, so the sweep can't log as a synthetic "system" user. Reuses the same
+// id as the audit-logs page / login report (src/app/audit-logs/page.tsx, src/lib/login-report.ts).
+const SUJEE_ID = "cmq92qov50001jo04684n5q3c";
+
+/**
+ * Cron sweep: archive DONE/VERIFIED tasks that haven't been touched in `days` days.
+ * Soft-archive only (never deletes) — completion/attachment/comment history stays
+ * intact, just hidden from the default task views. Uses `updatedAt` as a proxy for
+ * completion recency since DONE/VERIFIED is normally the last edit to a task.
+ */
+export async function archiveOldTasks(now: Date = new Date(), days = 30): Promise<{ archived: number }> {
+  const cutoff = new Date(now.getTime() - days * 86400000);
+  const result = await prisma.task.updateMany({
+    where: { archived: false, status: { in: ["DONE", "VERIFIED"] }, updatedAt: { lt: cutoff } },
+    data: { archived: true, archivedAt: now },
+  });
+
+  if (result.count > 0) {
+    await logActivity(prisma, {
+      userId: SUJEE_ID,
+      action: "task.bulk_archived",
+      entity: "Task",
+      entityId: "bulk",
+      meta: { count: result.count, days },
+    });
+  }
+
+  return { archived: result.count };
 }
 
 /** Board: set or clear a task's due date. */
