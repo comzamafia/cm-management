@@ -48,8 +48,9 @@ export async function GET(req: Request) {
   // 8. Housekeeping: drop read notifications older than 30 days.
   const pruned = await pruneOldNotifications(30);
 
-  // 9. Archive DONE/VERIFIED tasks older than 30 days — keeps /tasks and the board fast.
-  const archived = await archiveOldTasks(now, 30);
+  // 9. Archive stale tasks — DONE/VERIFIED untouched 30+ days, and OVERDUE/PENDING
+  // that have sat open 10+ days — keeps /tasks and the board fast.
+  const archived = await archiveOldTasks(now, 30, 10);
 
   return NextResponse.json({
     ok: true,
@@ -62,6 +63,6 @@ export async function GET(req: Request) {
     digest: { sent: digest.sent, skipped: digest.skipped },
     loginReport,
     pruned: pruned.deleted,
-    archived: archived.archived,
+    archived,
   });
 }

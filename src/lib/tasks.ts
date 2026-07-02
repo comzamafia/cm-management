@@ -450,29 +450,48 @@ export async function bulkTaskAction(input: {
 const SUJEE_ID = "cmq92qov50001jo04684n5q3c";
 
 /**
- * Cron sweep: archive DONE/VERIFIED tasks that haven't been touched in `days` days.
- * Soft-archive only (never deletes) — completion/attachment/comment history stays
- * intact, just hidden from the default task views. Uses `updatedAt` as a proxy for
- * completion recency since DONE/VERIFIED is normally the last edit to a task.
+ * Cron sweep: archives two kinds of stale tasks. Soft-archive only (never deletes) —
+ * completion/attachment/comment history stays intact, just hidden from the default
+ * task views.
+ *  - DONE/VERIFIED tasks not touched in `days` days (default 30). Uses `updatedAt` as
+ *    a proxy for completion recency since DONE/VERIFIED is normally the last edit.
+ *  - OVERDUE/PENDING tasks that have sat open for `openDays` days (default 10) —
+ *    "age" is the due date for tasks that have one (how long it's been overdue), or
+ *    `createdAt` for the rare PENDING task with no due date at all.
  */
-export async function archiveOldTasks(now: Date = new Date(), days = 30): Promise<{ archived: number }> {
+export async function archiveOldTasks(
+  now: Date = new Date(),
+  days = 30,
+  openDays = 10,
+): Promise<{ archived: number; archivedCompleted: number; archivedOpen: number }> {
   const cutoff = new Date(now.getTime() - days * 86400000);
-  const result = await prisma.task.updateMany({
+  const completed = await prisma.task.updateMany({
     where: { archived: false, status: { in: ["DONE", "VERIFIED"] }, updatedAt: { lt: cutoff } },
     data: { archived: true, archivedAt: now },
   });
 
-  if (result.count > 0) {
+  const openCutoff = new Date(now.getTime() - openDays * 86400000);
+  const open = await prisma.task.updateMany({
+    where: {
+      archived: false,
+      status: { in: ["OVERDUE", "PENDING"] },
+      OR: [{ dueAt: { lt: openCutoff } }, { dueAt: null, createdAt: { lt: openCutoff } }],
+    },
+    data: { archived: true, archivedAt: now },
+  });
+
+  const total = completed.count + open.count;
+  if (total > 0) {
     await logActivity(prisma, {
       userId: SUJEE_ID,
       action: "task.bulk_archived",
       entity: "Task",
       entityId: "bulk",
-      meta: { count: result.count, days },
+      meta: { count: total, completedCount: completed.count, openCount: open.count, days, openDays },
     });
   }
 
-  return { archived: result.count };
+  return { archived: total, archivedCompleted: completed.count, archivedOpen: open.count };
 }
 
 /** Board: set or clear a task's due date. */
