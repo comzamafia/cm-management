@@ -19,6 +19,9 @@ const STATUS_FILTERS: (TaskStatus | "ALL")[] = [
 ];
 
 const PRIORITY_ORDER: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 4 };
+// Default list order: open work first, completed/verified history last — Prisma's
+// alphabetical status sort (DONE < OVERDUE < PENDING) buries new tasks otherwise.
+const STATUS_RANK: Record<TaskStatus, number> = { PENDING: 0, IN_PROGRESS: 1, OVERDUE: 2, DONE: 3, VERIFIED: 4 };
 const VALID_SORTS = ["title", "priority", "due"] as const;
 type SortCol = (typeof VALID_SORTS)[number];
 
@@ -93,7 +96,17 @@ export default async function TasksPage({
         }
         return 0;
       })
-    : allTasks;
+    : // Default order: Prisma sorts status alphabetically (DONE < OVERDUE < PENDING),
+      // which buries fresh PENDING tasks under months of completed/overdue history on
+      // a busy board. Surface open work first instead.
+      [...allTasks].sort((a, b) => {
+        const rank = STATUS_RANK[a.derivedStatus] - STATUS_RANK[b.derivedStatus];
+        if (rank !== 0) return rank;
+        if (!a.dueAt && !b.dueAt) return b.createdAt.getTime() - a.createdAt.getTime();
+        if (!a.dueAt) return 1;
+        if (!b.dueAt) return -1;
+        return a.dueAt.getTime() - b.dueAt.getTime();
+      });
 
   const tasks = status ? sorted.filter((t) => t.derivedStatus === status) : sorted;
 
