@@ -49,8 +49,8 @@ export async function GET(req: Request) {
   const pruned = await pruneOldNotifications(30);
 
   // 9. Archive stale tasks — DONE/VERIFIED untouched 30+ days, and OVERDUE/PENDING
-  // that have sat open 10+ days — keeps /tasks and the board fast.
-  const archived = await archiveOldTasks(now, 30, 10);
+  // that have sat open 15+ days — keeps /tasks and the board fast.
+  const archived = await archiveOldTasks(now, 30, 15);
 
   return NextResponse.json({
     ok: true,

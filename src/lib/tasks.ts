@@ -455,14 +455,14 @@ const SUJEE_ID = "cmq92qov50001jo04684n5q3c";
  * task views.
  *  - DONE/VERIFIED tasks not touched in `days` days (default 30). Uses `updatedAt` as
  *    a proxy for completion recency since DONE/VERIFIED is normally the last edit.
- *  - OVERDUE/PENDING tasks that have sat open for `openDays` days (default 10) —
+ *  - OVERDUE/PENDING tasks that have sat open for `openDays` days (default 15) —
  *    "age" is the due date for tasks that have one (how long it's been overdue), or
  *    `createdAt` for the rare PENDING task with no due date at all.
  */
 export async function archiveOldTasks(
   now: Date = new Date(),
   days = 30,
-  openDays = 10,
+  openDays = 15,
 ): Promise<{ archived: number; archivedCompleted: number; archivedOpen: number }> {
   const cutoff = new Date(now.getTime() - days * 86400000);
   const completed = await prisma.task.updateMany({
