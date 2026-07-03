@@ -20,7 +20,13 @@ const s = StyleSheet.create({
   hRightBold: { color: NAVY, fontSize: 10, fontFamily: "Helvetica-Bold", textAlign: "right" },
   body: { paddingHorizontal: 28, paddingTop: 14 },
   row2: { flexDirection: "row", gap: 10 },
-  card: { flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 6, padding: 8, marginBottom: 10 },
+  // No flex here — flex:1 only makes sense for a card that's a direct child of a
+  // flexDirection:row container (s.row2). Baking it into the base style broke
+  // every top-level card (Large Party Tracker, Floor Pressure Map, Communication
+  // Plan, Quick Notes) and cascaded into overlapping layout for everything after
+  // the first one on the page.
+  card: { borderWidth: 1, borderColor: BORDER, borderRadius: 6, padding: 8, marginBottom: 10 },
+  cardInRow: { flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 6, padding: 8, marginBottom: 10 },
   cardTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", color: NAVY, marginBottom: 5 },
   thead: { flexDirection: "row", backgroundColor: NAVY },
   th: { color: "#FFFFFF", fontSize: 6.5, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, textTransform: "uppercase", paddingVertical: 4, paddingHorizontal: 4 },
@@ -71,7 +77,7 @@ function ReservationPdf({ locationName, day, uploadedAt, uploadedByName, dashboa
         <View style={s.body}>
           <View style={s.row2}>
             {/* Hourly Overview */}
-            <View style={[s.card, { flex: 1.3 }]}>
+            <View style={[s.cardInRow, { flex: 1.3 }]}>
               <Text style={s.cardTitle}>Hourly Overview</Text>
               <View style={s.thead}>
                 <Text style={[s.th, { flex: 1 }]}>Time</Text>
@@ -96,7 +102,7 @@ function ReservationPdf({ locationName, day, uploadedAt, uploadedByName, dashboa
             </View>
 
             {/* Total Night Snapshot */}
-            <View style={s.card}>
+            <View style={s.cardInRow}>
               <Text style={s.cardTitle}>Total Night Snapshot</Text>
               <Snap label="Total Active Reservations" value={dashboard.snapshot.totalActiveReservations} color={BLUE} />
               <Snap label="Total Covers" value={dashboard.snapshot.totalCovers} color={TEAL} />
@@ -108,7 +114,7 @@ function ReservationPdf({ locationName, day, uploadedAt, uploadedByName, dashboa
           </View>
 
           {/* Large Party Tracker */}
-          <View style={[s.card, { flex: 1 }]} wrap={false}>
+          <View style={s.card} wrap={false}>
             <Text style={s.cardTitle}>Large Party Tracker</Text>
             <View style={s.thead}>
               <Text style={[s.th, { flex: 0.8 }]}>Time</Text>
@@ -146,7 +152,7 @@ function ReservationPdf({ locationName, day, uploadedAt, uploadedByName, dashboa
 
           <View style={s.row2}>
             {/* Host Action Items */}
-            <View style={s.card}>
+            <View style={s.cardInRow}>
               <Text style={s.cardTitle}>Host Action Items</Text>
               {dashboard.actionItems.map((p, i) => (
                 <View key={i}>
@@ -157,7 +163,7 @@ function ReservationPdf({ locationName, day, uploadedAt, uploadedByName, dashboa
             </View>
 
             {/* Table Issues */}
-            <View style={s.card} wrap={false}>
+            <View style={s.cardInRow} wrap={false}>
               <Text style={s.cardTitle}>Table Issues</Text>
               {dashboard.tableIssues.length === 0 ? (
                 <Text style={{ fontSize: 8, color: GRAY }}>No issues flagged.</Text>
