@@ -103,6 +103,15 @@ export function ReservationDashboard({
             {importDates.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         )}
+        {result && (
+          <a
+            href={`/reservations/pdf?locationId=${selectedLocationId}&date=${result.businessDate}`}
+            className="ml-auto rounded-lg border px-3 py-2 text-sm font-bold"
+            style={{ borderColor: "var(--rv-blue)", color: "var(--rv-blue)", background: "var(--rv-card)" }}
+          >
+            ↓ Export PDF
+          </a>
+        )}
       </div>
 
       {!result ? (
