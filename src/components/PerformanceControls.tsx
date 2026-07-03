@@ -11,6 +11,7 @@ type Props = {
   from: string;
   to: string;
   view: string;
+  today: string;
 };
 
 const PRESETS = [
@@ -25,7 +26,7 @@ function isoDaysAgo(to: string, days: number): string {
   return start.toISOString().slice(0, 10);
 }
 
-export function PerformanceControls({ branches, branchId, from, to, view }: Props) {
+export function PerformanceControls({ branches, branchId, from, to, view, today }: Props) {
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
@@ -36,7 +37,9 @@ export function PerformanceControls({ branches, branchId, from, to, view }: Prop
     startTransition(() => router.push(`/performance?${sp.toString()}`));
   }
 
-  const activePreset = PRESETS.find((p) => isoDaysAgo(to, p.days) === from)?.days ?? null;
+  const yesterday = isoDaysAgo(today, 2);
+  const isYesterdayActive = from === yesterday && to === yesterday;
+  const activePreset = !isYesterdayActive ? PRESETS.find((p) => isoDaysAgo(to, p.days) === from)?.days ?? null : null;
 
   return (
     <div className="space-y-3 print:hidden">
@@ -70,6 +73,12 @@ export function PerformanceControls({ branches, branchId, from, to, view }: Prop
         </label>
 
         <div className="flex gap-1.5">
+          <button onClick={() => push({ from: yesterday, to: yesterday })} disabled={pending}
+            className={`rounded-full px-3 py-2 text-xs font-semibold ${
+              isYesterdayActive ? "bg-[#440E48] text-white" : "bg-[#F0EBF0] text-[#726973] hover:bg-[#E4DDE4]"
+            }`}>
+            Yesterday
+          </button>
           {PRESETS.map((p) => (
             <button key={p.days} onClick={() => push({ from: isoDaysAgo(to, p.days), to })} disabled={pending}
               className={`rounded-full px-3 py-2 text-xs font-semibold ${

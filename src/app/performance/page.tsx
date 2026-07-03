@@ -76,7 +76,7 @@ export default async function PerformancePage({
         </p>
       </div>
 
-      <PerformanceControls branches={branchOpts} branchId={branchId} from={from} to={to} view={view} />
+      <PerformanceControls branches={branchOpts} branchId={branchId} from={from} to={to} view={view} today={today} />
 
       {rangeError && (
         <Panel tone="warn" title="Invalid date range">{rangeError}</Panel>
