@@ -188,6 +188,7 @@ model Location {
   dailyNotes          DailyNote[]
   logEntries          LogEntry[]
   reservationImports  ReservationImport[]
+  floorZones          FloorZone[]
 }
 
 model User {
@@ -766,6 +767,27 @@ model ReservationRecord {
   import ReservationImport @relation(fields: [importId], references: [id], onDelete: Cascade)
 
   @@index([importId])
+}
+
+// Table-number -> floor-section grouping, used by the Reservation dashboard's
+// Floor Pressure Map. One row per zone per location (not per table) — a zone's
+// table numbers live in `tableIds` since the whole zone is edited as a unit.
+// Table numbering is location-specific (each branch's reservation system uses
+// its own scheme), so this is scoped per location, not shared. Zones are added
+// incrementally as branches confirm their table layout — an unmapped table
+// number just doesn't show up in any zone yet.
+model FloorZone {
+  id         String   @id @default(cuid())
+  locationId String
+  name       String // e.g. "L Section", "R Section", "Tunnel"
+  tableIds   String[] // e.g. ["L1","L2",...,"L15"]
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([locationId, name])
+  @@index([locationId])
 }
 
 // Recurring compliance service schedule — spawns a Task each cycle and rolls the

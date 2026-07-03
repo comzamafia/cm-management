@@ -126,12 +126,18 @@ export async function getReservationDashboard(
     additionalRequest: r.additionalRequest ?? "",
   }));
 
+  const zones = await prisma.floorZone.findMany({
+    where: { locationId },
+    orderBy: { position: "asc" },
+    select: { name: true, tableIds: true },
+  });
+
   return {
     businessDate: importRow.businessDate,
     fileName: importRow.fileName,
     uploadedAt: importRow.createdAt,
     uploadedByName: importRow.uploadedBy.name,
-    dashboard: computeDashboard(rows),
+    dashboard: computeDashboard(rows, zones),
   };
 }
 

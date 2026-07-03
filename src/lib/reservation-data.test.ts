@@ -92,4 +92,43 @@ describe("computeDashboard", () => {
     expect(dashboard.communicationPlan.length).toBeGreaterThan(0);
     expect(dashboard.actionItems.some((p) => p.bullets.some((b) => b.includes("2 large parties")))).toBe(true);
   });
+
+  it("defaults floorZones to empty when no zone mapping is supplied", () => {
+    expect(dashboard.floorZones).toEqual([]);
+  });
+});
+
+describe("computeDashboard floor zones", () => {
+  const { rows } = parseReservationCsv(SAMPLE_CSV);
+  const zones = [
+    { name: "Zone A", tableIds: ["29", "34"] }, // Rebecca's table
+    { name: "Zone B", tableIds: ["15", "38", "39", "40"] }, // Tavea's tables
+    { name: "Empty Zone", tableIds: ["99"] }, // nothing assigned here
+  ];
+  const dashboard = computeDashboard(rows, zones);
+
+  it("matches reservations to a zone by any overlapping assigned table", () => {
+    const zoneA = dashboard.floorZones.find((z) => z.name === "Zone A")!;
+    expect(zoneA.reservationCount).toBe(1);
+    expect(zoneA.covers).toBe(5); // Rebecca, 5 guests
+
+    const zoneB = dashboard.floorZones.find((z) => z.name === "Zone B")!;
+    expect(zoneB.reservationCount).toBe(1);
+    expect(zoneB.covers).toBe(10); // Tavea, 10 guests
+  });
+
+  it("reports LIGHT pressure for a zone with zero matching reservations", () => {
+    const empty = dashboard.floorZones.find((z) => z.name === "Empty Zone")!;
+    expect(empty.reservationCount).toBe(0);
+    expect(empty.pressureLevel).toBe("LIGHT");
+  });
+
+  it("scales pressure level with reservation-to-table density", () => {
+    // Zone A: 1 reservation / 2 tables = 0.5 ratio -> HEAVY
+    const zoneA = dashboard.floorZones.find((z) => z.name === "Zone A")!;
+    expect(zoneA.pressureLevel).toBe("HEAVY");
+    // Zone B: 1 reservation / 4 tables = 0.25 ratio -> MODERATE
+    const zoneB = dashboard.floorZones.find((z) => z.name === "Zone B")!;
+    expect(zoneB.pressureLevel).toBe("MODERATE");
+  });
 });

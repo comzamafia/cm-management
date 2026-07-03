@@ -125,6 +125,18 @@ export type TableIssue = {
   action: string;
 };
 
+export type FloorZoneInput = { name: string; tableIds: string[] };
+
+export type PressureLevel = "LIGHT" | "MODERATE" | "HEAVY" | "CRITICAL";
+
+export type FloorZoneStat = {
+  name: string;
+  tableCount: number;
+  reservationCount: number;
+  covers: number;
+  pressureLevel: PressureLevel;
+};
+
 export type Dashboard = {
   hourly: HourlyBucket[];
   peak: HourlyBucket | null;
@@ -134,6 +146,7 @@ export type Dashboard = {
   actionItems: { phase: string; bullets: string[] }[];
   communicationPlan: { phase: string; bullets: string[] }[];
   quickNotes: string[];
+  floorZones: FloorZoneStat[];
 };
 
 const LARGE_PARTY_MIN = 6;
@@ -178,7 +191,44 @@ function mentionsGuestCountChange(note: string): boolean {
   return GUEST_CHANGE_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
-export function computeDashboard(rows: ReservationRow[]): Dashboard {
+/** Splits a raw "15,38,39,40" assignedTables string into individual table ids. */
+function splitTableIds(assignedTables: string): string[] {
+  return assignedTables
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t !== "" && t !== "0");
+}
+
+/**
+ * Occupancy-density heuristic — reservations touching a zone relative to how
+ * many tables it has. Documented/tunable, same spirit as the rush-level
+ * thresholds: not meant to be an exact science, just a reasonable at-a-glance
+ * signal that's easy to retune per zone size.
+ */
+function pressureLevelFor(reservationCount: number, tableCount: number): PressureLevel {
+  if (tableCount === 0) return "LIGHT";
+  const ratio = reservationCount / tableCount;
+  if (ratio >= 0.8) return "CRITICAL";
+  if (ratio >= 0.5) return "HEAVY";
+  if (ratio >= 0.25) return "MODERATE";
+  return "LIGHT";
+}
+
+function computeFloorZones(active: ReservationRow[], zones: FloorZoneInput[]): FloorZoneStat[] {
+  return zones.map((zone) => {
+    const tableIdSet = new Set(zone.tableIds);
+    const matching = active.filter((r) => splitTableIds(r.assignedTables).some((t) => tableIdSet.has(t)));
+    return {
+      name: zone.name,
+      tableCount: zone.tableIds.length,
+      reservationCount: matching.length,
+      covers: matching.reduce((s, r) => s + r.numberOfGuests, 0),
+      pressureLevel: pressureLevelFor(matching.length, zone.tableIds.length),
+    };
+  });
+}
+
+export function computeDashboard(rows: ReservationRow[], zones: FloorZoneInput[] = []): Dashboard {
   const active = rows.filter((r) => r.status !== "CANCELLED");
   const cancelled = rows.filter((r) => r.status === "CANCELLED");
 
@@ -326,5 +376,7 @@ export function computeDashboard(rows: ReservationRow[]): Dashboard {
   if (snapshot.cancelledCount > 0) quickNotes.push(`${snapshot.cancelledCount} cancellation${snapshot.cancelledCount === 1 ? "" : "s"} tonight`);
   if (lastBucketMinutes !== null) quickNotes.push(`Late-night traffic through ${formatTimeLabel(lastBucketMinutes)}`);
 
-  return { hourly, peak, snapshot, largeParties, tableIssues, actionItems, communicationPlan, quickNotes };
+  const floorZones = computeFloorZones(active, zones);
+
+  return { hourly, peak, snapshot, largeParties, tableIssues, actionItems, communicationPlan, quickNotes, floorZones };
 }

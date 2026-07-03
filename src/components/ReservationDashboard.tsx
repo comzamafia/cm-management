@@ -12,6 +12,13 @@ const RUSH_COLOR: Record<string, string> = {
   STEADY: "bg-[#1DBA871a] text-[#1DBA87]",
 };
 
+const PRESSURE_DOT: Record<string, string> = {
+  CRITICAL: "bg-[#e2445c]",
+  HEAVY: "bg-[#e2445c]",
+  MODERATE: "bg-[#F4A626]",
+  LIGHT: "bg-[#1DBA87]",
+};
+
 export function ReservationDashboard({
   result,
   importDates,
@@ -148,6 +155,26 @@ export function ReservationDashboard({
               </ResponsiveContainer>
             </div>
           </section>
+
+          {/* Floor Pressure Map */}
+          {result.dashboard.floorZones.length > 0 && (
+            <section className="m-card p-5">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-[#726973]">Floor Pressure Map</h3>
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {result.dashboard.floorZones.map((z) => (
+                  <div key={z.name} className="rounded-lg border border-[#E4DDE4] p-3">
+                    <div className="text-xs font-bold uppercase tracking-wider text-[#726973]">{z.name}</div>
+                    <div className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-[#140516]">
+                      <span className={`h-2 w-2 rounded-full ${PRESSURE_DOT[z.pressureLevel]}`} />
+                      {z.pressureLevel}
+                    </div>
+                    <div className="mt-1 text-xs text-[#A19BA2]">{z.reservationCount}/{z.tableCount} tables · {z.covers} covers</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-[#A19BA2]">Only zones with a confirmed table mapping are shown — more sections coming as the floor plan is confirmed.</p>
+            </section>
+          )}
 
           <div className="grid gap-5 md:grid-cols-2">
             {/* Host Action Items */}
