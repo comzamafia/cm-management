@@ -187,6 +187,7 @@ model Location {
   serverPerformance   ServerPerformance[]
   dailyNotes          DailyNote[]
   logEntries          LogEntry[]
+  reservationImports  ReservationImport[]
 }
 
 model User {
@@ -237,6 +238,7 @@ model User {
   mutedPush             String[]             @default([]) // push categories this user opted out of
   logEntriesAuthored    LogEntry[]           @relation("LogEntryAuthor")
   logEntriesResolved    LogEntry[]           @relation("LogEntryResolver")
+  reservationImports    ReservationImport[]
 }
 
 // Board "groups" — managed categories that tasks are organized under (monday.com style).
@@ -724,6 +726,46 @@ model LogEntry {
   @@index([locationId, createdAt])
   @@index([locationId, category, createdAt])
   @@index([aiRiskLevel, resolvedAt])
+}
+
+// Daily reservation-book upload (host manually exports a CSV from the
+// reservation system each day) — powers the /reservations host dashboard.
+// One import per location per night; re-uploading the same night replaces it.
+model ReservationImport {
+  id           String   @id @default(cuid())
+  locationId   String
+  businessDate String // "YYYY-MM-DD" — the night this data covers, derived from
+                       // the CSV's own reservedTime values, not upload time
+  uploadedById String
+  fileName     String?
+  rowCount     Int
+  createdAt    DateTime @default(now())
+
+  location   Location            @relation(fields: [locationId], references: [id])
+  uploadedBy User                @relation(fields: [uploadedById], references: [id])
+  records    ReservationRecord[]
+
+  @@unique([locationId, businessDate])
+  @@index([locationId, businessDate])
+}
+
+model ReservationRecord {
+  id                String   @id @default(cuid())
+  importId          String
+  reservedAt        DateTime
+  telephone         String?
+  customerName      String
+  numberOfGuests    Int
+  assignedTables    String? // raw comma-list from the CSV, kept for a future floor-map feature
+  status            String  // external system's vocabulary (CANCELLED, SMS_CONFIRM,
+                             // WAITING, ...) — kept as plain String, not validated/transitioned
+  source            String?
+  hoursCategory     String?
+  additionalRequest String?
+
+  import ReservationImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId])
 }
 
 // Recurring compliance service schedule — spawns a Task each cycle and rolls the
