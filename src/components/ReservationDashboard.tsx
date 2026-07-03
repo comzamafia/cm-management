@@ -43,6 +43,7 @@ const I = {
   trend: <Icon size={14}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></Icon>,
   check: <Icon size={14}><polyline points="20 6 9 17 4 12" /></Icon>,
   table: <Icon size={14}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></Icon>,
+  card: <Icon size={14}><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></Icon>,
 };
 
 function SectionHead({ icon, title, color = "var(--rv-navy)" }: { icon: React.ReactNode; title: string; color?: string }) {
@@ -192,7 +193,14 @@ export function ReservationDashboard({
                     {result.dashboard.largeParties.map((p, i) => (
                       <tr key={i} className="border-b" style={{ borderColor: "var(--rv-border)" }}>
                         <td className="py-2 px-2 whitespace-nowrap" style={{ color: "var(--rv-text-soft)" }}>{p.timeLabel}</td>
-                        <td className="py-2 px-2 font-semibold" style={{ color: "var(--rv-navy)" }}>{p.name}</td>
+                        <td className="py-2 px-2 font-semibold" style={{ color: "var(--rv-navy)" }}>
+                          <span className="flex items-center gap-1.5">
+                            {p.name}
+                            {p.status === "SMS_CONFIRM" && (
+                              <span style={{ color: "var(--rv-green)" }} title="Confirmed via SMS with card on file">{I.card}</span>
+                            )}
+                          </span>
+                        </td>
                         <td className="py-2 px-2 text-center font-bold" style={{ color: "var(--rv-red)" }}>{p.guests}</td>
                         <td className="py-2 px-2 text-xs" style={{ color: "var(--rv-text-soft)" }}>{p.notes || "—"}</td>
                       </tr>

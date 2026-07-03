@@ -125,7 +125,14 @@ function ReservationPdf({ locationName, day, uploadedAt, uploadedByName, dashboa
             {dashboard.largeParties.map((p, i) => (
               <View key={i} style={[s.tr, { backgroundColor: i % 2 === 0 ? STRIPE : "#FFFFFF" }]}>
                 <Text style={[s.td, { flex: 0.8, color: GRAY }]}>{p.timeLabel}</Text>
-                <Text style={[s.td, { flex: 1.5, fontFamily: "Helvetica-Bold" }]}>{p.name}</Text>
+                <View style={[s.td, { flex: 1.5, flexDirection: "row", alignItems: "center", gap: 3 }]}>
+                  <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold" }}>{p.name}</Text>
+                  {p.status === "SMS_CONFIRM" && (
+                    <View style={{ width: 9, height: 6.5, borderRadius: 1, borderWidth: 0.75, borderColor: GREEN }}>
+                      <View style={{ height: 1.8, backgroundColor: GREEN, marginTop: 1.5 }} />
+                    </View>
+                  )}
+                </View>
                 <Text style={[s.td, { flex: 0.6, color: RED, fontFamily: "Helvetica-Bold" }]}>{p.guests}</Text>
                 <Text style={[s.td, { flex: 3, color: GRAY }]}>{p.notes || "—"}</Text>
               </View>

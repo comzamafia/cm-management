@@ -118,6 +118,7 @@ export type LargeParty = {
   name: string;
   guests: number;
   notes: string;
+  status: string;
 };
 
 export type TableIssue = {
@@ -291,6 +292,7 @@ export function computeDashboard(rows: ReservationRow[], zones: FloorZoneInput[]
       name: r.customerName,
       guests: r.numberOfGuests,
       notes: r.additionalRequest,
+      status: r.status,
     }));
 
   // ── Table issues ──
