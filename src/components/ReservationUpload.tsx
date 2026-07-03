@@ -30,14 +30,17 @@ export function ReservationUpload({ locationId }: { locationId: string }) {
   }
 
   return (
-    <div className="m-card flex flex-wrap items-center justify-between gap-3 p-4">
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4"
+      style={{ background: "var(--rv-card)", borderColor: "var(--rv-border)" }}
+    >
       <div>
-        <h3 className="text-sm font-bold text-[#140516]">Upload Reservation CSV</h3>
-        <p className="text-xs text-[#726973]">Upload today&apos;s reservation export to refresh the dashboard.</p>
+        <h3 className="text-sm font-bold" style={{ color: "var(--rv-navy)" }}>Upload Reservation CSV</h3>
+        <p className="text-xs" style={{ color: "var(--rv-text-soft)" }}>Upload today&apos;s reservation export to refresh the dashboard.</p>
       </div>
       <div className="flex items-center gap-3">
         {message && (
-          <span className={`text-xs font-medium ${message.ok ? "text-[#1DBA87]" : "text-[#e2445c]"}`}>
+          <span className="text-xs font-semibold" style={{ color: message.ok ? "var(--rv-green)" : "var(--rv-red)" }}>
             {message.text}
           </span>
         )}
@@ -55,7 +58,8 @@ export function ReservationUpload({ locationId }: { locationId: string }) {
         <button
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="m-btn disabled:opacity-60"
+          className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+          style={{ background: "var(--rv-blue)" }}
         >
           {busy ? "Uploading…" : "Upload CSV"}
         </button>

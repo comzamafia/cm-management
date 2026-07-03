@@ -158,6 +158,26 @@ body {
   min-height: 100vh;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Reservation dashboard — scoped theme (navy/blue host-dashboard look,
+   matches the provided mockup). Only ever applied within
+   src/app/reservations/**; never touches --cm-* vars.
+   ───────────────────────────────────────────────────────────── */
+.reservation-theme {
+  --rv-navy: #10213F;
+  --rv-blue: #2F6FED;
+  --rv-red: #DC2626;
+  --rv-amber: #F59E0B;
+  --rv-green: #16A34A;
+  --rv-teal: #0D9488;
+  --rv-purple: #8B5CF6;
+  --rv-bg: #F7F8FB;
+  --rv-card: #FFFFFF;
+  --rv-border: #E4E7EC;
+  --rv-text: #10213F;
+  --rv-text-soft: #6B7280;
+}
+
 /* ── Print ── */
 @media print {
   @page { margin: 12mm; }
