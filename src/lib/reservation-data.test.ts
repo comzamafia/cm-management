@@ -66,11 +66,10 @@ describe("computeDashboard", () => {
     expect(dashboard.snapshot.birthdayCount).toBe(2);
   });
 
-  it("treats every reservation as missing a table until a host assigns one — CSV table numbers are never trusted", () => {
-    // tableAssignment is never populated from the CSV's assignedTables column (even
-    // Rebecca's "29,34" from the CSV doesn't count) — every active row starts unassigned.
-    expect(dashboard.snapshot.missingTableCount).toBe(dashboard.snapshot.totalActiveReservations);
-    expect(dashboard.tableIssues.some((t) => t.issue === "Missing Table Assignment" && t.action.includes("Rebecca"))).toBe(true);
+  it("flags blank or '0' assignedTables as missing", () => {
+    // Samir is cancelled (excluded), so only Nishita's "0" counts as missing among active rows
+    expect(dashboard.snapshot.missingTableCount).toBe(1);
+    expect(dashboard.tableIssues.some((t) => t.issue === "Missing Table Assignment" && t.action.includes("Nishita"))).toBe(true);
   });
 
   it("flags reservations with uncertain guest-count language", () => {
@@ -97,35 +96,18 @@ describe("computeDashboard", () => {
   it("defaults floorZones to empty when no zone mapping is supplied", () => {
     expect(dashboard.floorZones).toEqual([]);
   });
-
-  it("lists every active reservation sorted by time, with tableAssignment separate from the CSV reference", () => {
-    expect(dashboard.activeReservations).toHaveLength(dashboard.snapshot.totalActiveReservations);
-    const rebecca = dashboard.activeReservations.find((r) => r.name === "Rebecca")!;
-    expect(rebecca.tableAssignment).toBe(""); // never auto-filled from CSV
-    expect(rebecca.csvTableRef).toBe("29,34"); // CSV value still available for reference
-    // sorted chronologically
-    const times = dashboard.activeReservations.map((r) => r.timeLabel);
-    expect(times).toEqual(["4:00 PM", "5:30 PM", "5:30 PM", "7:00 PM", "7:30 PM"]);
-  });
 });
 
 describe("computeDashboard floor zones", () => {
-  // Floor zones only ever read the host-entered tableAssignment, never the CSV's
-  // assignedTables — simulate a host having assigned tables after import.
-  const { rows: parsedRows } = parseReservationCsv(SAMPLE_CSV);
-  const rows = parsedRows.map((r) => {
-    if (r.customerName === "Rebecca") return { ...r, tableAssignment: "29,34" };
-    if (r.customerName === "Tavea") return { ...r, tableAssignment: "15,38,39,40" };
-    return r;
-  });
+  const { rows } = parseReservationCsv(SAMPLE_CSV);
   const zones = [
-    { name: "Zone A", tableIds: ["29", "34"] }, // Rebecca's host-assigned table
-    { name: "Zone B", tableIds: ["15", "38", "39", "40"] }, // Tavea's host-assigned tables
+    { name: "Zone A", tableIds: ["29", "34"] }, // Rebecca's table
+    { name: "Zone B", tableIds: ["15", "38", "39", "40"] }, // Tavea's tables
     { name: "Empty Zone", tableIds: ["99"] }, // nothing assigned here
   ];
   const dashboard = computeDashboard(rows, zones);
 
-  it("ignores the CSV's assignedTables and only matches on host-entered tableAssignment", () => {
+  it("matches reservations to a zone by any overlapping assigned table", () => {
     const zoneA = dashboard.floorZones.find((z) => z.name === "Zone A")!;
     expect(zoneA.reservationCount).toBe(1);
     expect(zoneA.covers).toBe(5); // Rebecca, 5 guests
@@ -133,12 +115,6 @@ describe("computeDashboard floor zones", () => {
     const zoneB = dashboard.floorZones.find((z) => z.name === "Zone B")!;
     expect(zoneB.reservationCount).toBe(1);
     expect(zoneB.covers).toBe(10); // Tavea, 10 guests
-  });
-
-  it("finds zero zone matches when tableAssignment is unset, even if assignedTables (CSV) has a value", () => {
-    const { rows: unassignedRows } = parseReservationCsv(SAMPLE_CSV);
-    const d = computeDashboard(unassignedRows, zones);
-    expect(d.floorZones.every((z) => z.reservationCount === 0)).toBe(true);
   });
 
   it("reports LIGHT pressure for a zone with zero matching reservations", () => {

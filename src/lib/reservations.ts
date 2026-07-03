@@ -115,13 +115,11 @@ export async function getReservationDashboard(
   if (!importRow) return null;
 
   const rows = importRow.records.map((r) => ({
-    recordId: r.id,
     reservedAt: r.reservedAt,
     telephone: r.telephone ?? "",
     customerName: r.customerName,
     numberOfGuests: r.numberOfGuests,
     assignedTables: r.assignedTables ?? "",
-    tableAssignment: r.tableAssignment ?? "",
     status: r.status,
     source: r.source ?? "",
     hoursCategory: r.hoursCategory ?? "",
@@ -141,29 +139,6 @@ export async function getReservationDashboard(
     uploadedByName: importRow.uploadedBy.name,
     dashboard: computeDashboard(rows, zones),
   };
-}
-
-/** Host-entered table assignment — the only value the Floor Pressure Map and
- * missing-table check ever read; the CSV's own assignedTables column is never trusted. */
-export async function assignReservationTable(recordId: string, tableIds: string): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "Not signed in" };
-  if (!atLeast(user.role, Role.SHIFT_LEAD)) return { ok: false, error: "Not permitted" };
-
-  const record = await prisma.reservationRecord.findUnique({
-    where: { id: recordId },
-    include: { import: { select: { locationId: true } } },
-  });
-  if (!record) return { ok: false, error: "Reservation not found" };
-  if (!isLocationInScope(user, record.import.locationId)) return { ok: false, error: "Location out of scope" };
-
-  await prisma.reservationRecord.update({
-    where: { id: recordId },
-    data: { tableAssignment: tableIds.trim() || null },
-  });
-
-  revalidatePath("/reservations");
-  return { ok: true };
 }
 
 export async function getReservationImportDates(locationId: string): Promise<string[]> {

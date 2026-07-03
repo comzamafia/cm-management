@@ -757,12 +757,7 @@ model ReservationRecord {
   telephone         String?
   customerName      String
   numberOfGuests    Int
-  assignedTables    String? // raw comma-list from the CSV — reference only, NOT trusted for
-                            // the floor map (the reservation system's table numbers don't
-                            // reflect real assignment); kept purely for display
-  tableAssignment   String? // host-entered comma-list, set via the dashboard after import —
-                            // this is the only value the Floor Pressure Map / missing-table
-                            // check ever reads
+  assignedTables    String? // raw comma-list from the CSV, kept for a future floor-map feature
   status            String  // external system's vocabulary (CANCELLED, SMS_CONFIRM,
                              // WAITING, ...) — kept as plain String, not validated/transitioned
   source            String?

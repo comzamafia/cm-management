@@ -3,15 +3,12 @@
 import Papa from "papaparse";
 
 export type ReservationRow = {
-  recordId?: string; // set once loaded from the DB (absent during fresh CSV parsing)
   reservedAt: Date; // constructed via Date.UTC from the CSV's own wall-clock values —
                      // always read back with getUTC*() so it never drifts with server TZ
   telephone: string;
   customerName: string;
   numberOfGuests: number;
-  assignedTables: string; // raw CSV value — reference/display only, never used for zone matching
-  tableAssignment: string; // host-entered value — this is what missing-table checks and the
-                            // Floor Pressure Map actually read; "" until a host assigns it
+  assignedTables: string; // "" if blank
   status: string;
   source: string;
   hoursCategory: string;
@@ -80,7 +77,6 @@ export function parseReservationCsv(csvText: string): ParseResult {
       customerName: (raw.customerName ?? "").trim(),
       numberOfGuests: Number.isFinite(guests) ? guests : 0,
       assignedTables: (raw.assignedTables ?? "").trim(),
-      tableAssignment: "", // never auto-filled from the CSV — host assigns it after import
       status: (raw.status ?? "").trim(),
       source: (raw.source ?? "").trim(),
       hoursCategory: (raw.hoursCategory ?? "").trim(),
@@ -118,16 +114,13 @@ export type SnapshotStats = {
 };
 
 export type LargeParty = {
-  recordId?: string;
   timeLabel: string;
   name: string;
   guests: number;
   notes: string;
-  tableAssignment: string;
 };
 
 export type TableIssue = {
-  recordId?: string;
   issue: string;
   action: string;
 };
@@ -144,15 +137,6 @@ export type FloorZoneStat = {
   pressureLevel: PressureLevel;
 };
 
-export type ActiveReservationRow = {
-  recordId?: string;
-  timeLabel: string;
-  name: string;
-  guests: number;
-  tableAssignment: string;
-  csvTableRef: string; // CSV's assignedTables value, shown as an unverified reference only
-};
-
 export type Dashboard = {
   hourly: HourlyBucket[];
   peak: HourlyBucket | null;
@@ -163,7 +147,6 @@ export type Dashboard = {
   communicationPlan: { phase: string; bullets: string[] }[];
   quickNotes: string[];
   floorZones: FloorZoneStat[];
-  activeReservations: ActiveReservationRow[];
 };
 
 const LARGE_PARTY_MIN = 6;
@@ -190,8 +173,8 @@ function formatTimeLabel(totalMinutes: number): string {
   return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-function isMissingTable(tableAssignment: string): boolean {
-  const t = tableAssignment.trim();
+function isMissingTable(assignedTables: string): boolean {
+  const t = assignedTables.trim();
   return t === "" || t === "0";
 }
 
@@ -234,7 +217,7 @@ function pressureLevelFor(reservationCount: number, tableCount: number): Pressur
 function computeFloorZones(active: ReservationRow[], zones: FloorZoneInput[]): FloorZoneStat[] {
   return zones.map((zone) => {
     const tableIdSet = new Set(zone.tableIds);
-    const matching = active.filter((r) => splitTableIds(r.tableAssignment).some((t) => tableIdSet.has(t)));
+    const matching = active.filter((r) => splitTableIds(r.assignedTables).some((t) => tableIdSet.has(t)));
     return {
       name: zone.name,
       tableCount: zone.tableIds.length,
@@ -295,7 +278,7 @@ export function computeDashboard(rows: ReservationRow[], zones: FloorZoneInput[]
     totalCovers: active.reduce((s, r) => s + r.numberOfGuests, 0),
     largePartyCount: active.filter((r) => isLargeParty(r.numberOfGuests)).length,
     birthdayCount: active.filter((r) => isBirthday(r.additionalRequest)).length,
-    missingTableCount: active.filter((r) => isMissingTable(r.tableAssignment)).length,
+    missingTableCount: active.filter((r) => isMissingTable(r.assignedTables)).length,
     cancelledCount: cancelled.length,
   };
 
@@ -304,27 +287,23 @@ export function computeDashboard(rows: ReservationRow[], zones: FloorZoneInput[]
     .filter((r) => isLargeParty(r.numberOfGuests))
     .sort((a, b) => a.reservedAt.getTime() - b.reservedAt.getTime())
     .map((r) => ({
-      recordId: r.recordId,
       timeLabel: formatTimeLabel(r.reservedAt.getUTCHours() * 60 + r.reservedAt.getUTCMinutes()),
       name: r.customerName,
       guests: r.numberOfGuests,
       notes: r.additionalRequest,
-      tableAssignment: r.tableAssignment,
     }));
 
   // ── Table issues ──
   const tableIssues: TableIssue[] = [
     ...active
-      .filter((r) => isMissingTable(r.tableAssignment))
+      .filter((r) => isMissingTable(r.assignedTables))
       .map((r) => ({
-        recordId: r.recordId,
         issue: "Missing Table Assignment",
         action: `${r.customerName} – ${formatTimeLabel(r.reservedAt.getUTCHours() * 60 + r.reservedAt.getUTCMinutes())} Party of ${r.numberOfGuests}`,
       })),
     ...active
       .filter((r) => mentionsGuestCountChange(r.additionalRequest))
       .map((r) => ({
-        recordId: r.recordId,
         issue: "Possible Guest Count Change",
         action: `${r.customerName} reservation at ${formatTimeLabel(r.reservedAt.getUTCHours() * 60 + r.reservedAt.getUTCMinutes())}`,
       })),
@@ -399,16 +378,5 @@ export function computeDashboard(rows: ReservationRow[], zones: FloorZoneInput[]
 
   const floorZones = computeFloorZones(active, zones);
 
-  const activeReservations: ActiveReservationRow[] = [...active]
-    .sort((a, b) => a.reservedAt.getTime() - b.reservedAt.getTime())
-    .map((r) => ({
-      recordId: r.recordId,
-      timeLabel: formatTimeLabel(r.reservedAt.getUTCHours() * 60 + r.reservedAt.getUTCMinutes()),
-      name: r.customerName,
-      guests: r.numberOfGuests,
-      tableAssignment: r.tableAssignment,
-      csvTableRef: r.assignedTables,
-    }));
-
-  return { hourly, peak, snapshot, largeParties, tableIssues, actionItems, communicationPlan, quickNotes, floorZones, activeReservations };
+  return { hourly, peak, snapshot, largeParties, tableIssues, actionItems, communicationPlan, quickNotes, floorZones };
 }

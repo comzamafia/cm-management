@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { ReservationDashboardResult } from "@/lib/reservations";
-import { ReservationTableAssignments } from "./ReservationTableAssignments";
 
 const RUSH_COLOR: Record<string, string> = {
   "FULL RUSH": "bg-[#e2445c1a] text-[#e2445c]",
@@ -156,9 +155,6 @@ export function ReservationDashboard({
               </ResponsiveContainer>
             </div>
           </section>
-
-          {/* Assign Tables */}
-          <ReservationTableAssignments reservations={result.dashboard.activeReservations} />
 
           {/* Floor Pressure Map */}
           {result.dashboard.floorZones.length > 0 && (
