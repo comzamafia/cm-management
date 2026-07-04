@@ -8,6 +8,7 @@ import {
 } from "@/lib/reservations";
 import { ReservationUpload } from "@/components/ReservationUpload";
 import { ReservationDashboard } from "@/components/ReservationDashboard";
+import { ReservationLocationTabs } from "@/components/ReservationLocationTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -65,12 +66,15 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
           )}
         </div>
 
+        {locations.length > 1 && (
+          <ReservationLocationTabs locations={locations} selectedLocationId={selectedLocationId} />
+        )}
+
         <ReservationUpload locationId={selectedLocationId} />
 
         <ReservationDashboard
           result={result}
           importDates={importDates}
-          locations={locations}
           selectedLocationId={selectedLocationId}
         />
       </div>

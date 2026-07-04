@@ -10,13 +10,19 @@ import { parseReservationCsv, computeDashboard, type Dashboard } from "./reserva
 
 export type ActionResult = { ok: boolean; error?: string; businessDate?: string; rowCount?: number };
 
+// The Reservation dashboard is rolled out to these 3 dine-in branches — same
+// set as the Server Performance BOH branch registry (src/lib/boh-branches.ts).
+// Other locations (Head Office, Liberty, Junction, Danforth) aren't using this
+// workflow yet; add their exact Location.name here when they come online.
+const RESERVATION_BRANCH_NAMES = ["Mississauga", "Park lawn", "YORK MILLS"];
+
 /** Locations the current user may upload a reservation import for / view. */
 export async function getReservationLocations() {
   const user = await getCurrentUser();
   if (!user) return [];
   const scope = await locationScopeWhere(user);
   return prisma.location.findMany({
-    where: scope.locationId ? { id: { in: scope.locationId.in } } : {},
+    where: { name: { in: RESERVATION_BRANCH_NAMES }, ...(scope.locationId ? { id: { in: scope.locationId.in } } : {}) },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

@@ -69,12 +69,10 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
 export function ReservationDashboard({
   result,
   importDates,
-  locations,
   selectedLocationId,
 }: {
   result: ReservationDashboardResult;
   importDates: string[];
-  locations: { id: string; name: string }[];
   selectedLocationId: string;
 }) {
   const router = useRouter();
@@ -92,13 +90,8 @@ export function ReservationDashboard({
 
   return (
     <div className="space-y-5">
-      {/* Location + date pickers */}
+      {/* Date picker (branch switching is handled by the tabs above) */}
       <div className="flex flex-wrap items-center gap-3">
-        {locations.length > 1 && (
-          <select value={selectedLocationId} onChange={(e) => setParam("locationId", e.target.value)} className={selectCls} style={selectStyle}>
-            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-        )}
         {importDates.length > 0 && (
           <select value={result?.businessDate ?? ""} onChange={(e) => setParam("date", e.target.value)} className={selectCls} style={selectStyle}>
             {importDates.map((d) => <option key={d} value={d}>{d}</option>)}
