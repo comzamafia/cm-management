@@ -172,10 +172,27 @@ export async function fetchServerPerformance(
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       return { ok: false, status: 400, error: body.error ?? "Invalid request parameters.", reason: "bad-request" };
     }
+    if (res.status === 404) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      return { ok: false, status: 404, error: body.error ?? `Unknown branch "${branch.id}".`, reason: "not-configured" };
+    }
     if (!res.ok)
       return { ok: false, status: res.status, error: `Branch server error (HTTP ${res.status}).`, reason: "server" };
 
     const data = (await res.json()) as BohServerPerformance;
+
+    // Integrity guard: the platform echoes which branch the data is for. If it
+    // ever doesn't match the slug we asked for, refuse to show it rather than
+    // risk labelling one branch's numbers as another's.
+    if (data?.branch?.id && data.branch.id !== branch.id) {
+      return {
+        ok: false,
+        status: 200,
+        error: `Branch mismatch: requested "${branch.id}" but the platform returned "${data.branch.id}". Not showing possibly-wrong data.`,
+        reason: "server",
+      };
+    }
+
     return { ok: true, data };
   } catch (e) {
     const msg = (e as Error)?.name === "AbortError" ? "Request timed out." : (e as Error).message || "Network error.";
