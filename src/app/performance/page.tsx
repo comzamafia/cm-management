@@ -83,17 +83,10 @@ export default async function PerformancePage({
       )}
 
       {!anyKey && (
-        <Panel tone="info" title="No branch API keys configured yet">
+        <Panel tone="info" title="No BOH API key configured yet">
           <p>
-            Add each branch&apos;s API key as an environment variable, then redeploy. The page goes live automatically once a key is present.
+            Set the platform key <span className="font-mono text-xs">BOH_API_KEY</span> as an environment variable, then redeploy. The page goes live automatically once it&apos;s present — one key serves every branch.
           </p>
-          <ul className="mt-2 space-y-1">
-            {branchesWithKeys.map((b) => (
-              <li key={b.branch.id} className="font-mono text-xs">
-                {b.branch.keyEnv} <span className="text-[#A19BA2]">→ {b.branch.name} ({b.branch.baseUrl})</span>
-              </li>
-            ))}
-          </ul>
         </Panel>
       )}
 
@@ -102,7 +95,7 @@ export default async function PerformancePage({
           title={errorTitle(result)}>
           <p>{result.error}</p>
           {result.reason === "no-key" && (
-            <p className="mt-1 font-mono text-xs text-[#A19BA2]">Set {selected.branch.keyEnv} in the environment.</p>
+            <p className="mt-1 font-mono text-xs text-[#A19BA2]">Set BOH_API_KEY in the environment.</p>
           )}
           {(result.reason === "server" || result.reason === "network") && (
             <p className="mt-1 text-xs text-[#A19BA2]">This branch may be temporarily unavailable — try again shortly.</p>

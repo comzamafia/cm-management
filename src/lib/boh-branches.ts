@@ -1,43 +1,45 @@
 // Branch Registry for the Chiang Mai BOH Public Reporting API.
 //
-// Each branch is a SEPARATE deployment (its own DB, URL and API key) — there is
-// no combined endpoint. We fetch each branch individually using the key stored
-// in its env var. Adding a new branch in the future = add ONE row here and set
-// its key env var (no code change needed elsewhere).
+// The BOH backend is now a SINGLE multi-branch platform: one deployment serves
+// every branch, chosen per-request via `?branch=<slug>` (the slug is the branch
+// `id` below). It authenticates with one platform-wide key. (It used to be one
+// separate deployment + key per branch — that model is retired; the old
+// per-branch URLs/keys no longer resolve.)
 //
-// Keys are NEVER hard-coded — they are read from process.env[keyEnv] at request
-// time on the server. See .env.example for the variable names.
+// The platform key is read at request time (server-only) from BOH_API_KEY, with
+// a fallback to the still-valid keys from the old setup so existing deployments
+// keep working with no env changes. Keys are NEVER hard-coded.
 
 export type BohBranch = {
-  id: string;
+  id: string; // also the API's branch slug (e.g. "yorkmills")
   name: string; // full display name, e.g. "Chiang Mai Park Lawn"
   short: string; // short label, e.g. "Park Lawn"
-  baseUrl: string; // no trailing slash
-  keyEnv: string; // name of the env var holding this branch's API key
 };
 
+// Base URL of the consolidated BOH platform (no trailing slash). Overridable via
+// BOH_API_URL; defaults to the York Mills deployment, which serves all branches.
+export const BOH_PLATFORM_URL = (process.env.BOH_API_URL || "https://yorkmills.sujeevan.ca").replace(/\/+$/, "");
+
+// Env vars checked, in order, for the platform key. BOH_API_KEY is preferred;
+// the York Mills / Park Lawn legacy keys are accepted as a fallback (both work
+// platform-wide) so nothing breaks before BOH_API_KEY is set. The old
+// BOH_KEY_MISSISSAUGA key is deliberately NOT here — it was revoked when the
+// standalone www.sujeevan.ca deployment was retired, so trying it just 401s.
+export const BOH_KEY_ENVS = ["BOH_API_KEY", "BOH_KEY_YORKMILLS", "BOH_KEY_PARKLAWN"] as const;
+
+/** The platform API key from env, trimmed and stripped of stray surrounding quotes. */
+export function platformKey(): string | undefined {
+  for (const name of BOH_KEY_ENVS) {
+    const raw = process.env[name]?.trim().replace(/^["']|["']$/g, "");
+    if (raw) return raw;
+  }
+  return undefined;
+}
+
 export const BOH_BRANCHES: BohBranch[] = [
-  {
-    id: "mississauga",
-    name: "Chiang Mai Mississauga",
-    short: "Mississauga",
-    baseUrl: "https://www.sujeevan.ca",
-    keyEnv: "BOH_KEY_MISSISSAUGA",
-  },
-  {
-    id: "yorkmills",
-    name: "Chiang Mai York Mills",
-    short: "York Mills",
-    baseUrl: "https://yorkmills.sujeevan.ca",
-    keyEnv: "BOH_KEY_YORKMILLS",
-  },
-  {
-    id: "parklawn",
-    name: "Chiang Mai Park Lawn",
-    short: "Park Lawn",
-    baseUrl: "https://parklawn.sujeevan.ca",
-    keyEnv: "BOH_KEY_PARKLAWN",
-  },
+  { id: "mississauga", name: "Chiang Mai Mississauga", short: "Mississauga" },
+  { id: "yorkmills", name: "Chiang Mai York Mills", short: "York Mills" },
+  { id: "parklawn", name: "Chiang Mai Park Lawn", short: "Park Lawn" },
 ];
 
 export function getBranch(id: string): BohBranch | undefined {

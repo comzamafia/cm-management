@@ -1,6 +1,6 @@
 // Server-only module: reads API keys from process.env. Only import from server
 // components / route handlers, never from a "use client" file.
-import { BOH_BRANCHES, getBranch, type BohBranch } from "./boh-branches";
+import { BOH_BRANCHES, BOH_PLATFORM_URL, getBranch, platformKey, type BohBranch } from "./boh-branches";
 
 // ── Response types (mirror docs/PUBLIC-API.md exactly) ──────────────────────────
 
@@ -141,19 +141,20 @@ export async function fetchServerPerformance(
     return { ok: false, status: 0, error: `Unknown branch: ${branchId}`, reason: "not-configured" };
   }
 
-  // Trim whitespace/newlines and strip stray surrounding quotes — common when a
-  // key is pasted into a dashboard env field (e.g. Vercel) with extra characters.
-  const key = process.env[branch.keyEnv]?.trim().replace(/^["']|["']$/g, "");
+  // One platform key serves every branch (see boh-branches.ts). Already trimmed
+  // and de-quoted there.
+  const key = platformKey();
   if (!key) {
     return {
       ok: false,
       status: 0,
-      error: `No API key configured for ${branch.name}. Set ${branch.keyEnv} in the environment.`,
+      error: `No BOH API key configured. Set BOH_API_KEY in the environment.`,
       reason: "no-key",
     };
   }
 
-  const url = `${branch.baseUrl}/api/public/server-performance?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  // The branch is selected with ?branch=<slug> against the shared platform.
+  const url = `${BOH_PLATFORM_URL}/api/public/server-performance?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&branch=${encodeURIComponent(branch.id)}`;
 
   try {
     const res = await fetchWithRetry(url, key);
@@ -162,7 +163,7 @@ export async function fetchServerPerformance(
       return {
         ok: false,
         status: 401,
-        error: `${branch.name} rejected the key in ${branch.keyEnv}. Check it matches this branch's URL (${branch.baseUrl}) and has no extra spaces/quotes.`,
+        error: `BOH platform rejected the API key. Check BOH_API_KEY (or a legacy BOH_KEY_* fallback) at ${BOH_PLATFORM_URL} — no extra spaces/quotes.`,
         reason: "unauthorized",
       };
     if (res.status === 503)
@@ -182,7 +183,8 @@ export async function fetchServerPerformance(
   }
 }
 
-/** Which branches currently have a key configured (for the selector + empty state). */
+/** All branches, flagged by whether the shared platform key is configured. */
 export function configuredBranches(): { branch: BohBranch; hasKey: boolean }[] {
-  return BOH_BRANCHES.map((b) => ({ branch: b, hasKey: !!process.env[b.keyEnv] }));
+  const hasKey = !!platformKey();
+  return BOH_BRANCHES.map((b) => ({ branch: b, hasKey }));
 }
