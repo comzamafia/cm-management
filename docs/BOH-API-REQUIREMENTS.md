@@ -9,6 +9,28 @@ to expose (and keep stable) so our side can pull cleanly.
 
 ---
 
+## Status: ✅ Implemented
+
+The platform team provisioned the canonical setup. Current production config:
+
+- **Canonical host:** `https://www.sujeevan.ca` (project `sujeevan-staging`),
+  serves directly (no redirect). All 6 branch slugs return `200` via `?branch=`.
+  **Use `www.sujeevan.ca`, not the apex `sujeevan.ca`** — the apex 308-redirects
+  to www and the redirect drops the `x-api-key` header on server-to-server calls,
+  which then 401s.
+- **Key:** a single platform key (stored their side as `SERVER_PERF_API_KEY`).
+- **Our Vercel env:** `BOH_API_URL=https://www.sujeevan.ca` + `BOH_API_KEY=<key>`.
+- **Legacy subdomains** (`yorkmills.` / `parklawn.`) still answer `200` but are
+  deprecated and may be retired anytime — not used by the canonical config.
+
+⚠️ **Do not rotate/revoke the key silently** — a silent revoke is exactly what
+broke the old Mississauga key (and, mid-migration, the Park Lawn key). Notify the
+CM team before changing it.
+
+The sections below are the original requirements, kept for reference.
+
+---
+
 ## 1. Current state (what we observed)
 
 - The BOH backend was consolidated from **one deployment per branch** into a
