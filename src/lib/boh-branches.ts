@@ -10,9 +10,8 @@
 // the redirect drops the `x-api-key` header on our server-to-server calls, which
 // then 401s. Overridable via BOH_API_URL.
 //
-// The platform key is read at request time (server-only) from BOH_API_KEY. Two
-// legacy per-branch keys remain as a last-resort fallback but are deprecated and
-// being retired. Keys are NEVER hard-coded.
+// The platform key is read at request time (server-only) from BOH_API_KEY.
+// Keys are NEVER hard-coded.
 
 export type BohBranch = {
   id: string; // also the API's branch slug (e.g. "yorkmills")
@@ -24,12 +23,14 @@ export type BohBranch = {
 // BOH_API_URL. Must be the www host (see note above), not the apex domain.
 export const BOH_PLATFORM_URL = (process.env.BOH_API_URL || "https://www.sujeevan.ca").replace(/\/+$/, "");
 
-// Env vars checked, in order, for the platform key. BOH_API_KEY is the real
-// canonical key. BOH_KEY_YORKMILLS / BOH_KEY_PARKLAWN are deprecated legacy
-// fallbacks from the old per-branch setup (being retired) — kept only so a
-// misconfigured env degrades gracefully. BOH_KEY_MISSISSAUGA is deliberately
-// excluded: it was revoked and only 401s.
-export const BOH_KEY_ENVS = ["BOH_API_KEY", "BOH_KEY_YORKMILLS", "BOH_KEY_PARKLAWN"] as const;
+// The platform key comes ONLY from BOH_API_KEY. The old per-branch keys
+// (BOH_KEY_YORKMILLS / PARKLAWN / MISSISSAUGA) are intentionally NOT accepted:
+// they authenticate only against their retired subdomains, so against the
+// canonical www platform they 401 — and a stale one silently standing in for a
+// missing BOH_API_KEY produced exactly the confusing "key rejected" failure we
+// hit. With only BOH_API_KEY, a missing key gives a clear "no key" message
+// instead.
+export const BOH_KEY_ENVS = ["BOH_API_KEY"] as const;
 
 /** The platform API key from env, trimmed and stripped of stray surrounding quotes. */
 export function platformKey(): string | undefined {

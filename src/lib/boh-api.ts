@@ -101,6 +101,10 @@ async function fetchWithRetry(url: string, key: string, attempts = 2): Promise<R
         headers: { "x-api-key": key },
         signal: ctrl.signal,
         cache: "no-store",
+        // Don't auto-follow redirects: a cross-origin redirect (e.g. the apex
+        // sujeevan.ca 308 -> www) strips the x-api-key header and turns into a
+        // confusing 401. Surfacing the 3xx lets us report the real cause.
+        redirect: "manual",
       });
       clearTimeout(timer);
       // Retry only on 5xx (server problem) — never on 4xx (our request is wrong).
@@ -159,6 +163,15 @@ export async function fetchServerPerformance(
   try {
     const res = await fetchWithRetry(url, key);
 
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location") ?? "(no Location header)";
+      return {
+        ok: false,
+        status: res.status,
+        error: `Platform redirected (HTTP ${res.status}) to ${location}. Point BOH_API_URL at the final host directly — use https://www.sujeevan.ca, not the apex sujeevan.ca.`,
+        reason: "server",
+      };
+    }
     if (res.status === 401)
       return {
         ok: false,
