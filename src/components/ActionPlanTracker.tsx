@@ -63,6 +63,15 @@ export function ActionPlanTracker({
   const [resetting, setResetting] = useState(false);
 
   const today = useMemo(() => { const [y, m, d] = todayISO.split("-").map(Number); return new Date(y, m - 1, d); }, [todayISO]);
+  // Anchor for the Monthly tab's displayed Due/Deadline dates: day 1 of the
+  // month being BROWSED (not real "today"). nextDue()/deadline() roll forward
+  // to next month once a due-day has passed relative to their anchor — using
+  // real "today" there meant a task due on, say, the 5th showed "Aug 5" the
+  // moment you were viewing July past the 5th, even though you were looking
+  // at July's checklist. Anchoring to day 1 keeps the shown date within the
+  // month you're actually looking at. Overdue/done styling still uses real
+  // "today" (unchanged) so it stays consistent with the Dashboard's overdue count.
+  const monthAnchor = useMemo(() => { const [y, m] = month.split("-").map(Number); return new Date(y, m - 1, 1); }, [month]);
 
   function setEntry(period: string, key: string, value: string) {
     setEntries((prev) => { const n = { ...prev }; if (value === "") delete n[key]; else n[key] = value; return n; });
@@ -158,7 +167,7 @@ export function ActionPlanTracker({
 
       {tab === "dashboard" && <DashboardTab weeklyTasks={weeklyTasks} monthlyTasks={monthlyTasks} entries={entries} today={today} o={o} />}
       {tab === "weekly" && <WeeklyTab page={page} tasks={weeklyTasks} entries={entries} today={today} wd={wd} toggle={toggleWeekly} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
-      {tab === "monthly" && <MonthlyTab page={page} tasks={monthlyTasks} entries={entries} today={today} toggleAll={toggleMonthlyAll} toggleGrid={toggleMonthlyGrid} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
+      {tab === "monthly" && <MonthlyTab page={page} tasks={monthlyTasks} entries={entries} today={today} monthAnchor={monthAnchor} toggleAll={toggleMonthlyAll} toggleGrid={toggleMonthlyGrid} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
       {tab === "vendors" && <VendorsTab page={page} vendors={vendors} entries={entries} today={today} month={month} toggleReviewed={toggleVendorReviewed} setEntry={setEntry} onRemove={handleRemove} onReorder={handleReorder} refresh={refresh} editable={isCurrentPeriod} />}
       {tab === "summary" && <SummaryTab entries={entries} week={week} setEntry={setEntry} editable={isCurrentPeriod} />}
     </div>
@@ -369,8 +378,8 @@ function WeeklyTab({ page, tasks, entries, today, wd, toggle, onRemove, onReorde
   );
 }
 
-function MonthlyTab({ page, tasks, entries, today, toggleAll, toggleGrid, onRemove, onReorder, refresh, editable }: {
-  page: PlanPage; tasks: MonthlyTask[]; entries: Entries; today: Date;
+function MonthlyTab({ page, tasks, entries, today, monthAnchor, toggleAll, toggleGrid, onRemove, onReorder, refresh, editable }: {
+  page: PlanPage; tasks: MonthlyTask[]; entries: Entries; today: Date; monthAnchor: Date;
   toggleAll: (id: string) => void; toggleGrid: (id: string, loc: string) => void;
   onRemove: (k: string) => void; onReorder: (k: string, d: "up" | "down") => void; refresh: () => void; editable: boolean;
 }) {
@@ -390,8 +399,8 @@ function MonthlyTab({ page, tasks, entries, today, toggleAll, toggleGrid, onRemo
           const s = monthlyStats(t, entries, today); const pct = Math.round((s.done / s.due) * 100); const past = today >= deadline(t, today);
           return (<tr key={t.id}>
             <td className={`${TD} min-w-[220px] font-semibold ${editable ? "text-[#440E48] cursor-pointer hover:underline" : "text-[#140516]"}`} onClick={editable ? () => setEditing(t) : undefined}>{t.task}</td>
-            <td className={`${TD} text-center text-[#726973]`}>{fmtDate(nextDue(t.dueDay, today))}</td>
-            <td className={`${TD} text-center text-[#726973]`}>{fmtDate(deadline(t, today))}</td>
+            <td className={`${TD} text-center text-[#726973]`}>{fmtDate(nextDue(t.dueDay, monthAnchor))}</td>
+            <td className={`${TD} text-center text-[#726973]`}>{fmtDate(deadline(t, monthAnchor))}</td>
             {t.mode === "all" ? (
               <td className={`${TD} text-center`} colSpan={RESTAURANTS.length}><Check state={entries[keys.monthlyAll(t.id)] === "1" ? "done" : past ? "overdue" : "open"} onClick={editable ? () => toggleAll(t.id) : undefined} /></td>
             ) : RESTAURANTS.map((loc) => {
