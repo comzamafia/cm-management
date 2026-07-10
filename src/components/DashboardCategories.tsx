@@ -64,7 +64,7 @@ export function DashboardCategories({ categories, canEdit }: { categories: Cat[]
               <div className="flex items-center gap-1.5">
                 {SWATCHES.map((c) => (
                   <button key={c} onClick={() => setColor(c)} aria-label={c}
-                    className="h-5 w-5 rounded-full" style={{ backgroundColor: c, outline: color === c ? "2px solid #140516" : "none", outlineOffset: "2px" }} />
+                    className="h-7 w-7 rounded-full" style={{ backgroundColor: c, outline: color === c ? "2px solid #140516" : "none", outlineOffset: "2px" }} />
                 ))}
               </div>
               <div className="flex gap-2">

@@ -75,7 +75,74 @@ export function DashboardTodayTasks({
 
       {err && <div className="mx-5 mb-2 rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2 text-xs font-medium text-[#e2445c]">{err}</div>}
 
-      <div className="overflow-x-auto">
+      {/* Mobile: stacked cards (a 5-column table forces horizontal scroll and
+          cramped tap targets on phones) */}
+      <div className="divide-y divide-[#f3eef3] sm:hidden">
+        {tasks.map((t) => (
+          <div key={t.id} className="px-4 py-3">
+            <div className="flex items-start gap-3">
+              <button onClick={() => complete(t)} disabled={busy === t.id} title="Mark done"
+                className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-[#D0CDD0] text-transparent transition-colors hover:border-[#1DBA87] hover:text-[#1DBA87] disabled:opacity-50">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Link href={`/tasks/${t.id}`} className="font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
+                  <Link href={`/tasks/${t.id}#comments`} title="Comment" className="shrink-0 text-[#C9C4C9] hover:text-[#440E48]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </Link>
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {t.categoryName && (
+                    <span className="inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>
+                  )}
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${STATUS_STYLE[t.status]}`}>{STATUS_LABEL[t.status]}</span>
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${PRIORITY_STYLE[t.priority]}`}>{PRIORITY_LABEL[t.priority]}</span>
+                </div>
+                <div className="mt-1.5">
+                  {canEdit ? (
+                    <div className="flex items-center gap-1.5">
+                      {t.assigneeName
+                        ? <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#440E48] text-[9px] font-bold text-white" title={t.assigneeName}>{initials(t.assigneeName)}</span>
+                        : <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#eee] text-[9px] text-[#A19BA2]">—</span>}
+                      <select value={t.assigneeId ?? ""} disabled={busy === t.id}
+                        onChange={(e) => run(t.id, () => assignTask(t.id, e.target.value))}
+                        className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent py-1 text-xs text-[#726973] outline-none hover:border-[#E4DDE4] focus:border-[#440E48]">
+                        <option value="">Unassigned</option>
+                        {users.map((u) => (<option key={u.id} value={u.id}>{u.name}</option>))}
+                      </select>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-[#726973]">{t.assigneeName ?? "Unassigned"}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {pending.map((p) => (
+          <div key={p.key} className="bg-[#fbfaff] px-4 py-3">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-dashed border-[#C9C4C9]" />
+              <div className="min-w-0 flex-1">
+                <span className="text-[#433745]">{p.title}</span>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex rounded-md bg-[#5B8DD91a] px-2 py-0.5 text-[11px] font-semibold text-[#5B8DD9]">Checklist</span>
+                  <span className="text-[11px] italic text-[#A19BA2]">Not started</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {tasks.length === 0 && pending.length === 0 && (
+          <div className="px-5 py-8 text-center text-sm text-[#A19BA2]">Nothing due today. 🎉</div>
+        )}
+      </div>
+
+      {/* Desktop/tablet: full table */}
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead className="border-y border-[#eee] bg-[#faf8fa] text-left text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]">
             <tr>

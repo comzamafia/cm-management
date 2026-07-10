@@ -90,7 +90,7 @@ export function DashboardStickyNotes({ subjectId, notes, currentUserId, canManag
             <div className="flex items-center gap-1.5">
               {COLORS.map((c) => (
                 <button key={c} onClick={() => setColor(c)} aria-label={c}
-                  className={`h-5 w-5 rounded-full border-2 ${color === c ? "border-[#440E48]" : "border-white"}`}
+                  className={`h-7 w-7 rounded-full border-2 ${color === c ? "border-[#440E48]" : "border-white"}`}
                   style={{ backgroundColor: NOTE_STYLE[c].swatch }} />
               ))}
             </div>

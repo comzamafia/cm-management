@@ -111,7 +111,9 @@ export function DashboardWeeklyPlanner({
                   if (isDone) {
                     return (
                       <td key={i} className="px-1 py-2 text-center">
-                        <Link href={`/tasks/${cell.id}`} title="Completed">
+                        {/* Tap target padded to ~32px (the visual dot stays 20px) — the
+                            old 20px-fixed circle was too small to tap reliably on phones. */}
+                        <Link href={`/tasks/${cell.id}`} title="Completed" className="inline-flex p-1.5">
                           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#DCFCE7] text-[#15803D]">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                           </span>
@@ -120,16 +122,18 @@ export function DashboardWeeklyPlanner({
                     );
                   }
 
-                  // Open task — show clickable checkbox
+                  // Open task — show clickable checkbox (padded for a larger tap target)
                   return (
                     <td key={i} className="px-1 py-2 text-center">
                       <button
                         onClick={() => complete(cell.id, cell.proofRequired)}
                         disabled={busy === cell.id}
                         title="Mark done"
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#D0CDD0] text-transparent transition-colors hover:border-[#1DBA87] hover:text-[#1DBA87] disabled:opacity-50"
+                        className="group inline-flex p-1.5 disabled:opacity-50"
                       >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span className="grid h-5 w-5 place-items-center rounded-full border-2 border-[#D0CDD0] text-transparent transition-colors group-hover:border-[#1DBA87] group-hover:text-[#1DBA87]">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </span>
                       </button>
                     </td>
                   );
