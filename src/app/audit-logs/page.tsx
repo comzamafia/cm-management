@@ -28,6 +28,7 @@ const ACTION_LABEL: Record<string, string> = {
   "task.attachment_added": "Attachment Added",
   "task.attachment_removed": "Attachment Removed",
   "user.login": "User Login",
+  "user.logout": "User Logout",
   "user.created": "User Created",
   "user.updated": "User Updated",
   "compliance.created": "Compliance Scheduled",
