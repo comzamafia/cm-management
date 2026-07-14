@@ -62,7 +62,7 @@ export function PerformanceUpsell({ data }: { data: BohServerPerformance }) {
                 <tr className="text-[10px] font-bold uppercase tracking-wider text-white" style={{ backgroundColor: NAVY }}>
                   <th className="px-3 py-2.5 text-center w-8">#</th>
                   <th className="px-3 py-2.5 text-left">Server</th>
-                  <th className="px-3 py-2.5 text-right">Net Sales</th>
+                  <th className="px-3 py-2.5 text-right">Avg/Guest</th>
                   <th className="px-3 py-2.5 text-right">Liquor $</th>
                   <th className="px-3 py-2.5 text-right">Liquor %</th>
                   <th className="px-3 py-2.5 text-right">Bev $</th>
@@ -79,7 +79,7 @@ export function PerformanceUpsell({ data }: { data: BohServerPerformance }) {
                     <tr key={`${s.name}-${i}`} style={{ backgroundColor: bg }} className="border-b border-[#EEF1F4]">
                       <td className="px-3 py-2 text-center font-bold text-[#9CA3AF]">{s.rank}</td>
                       <td className="px-3 py-2 font-semibold text-[#1F2937]">{s.name}</td>
-                      <td className="px-3 py-2 text-right font-medium text-[#1F2937]">{money2(s.netSales)}</td>
+                      <td className="px-3 py-2 text-right font-medium text-[#1F2937]">{money2(s.avgPerGuest)}</td>
                       <td className="px-3 py-2 text-right text-[#4B5563]">{money2(s.alcoholSales)}</td>
                       <td className="px-3 py-2 text-right text-[#4B5563]">{pct(s.alcoholPct)}</td>
                       <td className="px-3 py-2 text-right text-[#4B5563]">{money2(s.beverageSales)}</td>

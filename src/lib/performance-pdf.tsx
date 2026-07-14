@@ -170,7 +170,7 @@ function ScorePage({ data }: { data: BohServerPerformance }) {
 const UCOLS: { key: string; label: string; flex: number; align: Align }[] = [
   { key: "rank", label: "#", flex: 0.4, align: "center" },
   { key: "server", label: "Server", flex: 2.2, align: "left" },
-  { key: "net", label: "Net Sales", flex: 1.2, align: "right" },
+  { key: "apg", label: "Avg/Guest", flex: 1.2, align: "right" },
   { key: "liq$", label: "Liquor $", flex: 1.0, align: "right" },
   { key: "liq%", label: "Liquor %", flex: 0.8, align: "right" },
   { key: "bev$", label: "Bev $", flex: 1.0, align: "right" },
@@ -184,7 +184,7 @@ function upsellText(key: string, v: BohServerPerformance["servers"][number], ran
   switch (key) {
     case "rank": return String(rank);
     case "server": return v.name;
-    case "net": return money2(v.netSales);
+    case "apg": return money2(v.avgPerGuest);
     case "liq$": return money2(v.alcoholSales);
     case "liq%": return pct(v.alcoholPct);
     case "bev$": return money2(v.beverageSales);
