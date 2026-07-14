@@ -172,7 +172,7 @@ export function ReservationDashboard({
             {/* Large Party Tracker */}
             <Card>
               <SectionHead icon={I.users} title="Large Party Tracker" />
-              <div className="max-h-64 overflow-y-auto">
+              <div>
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ background: "var(--rv-navy)" }}>
