@@ -405,11 +405,14 @@ export type KitchenAlert = {
 };
 
 export type KitchenPrep = {
+  hourly: HourlyBucket[];
   windows: KitchenWindow[];
   peakLabel: string | null;
   peakCovers: number;
   totalCovers: number;
   totalReservations: number;
+  largePartyCount: number;
+  birthdayCount: number;
   largePartyAlerts: KitchenAlert[];
   summary: string[];
 };
@@ -456,11 +459,14 @@ export function computeKitchenPrep(dashboard: Dashboard): KitchenPrep {
   if (snapshot.birthdayCount > 0) summary.push(`${snapshot.birthdayCount} birthday table${snapshot.birthdayCount === 1 ? "" : "s"} — confirm cake/dessert prep timing`);
 
   return {
+    hourly,
     windows,
     peakLabel: peak?.timeLabel ?? null,
     peakCovers: peak?.covers ?? 0,
     totalCovers: snapshot.totalCovers,
     totalReservations: snapshot.totalActiveReservations,
+    largePartyCount: snapshot.largePartyCount,
+    birthdayCount: snapshot.birthdayCount,
     largePartyAlerts,
     summary,
   };
