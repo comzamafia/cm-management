@@ -61,7 +61,12 @@ const s = StyleSheet.create({
   blockBadge: { fontSize: 6.8, fontFamily: "Helvetica-Bold", paddingVertical: 2, paddingHorizontal: 6, borderRadius: 8, alignSelf: "flex-start", marginBottom: 3 },
 
   // ── Bullet cards ──
-  card: { flex: 1, borderWidth: 1, borderColor: BORDER, borderRadius: 7, padding: 10, backgroundColor: "#FFFFFF" },
+  // No flex here: these cards sit inside a column container (s.col), not a
+  // flexDirection:"row" parent. Baking flex:1 in corrupts Yoga's height calc
+  // and collapses every bullet row on top of each other (same react-pdf gotcha
+  // documented in reservation-pdf.tsx). The parent s.col already gives equal
+  // width; the card just sizes to its content height.
+  card: { borderWidth: 1, borderColor: BORDER, borderRadius: 7, padding: 10, backgroundColor: "#FFFFFF" },
   bulletRow: { flexDirection: "row", marginBottom: 4, alignItems: "flex-start" },
   bulletDot: { fontSize: 8, marginRight: 5, lineHeight: 1.3 },
   bulletText: { flex: 1, fontSize: 8, color: NAVY, lineHeight: 1.35 },
