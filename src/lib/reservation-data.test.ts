@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseReservationCsv, computeDashboard } from "./reservation-data";
+import { parseReservationCsv, computeDashboard, computeKitchenPrep } from "./reservation-data";
 
 const HEADER = "reservedTime,telephone,customerName,numberOfGuests,assignedTables,status,source,hoursCategory,additionalRequest";
 
@@ -130,5 +130,32 @@ describe("computeDashboard floor zones", () => {
     // Zone B: 1 reservation / 4 tables = 0.25 ratio -> MODERATE
     const zoneB = dashboard.floorZones.find((z) => z.name === "Zone B")!;
     expect(zoneB.pressureLevel).toBe("MODERATE");
+  });
+});
+
+describe("computeKitchenPrep", () => {
+  const { rows } = parseReservationCsv(SAMPLE_CSV);
+  const dashboard = computeDashboard(rows);
+  const prep = computeKitchenPrep(dashboard);
+
+  it("merges consecutive half-hour buckets into BUSY/QUIET windows", () => {
+    // Buckets: 4:00 MODERATE(quiet), 5:30 FULL RUSH(busy), 7:00 MODERATE(quiet), 7:30 LATE RUSH(busy)
+    // — none adjacent share a band, so each stays its own window.
+    expect(prep.windows.map((w) => w.band)).toEqual(["QUIET", "BUSY", "QUIET", "BUSY"]);
+    expect(prep.windows[1]).toMatchObject({ startLabel: "5:30 PM", endLabel: "6:00 PM", totalCovers: 18, totalReservations: 2 });
+  });
+
+  it("surfaces the peak bucket for the standby callout", () => {
+    expect(prep.peakLabel).toBe("5:30 PM");
+    expect(prep.peakCovers).toBe(18);
+  });
+
+  it("flags every large party as a kitchen prep alert, tagging birthdays", () => {
+    expect(prep.largePartyAlerts).toHaveLength(2);
+    expect(prep.largePartyAlerts.every((a) => a.note.includes("birthday"))).toBe(true);
+  });
+
+  it("lists quiet windows as suggested staff-break slots in the summary", () => {
+    expect(prep.summary.some((line) => line.includes("break") && line.includes("4:00 PM") && line.includes("7:00 PM"))).toBe(true);
   });
 });

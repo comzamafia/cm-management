@@ -98,13 +98,22 @@ export function ReservationDashboard({
           </select>
         )}
         {result && (
-          <a
-            href={`/reservations/pdf?locationId=${selectedLocationId}&date=${result.businessDate}`}
-            className="ml-auto rounded-lg border px-3 py-2 text-sm font-bold"
-            style={{ borderColor: "var(--rv-blue)", color: "var(--rv-blue)", background: "var(--rv-card)" }}
-          >
-            ↓ Export PDF
-          </a>
+          <div className="ml-auto flex items-center gap-2">
+            <a
+              href={`/reservations/pdf?locationId=${selectedLocationId}&date=${result.businessDate}`}
+              className="rounded-lg border px-3 py-2 text-sm font-bold"
+              style={{ borderColor: "var(--rv-blue)", color: "var(--rv-blue)", background: "var(--rv-card)" }}
+            >
+              ↓ Export PDF
+            </a>
+            <a
+              href={`/reservations/kitchen-pdf?locationId=${selectedLocationId}&date=${result.businessDate}`}
+              className="rounded-lg border px-3 py-2 text-sm font-bold"
+              style={{ borderColor: "var(--rv-amber)", color: "var(--rv-amber)", background: "var(--rv-card)" }}
+            >
+              ↓ Kitchen Prep
+            </a>
+          </div>
         )}
       </div>
 

@@ -166,7 +166,7 @@ function bucketMinutes(d: Date): number {
   return d.getUTCHours() * 60 + half;
 }
 
-function formatTimeLabel(totalMinutes: number): string {
+export function formatTimeLabel(totalMinutes: number): string {
   const h24 = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   const period = h24 >= 12 ? "PM" : "AM";
@@ -381,4 +381,87 @@ export function computeDashboard(rows: ReservationRow[], zones: FloorZoneInput[]
   const floorZones = computeFloorZones(active, zones);
 
   return { hourly, peak, snapshot, largeParties, tableIssues, actionItems, communicationPlan, quickNotes, floorZones };
+}
+
+// ── Kitchen Prep Sheet ──────────────────────────────────────────────────────
+// Derived entirely from the Dashboard already computed above — no extra data
+// needed. Groups the night's half-hour buckets into BUSY vs QUIET windows so
+// a manager can see, at a glance, when to stagger staff breaks (QUIET) versus
+// when the whole kitchen needs to be on standby (BUSY).
+
+export type KitchenBand = "BUSY" | "QUIET";
+
+export type KitchenWindow = {
+  band: KitchenBand;
+  startLabel: string;
+  endLabel: string;
+  totalCovers: number;
+  totalReservations: number;
+};
+
+export type KitchenAlert = {
+  timeLabel: string;
+  note: string;
+};
+
+export type KitchenPrep = {
+  windows: KitchenWindow[];
+  peakLabel: string | null;
+  peakCovers: number;
+  totalCovers: number;
+  totalReservations: number;
+  largePartyAlerts: KitchenAlert[];
+  summary: string[];
+};
+
+// FULL RUSH / HIGH PRESSURE / LATE RUSH = kitchen needs every station manned.
+// MODERATE / STEADY = safe window to rotate staff breaks or get ahead on prep.
+const BUSY_LEVELS: RushLevel[] = ["FULL RUSH", "HIGH PRESSURE", "LATE RUSH"];
+
+function bandFor(level: RushLevel): KitchenBand {
+  return BUSY_LEVELS.includes(level) ? "BUSY" : "QUIET";
+}
+
+export function computeKitchenPrep(dashboard: Dashboard): KitchenPrep {
+  const { hourly, peak, snapshot, largeParties } = dashboard;
+
+  // Merge consecutive buckets sharing a band into one printable window, so a
+  // night with 12 half-hour slots reads as a handful of clear time blocks.
+  const windows: KitchenWindow[] = [];
+  for (const bucket of hourly) {
+    const band = bandFor(bucket.rushLevel);
+    const endLabel = formatTimeLabel(bucket.bucketMinutes + 30);
+    const last = windows[windows.length - 1];
+    if (last && last.band === band) {
+      last.endLabel = endLabel;
+      last.totalCovers += bucket.covers;
+      last.totalReservations += bucket.reservations;
+    } else {
+      windows.push({ band, startLabel: bucket.timeLabel, endLabel, totalCovers: bucket.covers, totalReservations: bucket.reservations });
+    }
+  }
+
+  const largePartyAlerts: KitchenAlert[] = largeParties.map((p) => ({
+    timeLabel: p.timeLabel,
+    note: `Party of ${p.guests}${isBirthday(p.notes) ? " — birthday, confirm cake/dessert timing" : " — prep proteins ahead of seating"} (${p.name})`,
+  }));
+
+  const summary: string[] = [];
+  if (peak) summary.push(`Heaviest wave: ${peak.timeLabel} (${peak.covers} covers) — all stations on standby`);
+  const quietWindows = windows.filter((w) => w.band === "QUIET");
+  if (quietWindows.length > 0) {
+    summary.push(`Best windows to stagger staff breaks: ${quietWindows.map((w) => `${w.startLabel}–${w.endLabel}`).join(", ")}`);
+  }
+  if (snapshot.largePartyCount > 0) summary.push(`${snapshot.largePartyCount} large part${snapshot.largePartyCount === 1 ? "y" : "ies"} tonight — stage proteins/sides ahead of their seating time`);
+  if (snapshot.birthdayCount > 0) summary.push(`${snapshot.birthdayCount} birthday table${snapshot.birthdayCount === 1 ? "" : "s"} — confirm cake/dessert prep timing`);
+
+  return {
+    windows,
+    peakLabel: peak?.timeLabel ?? null,
+    peakCovers: peak?.covers ?? 0,
+    totalCovers: snapshot.totalCovers,
+    totalReservations: snapshot.totalActiveReservations,
+    largePartyAlerts,
+    summary,
+  };
 }
