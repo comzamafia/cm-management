@@ -138,21 +138,23 @@ describe("computeKitchenPrep", () => {
   const dashboard = computeDashboard(rows);
   const prep = computeKitchenPrep(dashboard);
 
-  it("rolls the half-hour dashboard buckets up into 60-minute rows", () => {
-    // 4:00 PM (Rebecca 5), 5:00 PM (Tavea 10 + Alina 8 = 18), 7:00 PM (Nishita 5 + Richa 4 = 9).
-    expect(prep.hourly.map((h) => h.timeLabel)).toEqual(["4:00 PM", "5:00 PM", "7:00 PM"]);
-    expect(prep.hourly.map((h) => h.covers)).toEqual([5, 18, 9]);
+  it("keeps the Hourly Overview at the dashboard's 30-minute granularity", () => {
+    // Half-hour buckets: 4:00 PM (Rebecca 5), 5:30 PM (Tavea 10 + Alina 8 = 18),
+    // 7:00 PM (Nishita 5), 7:30 PM (Richa 4).
+    expect(prep.hourly.map((h) => h.timeLabel)).toEqual(["4:00 PM", "5:30 PM", "7:00 PM", "7:30 PM"]);
+    expect(prep.hourly.map((h) => h.covers)).toEqual([5, 18, 5, 4]);
   });
 
-  it("groups hours into BUSY/QUIET windows without merging across a gap hour", () => {
-    // 4:00 STEADY(quiet), 5:00 FULL RUSH(busy), 7:00 LATE RUSH(busy) — the two busy
-    // hours are not adjacent (6:00 PM has no covers), so they stay separate windows.
+  it("rolls the timeline windows up to the hour, without merging across a gap hour", () => {
+    // Hourly roll-up: 4:00 STEADY(quiet), 5:00 FULL RUSH(busy), 7:00 LATE RUSH(busy)
+    // — the two busy hours are not adjacent (6:00 PM has no covers), so they stay
+    // separate windows even though the Overview table stays at 30-minute rows.
     expect(prep.windows.map((w) => w.band)).toEqual(["QUIET", "BUSY", "BUSY"]);
     expect(prep.windows[1]).toMatchObject({ startLabel: "5:00 PM", endLabel: "6:00 PM", totalCovers: 18, totalReservations: 2 });
   });
 
-  it("surfaces the busiest hour for the standby callout", () => {
-    expect(prep.peakLabel).toBe("5:00 PM");
+  it("surfaces the busiest half-hour slot for the standby callout", () => {
+    expect(prep.peakLabel).toBe("5:30 PM");
     expect(prep.peakCovers).toBe(18);
   });
 

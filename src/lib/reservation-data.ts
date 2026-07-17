@@ -467,20 +467,20 @@ export function aggregateHourly(halfHour: HourlyBucket[]): HourlyBucket[] {
 }
 
 export function computeKitchenPrep(dashboard: Dashboard): KitchenPrep {
-  const { snapshot, largeParties } = dashboard;
-  const hourly = aggregateHourly(dashboard.hourly);
+  const { snapshot, largeParties, peak } = dashboard;
 
-  const peak = hourly.reduce<HourlyBucket | null>(
-    (best, b) => (best === null || b.covers > best.covers ? b : best),
-    null,
-  );
+  // The printed Hourly Overview keeps the dashboard's 30-minute granularity, and
+  // the Peak tile / "heaviest wave" line reference that same half-hour peak so
+  // the two always agree. The Prep Timeline windows, however, are rolled up to
+  // the hour so the night reads as a few clear BUSY/QUIET blocks.
+  const hourlyForWindows = aggregateHourly(dashboard.hourly);
 
   // Merge temporally-adjacent hours sharing a band into one printable window.
   // The adjacency check (prev hour's end === this hour's start) prevents a gap
   // hour with no reservations from silently joining two separate busy blocks.
   const windows: KitchenWindow[] = [];
   let prevEnd: number | null = null;
-  for (const bucket of hourly) {
+  for (const bucket of hourlyForWindows) {
     const band = bandFor(bucket.rushLevel);
     const end = bucket.bucketMinutes + 60;
     const last = windows[windows.length - 1];
@@ -509,7 +509,7 @@ export function computeKitchenPrep(dashboard: Dashboard): KitchenPrep {
   if (snapshot.birthdayCount > 0) summary.push(`${snapshot.birthdayCount} birthday table${snapshot.birthdayCount === 1 ? "" : "s"} — confirm cake/dessert prep timing`);
 
   return {
-    hourly,
+    hourly: dashboard.hourly,
     windows,
     peakLabel: peak?.timeLabel ?? null,
     peakCovers: peak?.covers ?? 0,

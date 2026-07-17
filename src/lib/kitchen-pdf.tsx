@@ -49,11 +49,13 @@ const s = StyleSheet.create({
   col: { flex: 1 },
 
   // ── Table ──
+  // Rows are kept compact on purpose: at 30-minute granularity a full service
+  // day is ~22 rows, and this row height keeps the whole sheet to one page.
   thead: { flexDirection: "row", backgroundColor: NAVY, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  th: { color: "#FFFFFF", fontSize: 6.8, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, textTransform: "uppercase", paddingVertical: 5, paddingHorizontal: 6 },
+  th: { color: "#FFFFFF", fontSize: 6.5, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, textTransform: "uppercase", paddingVertical: 3.5, paddingHorizontal: 6 },
   tr: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: BORDER, alignItems: "center" },
-  td: { fontSize: 8.5, paddingVertical: 4.5, paddingHorizontal: 6 },
-  pill: { fontSize: 6.8, fontFamily: "Helvetica-Bold", paddingVertical: 2, paddingHorizontal: 5, borderRadius: 8, alignSelf: "flex-start" },
+  td: { fontSize: 7.5, paddingVertical: 2.4, paddingHorizontal: 6 },
+  pill: { fontSize: 6, fontFamily: "Helvetica-Bold", paddingVertical: 1.2, paddingHorizontal: 4.5, borderRadius: 8, alignSelf: "flex-start" },
 
   // ── Timeline blocks ──
   block: { flexDirection: "row", borderRadius: 6, borderWidth: 1, marginBottom: 6, overflow: "hidden" },
