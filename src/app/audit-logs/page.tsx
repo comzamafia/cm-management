@@ -138,7 +138,9 @@ export default async function AuditLogsPage({ searchParams }: { searchParams: Se
   const page = Math.max(1, parseInt(get("page") || "1", 10));
 
   // Build where clause
-  const where: Record<string, unknown> = {};
+  // Hidden from this view (still recorded in the immutable log): SLA-breach
+  // escalations are noise here — managers get them as notifications instead.
+  const where: Record<string, unknown> = { NOT: { action: "maintenance.sla_breached" } };
   if (userId) where.userId = userId;
   if (group) where.action = { startsWith: `${group}.` };
   if (locationId) where.locationId = locationId;
