@@ -385,8 +385,11 @@ export function computeDashboard(rows: ReservationRow[], zones: FloorZoneInput[]
 
 // ── Kitchen Prep Sheet ──────────────────────────────────────────────────────
 // Derived entirely from the Dashboard already computed above — no extra data
-// needed. Groups the night's half-hour buckets into BUSY vs QUIET windows so
-// a manager can see, at a glance, when to stagger staff breaks (QUIET) versus
+// needed. The kitchen plans by the HOUR, so the dashboard's half-hour buckets
+// are rolled up into 60-minute rows here; this also keeps the printed sheet to
+// a single page on a full service day (a night with 20+ half-hour slots would
+// otherwise overflow). Hours are then grouped into BUSY vs QUIET windows so a
+// manager can see, at a glance, when to stagger staff breaks (QUIET) versus
 // when the whole kitchen needs to be on standby (BUSY).
 
 export type KitchenBand = "BUSY" | "QUIET";
@@ -425,23 +428,70 @@ function bandFor(level: RushLevel): KitchenBand {
   return BUSY_LEVELS.includes(level) ? "BUSY" : "QUIET";
 }
 
-export function computeKitchenPrep(dashboard: Dashboard): KitchenPrep {
-  const { hourly, peak, snapshot, largeParties } = dashboard;
+/**
+ * Rolls the dashboard's 30-minute buckets up into 60-minute rows and re-derives
+ * a rush level per hour (relative to the night's own hourly average — same
+ * heuristic as the half-hour version, just at hour granularity).
+ */
+export function aggregateHourly(halfHour: HourlyBucket[]): HourlyBucket[] {
+  const byHour = new Map<number, { reservations: number; covers: number }>();
+  for (const b of halfHour) {
+    const hourStart = Math.floor(b.bucketMinutes / 60) * 60;
+    const cur = byHour.get(hourStart) ?? { reservations: 0, covers: 0 };
+    cur.reservations += b.reservations;
+    cur.covers += b.covers;
+    byHour.set(hourStart, cur);
+  }
 
-  // Merge consecutive buckets sharing a band into one printable window, so a
-  // night with 12 half-hour slots reads as a handful of clear time blocks.
+  const sorted = [...byHour.entries()].sort((a, b) => a[0] - b[0]);
+  const coverValues = sorted.map(([, v]) => v.covers);
+  const avgCovers = coverValues.length > 0 ? coverValues.reduce((s, v) => s + v, 0) / coverValues.length : 0;
+  const lastStart = sorted.length > 0 ? sorted[sorted.length - 1][0] : null;
+
+  function rushLevelFor(start: number, covers: number): RushLevel {
+    if (start === lastStart && covers > 0) return "LATE RUSH";
+    if (avgCovers === 0) return "STEADY";
+    if (covers >= avgCovers * 1.3) return "FULL RUSH";
+    if (covers >= avgCovers * 1.0) return "HIGH PRESSURE";
+    if (covers >= avgCovers * 0.6) return "MODERATE";
+    return "STEADY";
+  }
+
+  return sorted.map(([start, v]) => ({
+    bucketMinutes: start,
+    timeLabel: formatTimeLabel(start),
+    reservations: v.reservations,
+    covers: v.covers,
+    rushLevel: rushLevelFor(start, v.covers),
+  }));
+}
+
+export function computeKitchenPrep(dashboard: Dashboard): KitchenPrep {
+  const { snapshot, largeParties } = dashboard;
+  const hourly = aggregateHourly(dashboard.hourly);
+
+  const peak = hourly.reduce<HourlyBucket | null>(
+    (best, b) => (best === null || b.covers > best.covers ? b : best),
+    null,
+  );
+
+  // Merge temporally-adjacent hours sharing a band into one printable window.
+  // The adjacency check (prev hour's end === this hour's start) prevents a gap
+  // hour with no reservations from silently joining two separate busy blocks.
   const windows: KitchenWindow[] = [];
+  let prevEnd: number | null = null;
   for (const bucket of hourly) {
     const band = bandFor(bucket.rushLevel);
-    const endLabel = formatTimeLabel(bucket.bucketMinutes + 30);
+    const end = bucket.bucketMinutes + 60;
     const last = windows[windows.length - 1];
-    if (last && last.band === band) {
-      last.endLabel = endLabel;
+    if (last && last.band === band && prevEnd === bucket.bucketMinutes) {
+      last.endLabel = formatTimeLabel(end);
       last.totalCovers += bucket.covers;
       last.totalReservations += bucket.reservations;
     } else {
-      windows.push({ band, startLabel: bucket.timeLabel, endLabel, totalCovers: bucket.covers, totalReservations: bucket.reservations });
+      windows.push({ band, startLabel: bucket.timeLabel, endLabel: formatTimeLabel(end), totalCovers: bucket.covers, totalReservations: bucket.reservations });
     }
+    prevEnd = end;
   }
 
   const largePartyAlerts: KitchenAlert[] = largeParties.map((p) => ({

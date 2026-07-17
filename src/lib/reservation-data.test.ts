@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseReservationCsv, computeDashboard, computeKitchenPrep } from "./reservation-data";
+import { parseReservationCsv, computeDashboard, computeKitchenPrep, aggregateHourly } from "./reservation-data";
 
 const HEADER = "reservedTime,telephone,customerName,numberOfGuests,assignedTables,status,source,hoursCategory,additionalRequest";
 
@@ -138,15 +138,21 @@ describe("computeKitchenPrep", () => {
   const dashboard = computeDashboard(rows);
   const prep = computeKitchenPrep(dashboard);
 
-  it("merges consecutive half-hour buckets into BUSY/QUIET windows", () => {
-    // Buckets: 4:00 MODERATE(quiet), 5:30 FULL RUSH(busy), 7:00 MODERATE(quiet), 7:30 LATE RUSH(busy)
-    // — none adjacent share a band, so each stays its own window.
-    expect(prep.windows.map((w) => w.band)).toEqual(["QUIET", "BUSY", "QUIET", "BUSY"]);
-    expect(prep.windows[1]).toMatchObject({ startLabel: "5:30 PM", endLabel: "6:00 PM", totalCovers: 18, totalReservations: 2 });
+  it("rolls the half-hour dashboard buckets up into 60-minute rows", () => {
+    // 4:00 PM (Rebecca 5), 5:00 PM (Tavea 10 + Alina 8 = 18), 7:00 PM (Nishita 5 + Richa 4 = 9).
+    expect(prep.hourly.map((h) => h.timeLabel)).toEqual(["4:00 PM", "5:00 PM", "7:00 PM"]);
+    expect(prep.hourly.map((h) => h.covers)).toEqual([5, 18, 9]);
   });
 
-  it("surfaces the peak bucket for the standby callout", () => {
-    expect(prep.peakLabel).toBe("5:30 PM");
+  it("groups hours into BUSY/QUIET windows without merging across a gap hour", () => {
+    // 4:00 STEADY(quiet), 5:00 FULL RUSH(busy), 7:00 LATE RUSH(busy) — the two busy
+    // hours are not adjacent (6:00 PM has no covers), so they stay separate windows.
+    expect(prep.windows.map((w) => w.band)).toEqual(["QUIET", "BUSY", "BUSY"]);
+    expect(prep.windows[1]).toMatchObject({ startLabel: "5:00 PM", endLabel: "6:00 PM", totalCovers: 18, totalReservations: 2 });
+  });
+
+  it("surfaces the busiest hour for the standby callout", () => {
+    expect(prep.peakLabel).toBe("5:00 PM");
     expect(prep.peakCovers).toBe(18);
   });
 
@@ -156,6 +162,20 @@ describe("computeKitchenPrep", () => {
   });
 
   it("lists quiet windows as suggested staff-break slots in the summary", () => {
-    expect(prep.summary.some((line) => line.includes("break") && line.includes("4:00 PM") && line.includes("7:00 PM"))).toBe(true);
+    expect(prep.summary.some((line) => line.includes("break") && line.includes("4:00 PM"))).toBe(true);
+  });
+});
+
+describe("aggregateHourly", () => {
+  it("sums covers/reservations per hour and re-derives a rush level", () => {
+    const { rows } = parseReservationCsv(SAMPLE_CSV);
+    const hourly = aggregateHourly(computeDashboard(rows).hourly);
+    expect(hourly).toHaveLength(3);
+    const five = hourly.find((h) => h.timeLabel === "5:00 PM")!;
+    expect(five.covers).toBe(18);
+    expect(five.reservations).toBe(2);
+    expect(five.rushLevel).toBe("FULL RUSH");
+    // The last hour of the night with covers is always the LATE RUSH closer.
+    expect(hourly[hourly.length - 1].rushLevel).toBe("LATE RUSH");
   });
 });

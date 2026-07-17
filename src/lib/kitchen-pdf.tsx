@@ -14,6 +14,10 @@ const GRAY_SOFT = "#9CA3AF";
 const BORDER = "#E4E7EC";
 const STRIPE = "#F7F8FB";
 
+// Most large parties we print before collapsing the rest into a "+N more" line,
+// so the sheet stays a single page no matter how busy the night is.
+const MAX_ALERTS = 9;
+
 const s = StyleSheet.create({
   page: { fontFamily: "Helvetica", fontSize: 9, color: NAVY, paddingBottom: 30 },
 
@@ -205,14 +209,23 @@ function KitchenPdf({ locationName, day, generatedAt, prep }: {
                 {prep.largePartyAlerts.length === 0 ? (
                   <Text style={s.emptyText}>No large parties flagged tonight.</Text>
                 ) : (
-                  prep.largePartyAlerts.map((a, i) => (
-                    <View key={i} style={s.bulletRow}>
-                      <Text style={[s.bulletDot, { color: RED }]}>•</Text>
-                      <Text style={s.bulletText}>
-                        <Text style={{ fontFamily: "Helvetica-Bold" }}>{a.timeLabel}</Text>{"  "}{a.note}
+                  <>
+                    {/* Cap the printed list so a busy night can't push the sheet
+                        onto a second page; the overflow count keeps the total honest. */}
+                    {prep.largePartyAlerts.slice(0, MAX_ALERTS).map((a, i) => (
+                      <View key={i} style={s.bulletRow}>
+                        <Text style={[s.bulletDot, { color: RED }]}>•</Text>
+                        <Text style={s.bulletText}>
+                          <Text style={{ fontFamily: "Helvetica-Bold" }}>{a.timeLabel}</Text>{"  "}{a.note}
+                        </Text>
+                      </View>
+                    ))}
+                    {prep.largePartyAlerts.length > MAX_ALERTS && (
+                      <Text style={[s.bulletText, { color: GRAY, marginTop: 2 }]}>
+                        + {prep.largePartyAlerts.length - MAX_ALERTS} more large part{prep.largePartyAlerts.length - MAX_ALERTS === 1 ? "y" : "ies"} — see the on-screen dashboard.
                       </Text>
-                    </View>
-                  ))
+                    )}
+                  </>
                 )}
               </View>
             </View>
