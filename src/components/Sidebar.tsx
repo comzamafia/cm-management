@@ -101,6 +101,11 @@ const I = {
       <path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" />
     </svg>
   ),
+  perfOverview: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  ),
   auditLogs: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -117,7 +122,15 @@ const I = {
   ),
 };
 
-type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: number };
+type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: number; external?: boolean };
+
+// External "Performance overview" — opens the AI operations dashboard in a new tab.
+const PERF_OVERVIEW: NavItem = {
+  href: "https://chiangmai-ai-operations.vercel.app/dashboard",
+  label: "Performance overview",
+  icon: I.perfOverview,
+  external: true,
+};
 
 // Role gating: each item lists the roles that may see it. `null` = everyone.
 // People / Checklists / Inventory / Projects are management tools and are
@@ -226,23 +239,29 @@ function NavList({
 
   const renderItem = (item: NavItem) => {
     const active = item.href === activeHref;
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        onClick={onNavigate}
-        className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-          active ? "bg-[#F4A626]/15 text-[#F4A626]" : "text-white/65 hover:bg-white/8 hover:text-white/90"
-        }`}
-      >
+    const cls = `flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+      active ? "bg-[#F4A626]/15 text-[#F4A626]" : "text-white/65 hover:bg-white/8 hover:text-white/90"
+    }`;
+    const inner = (
+      <>
         <span className={active ? "text-[#F4A626]" : "text-white/40"}>{item.icon}</span>
         <span className="flex-1">{item.label}</span>
-        {item.badge != null && item.badge > 0 && (
+        {item.external ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+          </svg>
+        ) : item.badge != null && item.badge > 0 ? (
           <span className="ml-auto grid h-4.5 min-w-[18px] place-items-center rounded-full bg-[#943B13] px-1 text-[10px] font-bold leading-none text-white">
             {item.badge > 99 ? "99+" : item.badge}
           </span>
-        )}
-      </Link>
+        ) : null}
+      </>
+    );
+    // External links open in a new tab; internal ones use the Next router.
+    return item.external ? (
+      <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" onClick={onNavigate} className={cls}>{inner}</a>
+    ) : (
+      <Link key={item.href} href={item.href} onClick={onNavigate} className={cls}>{inner}</Link>
     );
   };
 
@@ -359,17 +378,21 @@ export function Sidebar({
     ? baseNav.flatMap((item) => item.href === "/dashboard" ? [item, ...extraItems] : [item])
     : baseNav;
 
-  const nav: NavItem[] = withExtras.map((item) => ({
-    href: item.href,
-    label: item.label,
-    icon: item.icon,
-    badge:
-      item.href === "/notifications"
-        ? unreadCount || undefined
-        : item.href === "/announcements"
-          ? unreadAnnouncements || undefined
-          : undefined,
-  }));
+  const nav: NavItem[] = [
+    // Pinned at the very top: external Performance overview (opens in a new tab).
+    ...(complianceOnly ? [] : [PERF_OVERVIEW]),
+    ...withExtras.map((item) => ({
+      href: item.href,
+      label: item.label,
+      icon: item.icon,
+      badge:
+        item.href === "/notifications"
+          ? unreadCount || undefined
+          : item.href === "/announcements"
+            ? unreadAnnouncements || undefined
+            : undefined,
+    })),
+  ];
 
   useEffect(() => {
     setOpen(false);
