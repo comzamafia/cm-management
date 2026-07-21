@@ -2,7 +2,7 @@ import { Priority, Role, TaskStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { locationScopeWhere } from "./auth";
 import { isOverdue } from "./labels";
-import { dayBoundsTZ, localWeekday, localDayOfMonth } from "./time";
+import { dayBoundsTZ, localWeekday, localDayOfMonth, isoWeekId, monthId } from "./time";
 
 type ScopeUser = { role: Role; locationId: string | null };
 
@@ -139,36 +139,74 @@ export async function getMyWork(user: { id: string }) {
   };
 }
 
+export type TrackerTask = {
+  id: string;
+  title: string;
+  status: TaskStatus;   // raw stored status
+  derived: TaskStatus;  // OVERDUE-aware, for display
+  priority: Priority;
+  categoryName: string | null;
+  categoryColor: string | null;
+  locationName: string;
+  dueAt: string | null; // ISO
+  proofRequired: boolean;
+  weekCol: number | null; // 0=Mon … 6=Sun if due in the current week, else null
+  inMonth: boolean;       // due within the current calendar month
+};
+
 /**
- * Read-only personal task tracker (the /tracker page): the signed-in user's own
- * task summary rolled up the way the Marketing/Operations tracker presents it —
- * overall completion, headline counts, and a KPI breakdown by category and by
- * location. Purely derived from the user's assigned tasks; no writes.
+ * Personal task tracker data (the /tracker page): the signed-in user's own tasks
+ * rolled up the way the Marketing/Operations tracker presents it, plus the raw
+ * task list (with week/month placement) that powers the Weekly / Monthly / All
+ * Tasks / Summary tabs. Read shape only — status edits go through changeTaskStatus.
  */
 export async function getUserTaskTracker(userId: string) {
-  const tasks = await prisma.task.findMany({
+  const rows = await prisma.task.findMany({
     where: { assigneeId: userId, archived: false },
     include: {
       category: { select: { name: true, color: true } },
       location: { select: { name: true } },
     },
+    orderBy: [{ dueAt: "asc" }, { priority: "desc" }],
   });
 
-  const isDone = (s: TaskStatus) => s === "DONE" || s === "VERIFIED";
-  const total = tasks.length;
-  const done = tasks.filter((t) => isDone(t.status)).length;
-  const overdue = tasks.filter((t) => isOverdue(t.dueAt, t.status)).length;
+  const now = new Date();
+  const thisWeek = isoWeekId(now);
+  const thisMonth = monthId(now);
+  const { start: startToday, end: endToday } = dayBoundsTZ(now);
 
-  const { start: startToday, end: endToday } = dayBoundsTZ();
-  const dueToday = tasks.filter(
+  const tasks: TrackerTask[] = rows.map((t) => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    derived: isOverdue(t.dueAt, t.status) ? ("OVERDUE" as TaskStatus) : t.status,
+    priority: t.priority,
+    categoryName: t.category?.name ?? null,
+    categoryColor: t.category?.color ?? null,
+    locationName: t.location?.name ?? "—",
+    dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+    proofRequired: t.proofRequired,
+    weekCol: t.dueAt && isoWeekId(t.dueAt) === thisWeek ? (localWeekday(t.dueAt) + 6) % 7 : null,
+    inMonth: !!t.dueAt && monthId(t.dueAt) === thisMonth,
+  }));
+
+  const isDone = (s: TaskStatus) => s === "DONE" || s === "VERIFIED";
+  const pct = (d: number, tot: number) => (tot > 0 ? Math.round((d / tot) * 100) : 0);
+
+  const total = rows.length;
+  const done = rows.filter((t) => isDone(t.status)).length;
+  const overdue = rows.filter((t) => isOverdue(t.dueAt, t.status)).length;
+  const dueToday = rows.filter(
     (t) => !isDone(t.status) && t.dueAt && t.dueAt >= startToday && t.dueAt < endToday,
   ).length;
 
-  const pct = (d: number, tot: number) => (tot > 0 ? Math.round((d / tot) * 100) : 0);
+  // Status breakdown (derived, so OVERDUE is surfaced) for the Summary tab.
+  const byStatus: Record<string, number> = { PENDING: 0, IN_PROGRESS: 0, OVERDUE: 0, DONE: 0, VERIFIED: 0 };
+  for (const t of tasks) byStatus[t.derived] = (byStatus[t.derived] ?? 0) + 1;
 
   // KPI by category.
   const catMap = new Map<string, { name: string; color: string; total: number; done: number }>();
-  for (const t of tasks) {
+  for (const t of rows) {
     const key = t.category?.name ?? "Uncategorized";
     const row = catMap.get(key) ?? { name: key, color: t.category?.color ?? "#A19BA2", total: 0, done: 0 };
     row.total += 1;
@@ -181,7 +219,7 @@ export async function getUserTaskTracker(userId: string) {
 
   // Completion by location.
   const locMap = new Map<string, { name: string; total: number; done: number }>();
-  for (const t of tasks) {
+  for (const t of rows) {
     const key = t.location?.name ?? "—";
     const row = locMap.get(key) ?? { name: key, total: 0, done: 0 };
     row.total += 1;
@@ -192,11 +230,23 @@ export async function getUserTaskTracker(userId: string) {
     .map((l) => ({ ...l, pct: pct(l.done, l.total) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  // Mon…Sun of the current week, labelled for the Weekly tab header.
+  const wd = localWeekday(now);
+  const monday = new Date(startToday.getTime() - ((wd + 6) % 7) * 86400000);
+  const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weekDays = WEEKDAY_LABELS.map((label, i) => ({
+    label,
+    day: localDayOfMonth(new Date(monday.getTime() + i * 86400000)),
+  }));
+
   return {
     counts: { total, done, overdue, dueToday },
     overallPct: pct(done, total),
     byCategory,
     byLocation,
+    byStatus,
+    weekDays,
+    tasks,
   };
 }
 
