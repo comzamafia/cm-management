@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Priority, TaskStatus } from "@prisma/client";
-import { changeTaskStatus } from "@/lib/tasks";
+import { changeTaskStatus, setTaskDue } from "@/lib/tasks";
 import { TRANSITIONS } from "@/lib/rules";
 import { STATUS_LABEL, STATUS_STYLE, PRIORITY_LABEL, PRIORITY_STYLE } from "@/lib/labels";
 
@@ -18,8 +18,45 @@ type Task = {
 type Data = {
   counts: { total: number; done: number; overdue: number; dueToday: number };
   overallPct: number; byCategory: Cat[]; byLocation: Loc[];
-  byStatus: Record<string, number>; weekDays: { label: string; day: number }[]; tasks: Task[];
+  byStatus: Record<string, number>; weekDays: { label: string; day: number; iso: string }[]; tasks: Task[];
 };
+
+// Shared status/date mutations for the editable tabs.
+function useTaskMutations(setErr: (s: string | null) => void) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const call = (id: string, fn: () => Promise<{ ok: boolean; error?: string }>) => {
+    setErr(null);
+    setBusyId(id);
+    startTransition(async () => {
+      const res = await fn();
+      setBusyId(null);
+      if (!res.ok) setErr(res.error ?? "Could not update the task.");
+      else router.refresh();
+    });
+  };
+
+  const isDone = (t: Task) => t.status === "DONE" || t.status === "VERIFIED";
+  const toggleDone = (t: Task) => {
+    if (!isDone(t) && t.proofRequired) {
+      setErr(`"${t.title}" needs photo proof — open the task to complete it.`);
+      return;
+    }
+    call(t.id, () => changeTaskStatus(t.id, isDone(t) ? "IN_PROGRESS" : "DONE"));
+  };
+  const setStatus = (t: Task, next: TaskStatus) => {
+    if (next === "DONE" && t.proofRequired) {
+      setErr(`"${t.title}" needs photo proof — open the task to complete it.`);
+      return;
+    }
+    call(t.id, () => changeTaskStatus(t.id, next));
+  };
+  const moveDue = (t: Task, iso: string | null) => call(t.id, () => setTaskDue(t.id, iso));
+
+  return { busyId, toggleDone, setStatus, moveDue };
+}
 
 const TABS = ["Dashboard", "Weekly", "Monthly", "All Tasks", "Summary"] as const;
 type Tab = (typeof TABS)[number];
@@ -141,39 +178,116 @@ function DashboardTab({ data }: { data: Data }) {
 }
 
 function WeeklyTab({ data, setErr }: { data: Data; setErr: (s: string | null) => void }) {
+  const { busyId, toggleDone, moveDue } = useTaskMutations(setErr);
+  // This week's tasks + any unscheduled task (so it can be dropped onto a day).
+  const rows = data.tasks.filter((t) => t.weekCol !== null || t.dueAt === null);
+
   return (
     <section className="m-card p-5">
-      <h2 className="mb-4 text-base font-bold text-[#140516]">This Week&apos;s Tasks</h2>
-      <div className="space-y-5">
-        {data.weekDays.map((d, col) => {
-          const dayTasks = data.tasks.filter((t) => t.weekCol === col);
-          return (
-            <div key={col}>
-              <div className="mb-2 flex items-baseline gap-2">
-                <span className="text-sm font-bold text-[#140516]">{d.label}</span>
-                <span className="text-xs text-[#A19BA2]">{d.day}</span>
-                <span className="text-xs text-[#C9C4C9]">· {dayTasks.length} task{dayTasks.length === 1 ? "" : "s"}</span>
-              </div>
-              <div className="space-y-2">
-                {dayTasks.map((t) => <TaskRow key={t.id} t={t} setErr={setErr} />)}
-                {dayTasks.length === 0 && <div className="rounded-lg border border-dashed border-[#E4DDE4] py-3 text-center text-xs text-[#C9C4C9]">Nothing due.</div>}
-              </div>
-            </div>
-          );
-        })}
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="text-base font-bold text-[#140516]">This Week&apos;s Tasks</h2>
+        <span className="text-xs text-[#A19BA2]">{rows.length} task{rows.length === 1 ? "" : "s"}</span>
+      </div>
+      <p className="mb-3 text-xs text-[#A19BA2]">Click a day to schedule or move a task · click its own day again to mark done.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-[#eee] text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]">
+              <th className="py-2 text-left">Task</th>
+              {data.weekDays.map((d) => (
+                <th key={d.label} className="w-14 py-2 text-center">{d.label}<div className="text-[#C9C4C9]">{d.day}</div></th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#f3eef3]">
+            {rows.map((t) => {
+              const done = t.status === "DONE" || t.status === "VERIFIED";
+              return (
+                <tr key={t.id}>
+                  <td className="py-2.5 pr-3">
+                    <Link href={`/tasks/${t.id}`} className="text-sm font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
+                      {t.categoryName && <span className="inline-flex rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>}
+                      <span>{t.locationName}</span>
+                      {t.dueAt === null && <span className="italic text-[#C9C4C9]">· unscheduled</span>}
+                    </div>
+                  </td>
+                  {data.weekDays.map((d, col) => (
+                    <td key={col} className="py-2.5 text-center">
+                      <DayCell
+                        scheduled={t.weekCol === col}
+                        done={done}
+                        busy={busyId === t.id}
+                        onClick={() => (t.weekCol === col ? toggleDone(t) : moveDue(t, d.iso))}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+            {rows.length === 0 && (
+              <tr><td colSpan={8} className="py-8 text-center text-sm text-[#A19BA2]">No tasks this week.</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </section>
   );
 }
 
+function DayCell({ scheduled, done, busy, onClick }: { scheduled: boolean; done: boolean; busy: boolean; onClick: () => void }) {
+  const cls = scheduled
+    ? done
+      ? "border-[#1DBA87] bg-[#1DBA87] text-white"
+      : "border-[#440E48] bg-[#440E48] text-white"
+    : "border-[#E4DDE4] text-transparent hover:border-[#440E48] hover:bg-[#FAF6FA]";
+  return (
+    <button onClick={onClick} disabled={busy} title={scheduled ? (done ? "Mark not done" : "Mark done") : "Move to this day"}
+      className={`grid h-6 w-6 place-items-center rounded-md border-2 transition-colors disabled:opacity-40 ${cls}`}>
+      {scheduled
+        ? (done
+            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            : <span className="h-2 w-2 rounded-sm bg-white" />)
+        : null}
+    </button>
+  );
+}
+
 function MonthlyTab({ data, setErr }: { data: Data; setErr: (s: string | null) => void }) {
-  const monthTasks = data.tasks.filter((t) => t.inMonth);
+  const { busyId, toggleDone, moveDue } = useTaskMutations(setErr);
+  // This month's tasks + any unscheduled task (so it can be given a date).
+  const rows = data.tasks.filter((t) => t.inMonth || t.dueAt === null);
+
   return (
     <section className="m-card p-5">
-      <h2 className="mb-4 text-base font-bold text-[#140516]">This Month&apos;s Tasks</h2>
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="text-base font-bold text-[#140516]">This Month&apos;s Tasks</h2>
+        <span className="text-xs text-[#A19BA2]">{rows.length} task{rows.length === 1 ? "" : "s"}</span>
+      </div>
+      <p className="mb-3 text-xs text-[#A19BA2]">Pick or change each task&apos;s date · click the circle to complete.</p>
       <div className="space-y-2">
-        {monthTasks.map((t) => <TaskRow key={t.id} t={t} showDue setErr={setErr} />)}
-        {monthTasks.length === 0 && <Empty>No tasks due this month.</Empty>}
+        {rows.map((t) => {
+          const done = t.status === "DONE" || t.status === "VERIFIED";
+          return (
+            <div key={t.id} className="flex items-center gap-3 rounded-lg border border-[#EEEAEE] px-3 py-2.5">
+              <button onClick={() => toggleDone(t)} disabled={busyId === t.id} title={done ? "Reopen" : "Mark done"}
+                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              </button>
+              <div className="min-w-0 flex-1">
+                <Link href={`/tasks/${t.id}`} className="truncate text-sm font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
+                  {t.categoryName && <span className="inline-flex rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>}
+                  <span>{t.locationName}</span>
+                </div>
+              </div>
+              <input type="date" value={t.dueAt ? t.dueAt.slice(0, 10) : ""} disabled={busyId === t.id}
+                onChange={(e) => moveDue(t, e.target.value ? `${e.target.value}T12:00:00` : null)}
+                className="shrink-0 rounded-md border border-[#E4DDE4] bg-white px-2 py-1 text-xs text-[#726973] outline-none focus:border-[#440E48]" />
+            </div>
+          );
+        })}
+        {rows.length === 0 && <Empty>No tasks this month.</Empty>}
       </div>
     </section>
   );

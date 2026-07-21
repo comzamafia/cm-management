@@ -498,13 +498,19 @@ export async function archiveOldTasks(
 export async function setTaskDue(taskId: string, dueAt: string | null): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in" };
-  if (!isManager(user.role) && user.role !== "SHIFT_LEAD") {
-    return { ok: false, error: "Only managers/shift leads can change due dates" };
-  }
+
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) return { ok: false, error: "Task not found" };
+
+  // Managers/shift-leads may reschedule tasks in their scope; anyone may
+  // reschedule a task assigned to themselves (e.g. from their own tracker) —
+  // mirrors changeTaskStatus, which already lets assignees update own tasks.
+  const isAssignee = task.assigneeId === user.id;
+  if (!isManager(user.role) && user.role !== "SHIFT_LEAD" && !isAssignee) {
+    return { ok: false, error: "You can only change due dates for your own tasks" };
+  }
   const scope = await scopedLocationIds(user);
-  if (scope !== null && !scope.includes(task.locationId)) {
+  if (scope !== null && !scope.includes(task.locationId) && !isAssignee) {
     return { ok: false, error: "Outside your location scope" };
   }
 

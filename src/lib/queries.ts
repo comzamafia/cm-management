@@ -234,10 +234,15 @@ export async function getUserTaskTracker(userId: string) {
   const wd = localWeekday(now);
   const monday = new Date(startToday.getTime() - ((wd + 6) % 7) * 86400000);
   const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weekDays = WEEKDAY_LABELS.map((label, i) => ({
-    label,
-    day: localDayOfMonth(new Date(monday.getTime() + i * 86400000)),
-  }));
+  const weekDays = WEEKDAY_LABELS.map((label, i) => {
+    const d = new Date(monday.getTime() + i * 86400000);
+    return {
+      label,
+      day: localDayOfMonth(d),
+      // Local-noon instant so rescheduling lands squarely on this weekday in APP_TZ.
+      iso: new Date(d.getTime() + 12 * 3600000).toISOString(),
+    };
+  });
 
   return {
     counts: { total, done, overdue, dueToday },
