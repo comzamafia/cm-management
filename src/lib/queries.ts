@@ -140,6 +140,67 @@ export async function getMyWork(user: { id: string }) {
 }
 
 /**
+ * Read-only personal task tracker (the /tracker page): the signed-in user's own
+ * task summary rolled up the way the Marketing/Operations tracker presents it —
+ * overall completion, headline counts, and a KPI breakdown by category and by
+ * location. Purely derived from the user's assigned tasks; no writes.
+ */
+export async function getUserTaskTracker(userId: string) {
+  const tasks = await prisma.task.findMany({
+    where: { assigneeId: userId, archived: false },
+    include: {
+      category: { select: { name: true, color: true } },
+      location: { select: { name: true } },
+    },
+  });
+
+  const isDone = (s: TaskStatus) => s === "DONE" || s === "VERIFIED";
+  const total = tasks.length;
+  const done = tasks.filter((t) => isDone(t.status)).length;
+  const overdue = tasks.filter((t) => isOverdue(t.dueAt, t.status)).length;
+
+  const { start: startToday, end: endToday } = dayBoundsTZ();
+  const dueToday = tasks.filter(
+    (t) => !isDone(t.status) && t.dueAt && t.dueAt >= startToday && t.dueAt < endToday,
+  ).length;
+
+  const pct = (d: number, tot: number) => (tot > 0 ? Math.round((d / tot) * 100) : 0);
+
+  // KPI by category.
+  const catMap = new Map<string, { name: string; color: string; total: number; done: number }>();
+  for (const t of tasks) {
+    const key = t.category?.name ?? "Uncategorized";
+    const row = catMap.get(key) ?? { name: key, color: t.category?.color ?? "#A19BA2", total: 0, done: 0 };
+    row.total += 1;
+    if (isDone(t.status)) row.done += 1;
+    catMap.set(key, row);
+  }
+  const byCategory = [...catMap.values()]
+    .map((c) => ({ ...c, pct: pct(c.done, c.total) }))
+    .sort((a, b) => b.total - a.total);
+
+  // Completion by location.
+  const locMap = new Map<string, { name: string; total: number; done: number }>();
+  for (const t of tasks) {
+    const key = t.location?.name ?? "—";
+    const row = locMap.get(key) ?? { name: key, total: 0, done: 0 };
+    row.total += 1;
+    if (isDone(t.status)) row.done += 1;
+    locMap.set(key, row);
+  }
+  const byLocation = [...locMap.values()]
+    .map((l) => ({ ...l, pct: pct(l.done, l.total) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    counts: { total, done, overdue, dueToday },
+    overallPct: pct(done, total),
+    byCategory,
+    byLocation,
+  };
+}
+
+/**
  * Manager/Owner landing dashboard (mockup layout): today's operational tasks,
  * weekly recurring planner, upcoming items, category counts, and today's
  * completion count. Personal — shows only the signed-in user's own tasks
