@@ -67,9 +67,9 @@ function dueLabel(iso: string | null): string {
 }
 
 export function TaskTracker({
-  name, roleLabel, locationName, todayLabel, data,
+  name, roleLabel, locationName, todayLabel, data, editable = true,
 }: {
-  name: string; roleLabel: string; locationName: string | null; todayLabel: string; data: Data;
+  name: string; roleLabel: string; locationName: string | null; todayLabel: string; data: Data; editable?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("Dashboard");
   const [err, setErr] = useState<string | null>(null);
@@ -121,12 +121,17 @@ export function TaskTracker({
         ))}
       </div>
 
+      {!editable && (
+        <div className="rounded-lg border border-[#E4DDE4] bg-[#FAF6FA] px-3 py-2 text-xs font-medium text-[#726973]">
+          Viewing {name}&apos;s tracker — read-only.
+        </div>
+      )}
       {err && <div className="rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2 text-xs font-medium text-[#e2445c]">{err}</div>}
 
       {tab === "Dashboard" && <DashboardTab data={data} />}
-      {tab === "Weekly" && <WeeklyTab data={data} setErr={setErr} />}
-      {tab === "Monthly" && <MonthlyTab data={data} setErr={setErr} />}
-      {tab === "All Tasks" && <AllTasksTab data={data} setErr={setErr} />}
+      {tab === "Weekly" && <WeeklyTab data={data} setErr={setErr} editable={editable} />}
+      {tab === "Monthly" && <MonthlyTab data={data} setErr={setErr} editable={editable} />}
+      {tab === "All Tasks" && <AllTasksTab data={data} setErr={setErr} editable={editable} />}
       {tab === "Summary" && <SummaryTab data={data} />}
     </div>
   );
@@ -177,7 +182,7 @@ function DashboardTab({ data }: { data: Data }) {
   );
 }
 
-function WeeklyTab({ data, setErr }: { data: Data; setErr: (s: string | null) => void }) {
+function WeeklyTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
   const { busyId, toggleDone, moveDue } = useTaskMutations(setErr);
   // This week's tasks + any unscheduled task (so it can be dropped onto a day).
   const rows = data.tasks.filter((t) => t.weekCol !== null || t.dueAt === null);
@@ -188,7 +193,7 @@ function WeeklyTab({ data, setErr }: { data: Data; setErr: (s: string | null) =>
         <h2 className="text-base font-bold text-[#140516]">This Week&apos;s Tasks</h2>
         <span className="text-xs text-[#A19BA2]">{rows.length} task{rows.length === 1 ? "" : "s"}</span>
       </div>
-      <p className="mb-3 text-xs text-[#A19BA2]">Click a day to schedule or move a task · click its own day again to mark done.</p>
+      <p className="mb-3 text-xs text-[#A19BA2]">{editable ? "Click a day to schedule or move a task · click its own day again to mark done." : "Each task's scheduled day is highlighted; green means done."}</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
@@ -218,6 +223,7 @@ function WeeklyTab({ data, setErr }: { data: Data; setErr: (s: string | null) =>
                         scheduled={t.weekCol === col}
                         done={done}
                         busy={busyId === t.id}
+                        editable={editable}
                         onClick={() => (t.weekCol === col ? toggleDone(t) : moveDue(t, d.iso))}
                       />
                     </td>
@@ -235,25 +241,30 @@ function WeeklyTab({ data, setErr }: { data: Data; setErr: (s: string | null) =>
   );
 }
 
-function DayCell({ scheduled, done, busy, onClick }: { scheduled: boolean; done: boolean; busy: boolean; onClick: () => void }) {
-  const cls = scheduled
-    ? done
-      ? "border-[#1DBA87] bg-[#1DBA87] text-white"
-      : "border-[#440E48] bg-[#440E48] text-white"
-    : "border-[#E4DDE4] text-transparent hover:border-[#440E48] hover:bg-[#FAF6FA]";
+function DayCell({ scheduled, done, busy, editable, onClick }: { scheduled: boolean; done: boolean; busy: boolean; editable: boolean; onClick: () => void }) {
+  const mark = scheduled
+    ? (done
+        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        : <span className="h-2 w-2 rounded-sm bg-white" />)
+    : null;
+  const base = scheduled
+    ? done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#440E48] bg-[#440E48] text-white"
+    : "border-[#E4DDE4] text-transparent";
+
+  // Read-only: render a static box (no hover, no click).
+  if (!editable) {
+    return <span className={`inline-grid h-6 w-6 place-items-center rounded-md border-2 ${base}`}>{mark}</span>;
+  }
+  const hover = scheduled ? "" : "hover:border-[#440E48] hover:bg-[#FAF6FA]";
   return (
     <button onClick={onClick} disabled={busy} title={scheduled ? (done ? "Mark not done" : "Mark done") : "Move to this day"}
-      className={`grid h-6 w-6 place-items-center rounded-md border-2 transition-colors disabled:opacity-40 ${cls}`}>
-      {scheduled
-        ? (done
-            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            : <span className="h-2 w-2 rounded-sm bg-white" />)
-        : null}
+      className={`grid h-6 w-6 place-items-center rounded-md border-2 transition-colors disabled:opacity-40 ${base} ${hover}`}>
+      {mark}
     </button>
   );
 }
 
-function MonthlyTab({ data, setErr }: { data: Data; setErr: (s: string | null) => void }) {
+function MonthlyTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
   const { busyId, toggleDone, moveDue } = useTaskMutations(setErr);
   // This month's tasks + any unscheduled task (so it can be given a date).
   const rows = data.tasks.filter((t) => t.inMonth || t.dueAt === null);
@@ -264,16 +275,22 @@ function MonthlyTab({ data, setErr }: { data: Data; setErr: (s: string | null) =
         <h2 className="text-base font-bold text-[#140516]">This Month&apos;s Tasks</h2>
         <span className="text-xs text-[#A19BA2]">{rows.length} task{rows.length === 1 ? "" : "s"}</span>
       </div>
-      <p className="mb-3 text-xs text-[#A19BA2]">Pick or change each task&apos;s date · click the circle to complete.</p>
+      <p className="mb-3 text-xs text-[#A19BA2]">{editable ? "Pick or change each task's date · click the circle to complete." : "Each task's date and completion, read-only."}</p>
       <div className="space-y-2">
         {rows.map((t) => {
           const done = t.status === "DONE" || t.status === "VERIFIED";
           return (
             <div key={t.id} className="flex items-center gap-3 rounded-lg border border-[#EEEAEE] px-3 py-2.5">
-              <button onClick={() => toggleDone(t)} disabled={busyId === t.id} title={done ? "Reopen" : "Mark done"}
-                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-              </button>
+              {editable ? (
+                <button onClick={() => toggleDone(t)} disabled={busyId === t.id} title={done ? "Reopen" : "Mark done"}
+                  className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </button>
+              ) : (
+                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent"}`}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </span>
+              )}
               <div className="min-w-0 flex-1">
                 <Link href={`/tasks/${t.id}`} className="truncate text-sm font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
@@ -281,9 +298,9 @@ function MonthlyTab({ data, setErr }: { data: Data; setErr: (s: string | null) =
                   <span>{t.locationName}</span>
                 </div>
               </div>
-              <input type="date" value={t.dueAt ? t.dueAt.slice(0, 10) : ""} disabled={busyId === t.id}
+              <input type="date" value={t.dueAt ? t.dueAt.slice(0, 10) : ""} disabled={!editable || busyId === t.id}
                 onChange={(e) => moveDue(t, e.target.value ? `${e.target.value}T12:00:00` : null)}
-                className="shrink-0 rounded-md border border-[#E4DDE4] bg-white px-2 py-1 text-xs text-[#726973] outline-none focus:border-[#440E48]" />
+                className="shrink-0 rounded-md border border-[#E4DDE4] bg-white px-2 py-1 text-xs text-[#726973] outline-none focus:border-[#440E48] disabled:opacity-60" />
             </div>
           );
         })}
@@ -293,7 +310,7 @@ function MonthlyTab({ data, setErr }: { data: Data; setErr: (s: string | null) =
   );
 }
 
-function AllTasksTab({ data, setErr }: { data: Data; setErr: (s: string | null) => void }) {
+function AllTasksTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
   return (
     <section className="m-card p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -301,7 +318,7 @@ function AllTasksTab({ data, setErr }: { data: Data; setErr: (s: string | null) 
         <span className="text-xs text-[#A19BA2]">{data.tasks.length} total</span>
       </div>
       <div className="space-y-2">
-        {data.tasks.map((t) => <TaskRow key={t.id} t={t} showDue setErr={setErr} />)}
+        {data.tasks.map((t) => <TaskRow key={t.id} t={t} showDue editable={editable} setErr={setErr} />)}
         {data.tasks.length === 0 && <Empty>No tasks assigned.</Empty>}
       </div>
     </section>
@@ -344,7 +361,7 @@ function SummaryTab({ data }: { data: Data }) {
 
 // ── Shared bits ──────────────────────────────────────────────────────────────
 
-function TaskRow({ t, showDue, setErr }: { t: Task; showDue?: boolean; setErr: (s: string | null) => void }) {
+function TaskRow({ t, showDue, editable = true, setErr }: { t: Task; showDue?: boolean; editable?: boolean; setErr: (s: string | null) => void }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -371,14 +388,20 @@ function TaskRow({ t, showDue, setErr }: { t: Task; showDue?: boolean; setErr: (
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-[#EEEAEE] px-3 py-2.5">
-      <button
-        onClick={() => run(done ? "IN_PROGRESS" : "DONE")}
-        disabled={busy}
-        title={done ? "Reopen" : "Mark done"}
-        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}
-      >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-      </button>
+      {editable ? (
+        <button
+          onClick={() => run(done ? "IN_PROGRESS" : "DONE")}
+          disabled={busy}
+          title={done ? "Reopen" : "Mark done"}
+          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </button>
+      ) : (
+        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent"}`}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+      )}
       <div className="min-w-0 flex-1">
         <Link href={`/tasks/${t.id}`} className="truncate text-sm font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[#A19BA2]">
@@ -388,14 +411,18 @@ function TaskRow({ t, showDue, setErr }: { t: Task; showDue?: boolean; setErr: (
         </div>
       </div>
       <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 sm:inline-flex ${PRIORITY_STYLE[t.priority]}`}>{PRIORITY_LABEL[t.priority]}</span>
-      <select
-        value={t.derived}
-        disabled={busy}
-        onChange={(e) => { const v = e.target.value as TaskStatus; if (v !== t.derived) run(v); }}
-        className="shrink-0 rounded-md border border-[#E4DDE4] bg-white py-1 pl-2 pr-1 text-xs font-semibold text-[#726973] outline-none focus:border-[#440E48]"
-      >
-        {options.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-      </select>
+      {editable ? (
+        <select
+          value={t.derived}
+          disabled={busy}
+          onChange={(e) => { const v = e.target.value as TaskStatus; if (v !== t.derived) run(v); }}
+          className="shrink-0 rounded-md border border-[#E4DDE4] bg-white py-1 pl-2 pr-1 text-xs font-semibold text-[#726973] outline-none focus:border-[#440E48]"
+        >
+          {options.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+        </select>
+      ) : (
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${STATUS_STYLE[t.derived]}`}>{STATUS_LABEL[t.derived]}</span>
+      )}
     </div>
   );
 }

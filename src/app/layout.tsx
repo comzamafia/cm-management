@@ -70,9 +70,12 @@ export default async function RootLayout({
   const unreadCount = notifications.filter((n) => !n.read).length;
   const unreadAnnouncements = user ? await getUnreadAnnouncementCount() : 0;
   const SUJEE_ID = "cmq92qov50001jo04684n5q3c";
+  const ADMIN_ID = "cmq8jcoyy0003l2045vyu6suw";
   const showActionPlan = await canSeeActionPlan(user);
   const showMarketing = await canSeeMarketing(user);
   const showAuditLogs = user?.id === SUJEE_ID;
+  // Sujee and the Administrator get a direct menu to Manali's Task Tracker.
+  const showManaliTracker = user?.id === SUJEE_ID || user?.id === ADMIN_ID;
 
   const locationLabel = user
     ? user.location
@@ -99,6 +102,7 @@ export default async function RootLayout({
               showActionPlan={showActionPlan}
               showMarketing={showMarketing}
               showAuditLogs={showAuditLogs}
+              showManaliTracker={showManaliTracker}
             />
             <div className="lg:pl-60 print:pl-0">
               {/* Desktop top bar */}
