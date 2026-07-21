@@ -267,7 +267,7 @@ export function Sidebar({
   showActionPlan,
   showMarketing,
   showAuditLogs,
-  showManaliTracker,
+  personTrackers = [],
 }: {
   user: SidebarUser;
   notifications: NotificationItem[];
@@ -276,7 +276,7 @@ export function Sidebar({
   showActionPlan?: boolean;
   showMarketing?: boolean;
   showAuditLogs?: boolean;
-  showManaliTracker?: boolean;
+  personTrackers?: { label: string; href: string }[];
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -294,8 +294,8 @@ export function Sidebar({
   // Everyone gets a personal, read-only task tracker menu labelled with their
   // own name (mirrors the per-person "Hang"/"Marketing" tracker menus).
   if (!complianceOnly) extraItems.push({ href: "/tracker", label: user.name.split(/\s+/)[0], icon: I.myTracker });
-  // Sujee / Administrator get a direct menu to Manali's tracker.
-  if (showManaliTracker && !complianceOnly) extraItems.push({ href: "/tracker/manali", label: "Manali", icon: I.myTracker });
+  // Sujee / Administrator get direct menus to specific people's trackers.
+  if (!complianceOnly) for (const p of personTrackers) extraItems.push({ href: p.href, label: p.label, icon: I.myTracker });
   if (showActionPlan && !complianceOnly) extraItems.push({ href: "/action-plan", label: "Hang", icon: I.actionPlan });
   if (showMarketing && !complianceOnly) extraItems.push({ href: "/marketing", label: "Marketing", icon: I.actionPlan });
   if (showAuditLogs && !complianceOnly) extraItems.push({ href: "/audit-logs", label: "Audit Logs", icon: I.auditLogs });

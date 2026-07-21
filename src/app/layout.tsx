@@ -74,8 +74,11 @@ export default async function RootLayout({
   const showActionPlan = await canSeeActionPlan(user);
   const showMarketing = await canSeeMarketing(user);
   const showAuditLogs = user?.id === SUJEE_ID;
-  // Sujee and the Administrator get a direct menu to Manali's Task Tracker.
-  const showManaliTracker = user?.id === SUJEE_ID || user?.id === ADMIN_ID;
+  // Sujee and the Administrator get direct menus to specific people's trackers.
+  const personTrackers =
+    user && (user.id === SUJEE_ID || user.id === ADMIN_ID)
+      ? ["Manali", "Liz", "Wine", "Komal"].map((label) => ({ label, href: `/tracker/${label.toLowerCase()}` }))
+      : [];
 
   const locationLabel = user
     ? user.location
@@ -102,7 +105,7 @@ export default async function RootLayout({
               showActionPlan={showActionPlan}
               showMarketing={showMarketing}
               showAuditLogs={showAuditLogs}
-              showManaliTracker={showManaliTracker}
+              personTrackers={personTrackers}
             />
             <div className="lg:pl-60 print:pl-0">
               {/* Desktop top bar */}
