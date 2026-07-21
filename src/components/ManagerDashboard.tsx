@@ -50,6 +50,11 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
   const canSeeNotes = subject.id === user.id || hasGlobalScope(user.role);
   const stickyNotes = canSeeNotes ? await getStickyNotes(subject.id) : [];
 
+  // Front-line staff now see this same board (scoped to their own work), but the
+  // manager-only write affordances stay gated: viewing other users' boards,
+  // reassigning task owners, and editing shared categories.
+  const canManage = isManager(user.role);
+
   return (
     <div className="space-y-6">
       {/* Greeting */}
@@ -63,7 +68,7 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <DashboardViewAs users={md.users} currentId={subject.id} meId={user.id} />
+          {canManage && <DashboardViewAs users={md.users} currentId={subject.id} meId={user.id} />}
           {viewingOther ? (
             <Link href="/dashboard" className="m-btn-ghost">← My board</Link>
           ) : (
@@ -112,7 +117,7 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
       </div>
 
       {/* ─── ROW: Today's Tasks (full width) ─── */}
-      <DashboardTodayTasks tasks={md.todayTasks} pending={md.pendingChecklists} users={md.users} canEdit />
+      <DashboardTodayTasks tasks={md.todayTasks} pending={md.pendingChecklists} users={md.users} canEdit={canManage} />
 
       {/* ─── ROW: Weekly Planner (full width, with checkboxes) ─── */}
       <DashboardWeeklyPlanner
@@ -182,7 +187,7 @@ export async function ManagerDashboard({ user, viewAs, noteDate }: { user: MgrUs
           </div>
         </section>
 
-        <DashboardCategories categories={md.categories} canEdit />
+        <DashboardCategories categories={md.categories} canEdit={canManage} />
       </div>
 
       {/* Daily notes */}
