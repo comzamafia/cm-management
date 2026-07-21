@@ -185,48 +185,90 @@ function Logo() {
 
 type SidebarUser = { name: string; role: string; roleLabel: string; locationLabel: string };
 
+// ── Menu grouping ────────────────────────────────────────────────────────────
+// The sidebar is split into a few collapsible sections so long menus (e.g. an
+// Owner with every tracker) stay manageable. "Main" is always shown; the rest
+// collapse, and the group holding the current page auto-expands.
+type GroupKey = "main" | "trackers" | "operations" | "admin";
+const GROUP_META: { key: GroupKey; label: string | null }[] = [
+  { key: "main", label: null },
+  { key: "trackers", label: "Trackers" },
+  { key: "operations", label: "Operations" },
+  { key: "admin", label: "Admin" },
+];
+const OPERATIONS_HREFS = ["/projects", "/checklists", "/logbook", "/maintenance", "/compliance", "/reservations", "/performance"];
+const ADMIN_HREFS = ["/people", "/training", "/audit-logs", "/settings/notifications"];
+function groupOf(href: string): GroupKey {
+  if (href === "/tracker" || href.startsWith("/tracker/") || href === "/action-plan" || href === "/marketing") return "trackers";
+  if (OPERATIONS_HREFS.includes(href)) return "operations";
+  if (ADMIN_HREFS.includes(href)) return "admin";
+  return "main"; // dashboard, tasks, calendar, announcements, channels, notifications
+}
+
 function NavList({
   pathname,
   nav,
+  collapsed,
+  onToggleGroup,
   onNavigate,
 }: {
   pathname: string;
   nav: NavItem[];
+  collapsed: Record<string, boolean>;
+  onToggleGroup: (key: GroupKey) => void;
   onNavigate?: () => void;
 }) {
   // Highlight the single most specific match, so /tracker/manali lights up the
   // "Manali" item rather than also lighting the "/tracker" (own) item.
   const matches = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  const activeHref = nav
-    .map((n) => n.href)
-    .filter(matches)
-    .sort((a, b) => b.length - a.length)[0];
+  const activeHref = nav.map((n) => n.href).filter(matches).sort((a, b) => b.length - a.length)[0];
+  const activeGroup = activeHref ? groupOf(activeHref) : null;
+
+  const renderItem = (item: NavItem) => {
+    const active = item.href === activeHref;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onNavigate}
+        className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+          active ? "bg-[#F4A626]/15 text-[#F4A626]" : "text-white/65 hover:bg-white/8 hover:text-white/90"
+        }`}
+      >
+        <span className={active ? "text-[#F4A626]" : "text-white/40"}>{item.icon}</span>
+        <span className="flex-1">{item.label}</span>
+        {item.badge != null && item.badge > 0 && (
+          <span className="ml-auto grid h-4.5 min-w-[18px] place-items-center rounded-full bg-[#943B13] px-1 text-[10px] font-bold leading-none text-white">
+            {item.badge > 99 ? "99+" : item.badge}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <nav className="flex flex-col gap-0.5">
-      {nav.map((item) => {
-        const active = item.href === activeHref;
+      {GROUP_META.map(({ key, label }) => {
+        const items = nav.filter((n) => groupOf(n.href) === key);
+        if (items.length === 0) return null;
+        if (label === null) return <div key={key} className="flex flex-col gap-0.5">{items.map(renderItem)}</div>;
+
+        // A collapsed group still opens when it holds the current page.
+        const open = !collapsed[key] || activeGroup === key;
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              active
-                ? "bg-[#F4A626]/15 text-[#F4A626]"
-                : "text-white/65 hover:bg-white/8 hover:text-white/90"
-            }`}
-          >
-            <span className={active ? "text-[#F4A626]" : "text-white/40"}>
-              {item.icon}
-            </span>
-            <span className="flex-1">{item.label}</span>
-            {item.badge != null && item.badge > 0 && (
-              <span className="ml-auto grid h-4.5 min-w-[18px] place-items-center rounded-full bg-[#943B13] px-1 text-[10px] font-bold leading-none text-white">
-                {item.badge > 99 ? "99+" : item.badge}
-              </span>
-            )}
-          </Link>
+          <div key={key} className="mt-1.5">
+            <button
+              onClick={() => onToggleGroup(key)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30 transition-colors hover:text-white/60"
+            >
+              <span className="flex-1 text-left">{label}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className={`transition-transform ${open ? "" : "-rotate-90"}`}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {open && <div className="mt-0.5 flex flex-col gap-0.5">{items.map(renderItem)}</div>}
+          </div>
         );
       })}
     </nav>
@@ -280,6 +322,20 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Secondary menu groups start collapsed; the choice persists per browser.
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({ trackers: true, operations: true, admin: true });
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("cm.sidebarGroups");
+      if (raw) setCollapsedGroups((prev) => ({ ...prev, ...JSON.parse(raw) }));
+    } catch { /* ignore */ }
+  }, []);
+  const toggleGroup = (key: GroupKey) =>
+    setCollapsedGroups((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem("cm.sidebarGroups", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
 
   // Compliance-support accounts only ever see the Compliance page.
   const complianceOnly = user.role === "COMPLIANCE";
@@ -335,7 +391,7 @@ export function Sidebar({
           <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">
             Workspace
           </p>
-          <NavList pathname={pathname} nav={nav} />
+          <NavList pathname={pathname} nav={nav} collapsed={collapsedGroups} onToggleGroup={toggleGroup} />
         </div>
         <div className="mt-auto">
           <UserCard user={user} />
@@ -389,7 +445,7 @@ export function Sidebar({
               <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/30">
                 Workspace
               </p>
-              <NavList pathname={pathname} nav={nav} onNavigate={() => setOpen(false)} />
+              <NavList pathname={pathname} nav={nav} collapsed={collapsedGroups} onToggleGroup={toggleGroup} onNavigate={() => setOpen(false)} />
             </div>
             <div className="mt-auto">
               <UserCard user={user} />
