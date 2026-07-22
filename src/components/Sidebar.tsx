@@ -124,12 +124,11 @@ const I = {
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; badge?: number; external?: boolean };
 
-// External "Performance overview" — opens the AI operations dashboard in a new tab.
+// Native "Performance overview" — the in-app logbook analytics dashboard.
 const PERF_OVERVIEW: NavItem = {
-  href: "https://chiangmai-ai-operations.vercel.app/dashboard",
+  href: "/performance-overview",
   label: "Performance overview",
   icon: I.perfOverview,
-  external: true,
 };
 
 // Role gating: each item lists the roles that may see it. `null` = everyone.
@@ -379,8 +378,8 @@ export function Sidebar({
     : baseNav;
 
   const nav: NavItem[] = [
-    // Pinned at the very top: external Performance overview (opens in a new tab).
-    ...(complianceOnly ? [] : [PERF_OVERVIEW]),
+    // Pinned at the very top for managers: the in-app Performance overview.
+    ...(!complianceOnly && myRank >= RANK.STORE_MANAGER ? [PERF_OVERVIEW] : []),
     ...withExtras.map((item) => ({
       href: item.href,
       label: item.label,
