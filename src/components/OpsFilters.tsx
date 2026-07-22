@@ -4,20 +4,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 type Loc = { id: string; name: string };
-const CATEGORIES: { value: string; label: string }[] = [
-  { value: "", label: "All categories" },
-  { value: "OPERATIONS", label: "Operations" },
-  { value: "SALES_METRICS", label: "Sales metrics" },
-  { value: "CUSTOMER_COMPLAINT", label: "Customer complaint" },
-  { value: "ACTION_NEEDED", label: "Action needed" },
-];
 
-export function PerformanceFilters({ locations, from, to, locationId, category }: {
-  locations: Loc[]; from: string; to: string; locationId: string; category: string;
+export function OpsFilters({ locations, categories, from, to, locationExtId, category }: {
+  locations: Loc[]; categories: string[]; from: string; to: string; locationExtId: string; category: string;
 }) {
   const router = useRouter();
   const sp = useSearchParams();
-  const [f, setF] = useState({ from, to, locationId, category });
+  const [f, setF] = useState({ from, to, locationExtId, category });
 
   const apply = () => {
     const next = new URLSearchParams(sp.toString());
@@ -45,7 +38,7 @@ export function PerformanceFilters({ locations, from, to, locationId, category }
         </div>
         <div>
           <label className={label}>Location</label>
-          <select value={f.locationId} onChange={(e) => set("locationId", e.target.value)} className={`${field} w-full`}>
+          <select value={f.locationExtId} onChange={(e) => set("locationExtId", e.target.value)} className={`${field} w-full`}>
             <option value="">All locations</option>
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
@@ -53,7 +46,8 @@ export function PerformanceFilters({ locations, from, to, locationId, category }
         <div>
           <label className={label}>Category</label>
           <select value={f.category} onChange={(e) => set("category", e.target.value)} className={`${field} w-full`}>
-            {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            <option value="">All categories</option>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <button onClick={apply} className="rounded-lg bg-[#440E48] px-4 py-2 text-sm font-semibold text-white hover:bg-[#5a1560]">

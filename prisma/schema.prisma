@@ -729,6 +729,44 @@ model LogEntry {
   @@index([aiRiskLevel, resolvedAt])
 }
 
+// Synced snapshot of the external AI-operations logbook (7shifts-sourced posts +
+// their AI analysis), pulled via the "Sync" button on /performance-overview.
+// Deduplicated by externalId (upsert), so re-syncing an overlapping range is safe.
+model OpsLogPost {
+  id                  String    @id @default(cuid())
+  externalId          String    @unique // stringified external post id
+  locationExtId       String
+  locationName        String
+  date                String // "YYYY-MM-DD"
+  postedAt            DateTime
+  writerUserId        String?
+  writerName          String
+  writerRole          String?
+  message             String
+  category            String
+  attachments         Json      @default("[]")
+
+  aiAnalyzed          Boolean   @default(false)
+  aiSummary           String?
+  aiKeywords          Json?
+  aiSeverity          String?
+  aiSentiment         String?
+  aiSentimentScore    Int?
+  aiRiskScore         Int?
+  aiDepartment        String?
+  aiCategory          String?
+  aiRootCause         String?
+  aiRecommendedAction String?
+  aiFollowUpRequired  Boolean   @default(false)
+  aiRaw               Json?
+
+  syncedAt            DateTime  @default(now()) @updatedAt
+
+  @@index([date])
+  @@index([locationExtId, date])
+  @@index([aiFollowUpRequired])
+}
+
 // Daily reservation-book upload (host manually exports a CSV from the
 // reservation system each day) — powers the /reservations host dashboard.
 // One import per location per night; re-uploading the same night replaces it.
