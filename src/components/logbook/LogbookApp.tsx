@@ -39,28 +39,27 @@ export function LogbookApp({
           onCreated={() => setRefreshKey((k) => k + 1)}
         />
         {refreshKey > 0 && (
-          <p className="mt-3 text-center text-sm" style={{ color: "var(--lb-green)" }}>✓ Entry submitted</p>
+          <p className="mt-3 text-center text-sm font-semibold text-[#1DBA87]">✓ Entry submitted</p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <AttentionBanner initialCount={initialAttentionCount} />
 
       {initialKpi && <KpiCharts data={initialKpi} />}
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1 rounded-lg border p-1" style={{ borderColor: "var(--lb-border)", background: "var(--lb-surface)" }}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex gap-2">
           {(["rollup", "history"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className="rounded-md px-3 py-1.5 text-xs font-semibold capitalize"
-              style={tab === t
-                ? { background: "var(--lb-accent)", color: "#140516" }
-                : { color: "var(--lb-text-soft)" }}
+              className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
+                tab === t ? "bg-[#440E48] text-white" : "border border-[#E4DDE4] text-[#726973] hover:bg-[#FAF6FA]"
+              }`}
             >
               {t === "rollup" ? "Daily Rollup" : "History"}
             </button>
@@ -68,10 +67,9 @@ export function LogbookApp({
         </div>
         <button
           onClick={() => setShowForm((s) => !s)}
-          className="rounded-lg px-3 py-1.5 text-xs font-bold"
-          style={{ background: "var(--lb-accent)", color: "#140516" }}
+          className="rounded-lg bg-[#440E48] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#5a1560]"
         >
-          {showForm ? "Hide Form" : "+ New Entry"}
+          {showForm ? "Hide form" : "+ New entry"}
         </button>
       </div>
 

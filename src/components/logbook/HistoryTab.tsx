@@ -14,7 +14,7 @@ const CATEGORY_LABEL: Record<LogCategory, string> = {
   ACTION_NEEDED: "Action Needed",
 };
 
-const RISK_COLOR: Record<string, string> = { LOW: "var(--lb-text-soft)", MEDIUM: "var(--lb-accent)", HIGH: "var(--lb-red)" };
+const RISK_COLOR: Record<string, string> = { LOW: "#1DBA87", MEDIUM: "#F4A626", HIGH: "#e2445c" };
 
 export function HistoryTab({ locations }: { locations: LocationOpt[] }) {
   const [locationId, setLocationId] = useState("");
@@ -47,61 +47,62 @@ export function HistoryTab({ locations }: { locations: LocationOpt[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationId, category, department, itemTag, from, to, page]);
 
-  const selCls = "rounded-lg border px-2.5 py-1.5 text-xs outline-none";
-  const selStyle = { background: "var(--lb-surface-2)", borderColor: "var(--lb-border)", color: "var(--lb-text)" };
+  const selCls = "rounded-lg border border-[#E4DDE4] bg-white px-2.5 py-1.5 text-xs text-[#140516] outline-none focus:border-[#440E48]";
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <select value={locationId} onChange={(e) => { setLocationId(e.target.value); setPage(1); }} className={selCls} style={selStyle}>
+      <div className="m-card flex flex-wrap items-center gap-2 p-3">
+        <select value={locationId} onChange={(e) => { setLocationId(e.target.value); setPage(1); }} className={selCls}>
           <option value="">All Locations</option>
           {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
-        <select value={category} onChange={(e) => { setCategory(e.target.value as LogCategory | ""); setPage(1); }} className={selCls} style={selStyle}>
+        <select value={category} onChange={(e) => { setCategory(e.target.value as LogCategory | ""); setPage(1); }} className={selCls}>
           <option value="">All Categories</option>
           {Object.entries(CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <select value={department} onChange={(e) => { setDepartment(e.target.value as LogDepartment | ""); setPage(1); }} className={selCls} style={selStyle}>
+        <select value={department} onChange={(e) => { setDepartment(e.target.value as LogDepartment | ""); setPage(1); }} className={selCls}>
           <option value="">FOH / BOH</option>
           <option value="FOH">FOH</option>
           <option value="BOH">BOH</option>
         </select>
-        <input value={itemTag} onChange={(e) => { setItemTag(e.target.value); setPage(1); }} placeholder="Dish/ingredient…" className={selCls} style={selStyle} />
-        <input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} className={selCls} style={selStyle} />
-        <input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} className={selCls} style={selStyle} />
+        <input value={itemTag} onChange={(e) => { setItemTag(e.target.value); setPage(1); }} placeholder="Dish/ingredient…" className={selCls} />
+        <input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} className={selCls} />
+        <input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} className={selCls} />
       </div>
 
-      <div className="rounded-xl border" style={{ background: "var(--lb-surface)", borderColor: "var(--lb-border)" }}>
-        <div className="divide-y" style={{ borderColor: "var(--lb-border)" }}>
+      <div className="m-card overflow-hidden">
+        <div className="divide-y divide-[#f3eef3]">
           {entries.map((e) => (
-            <div key={e.id} className="flex items-start justify-between gap-3 px-4 py-3 text-sm">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--lb-text-soft)" }}>
-                  <span className="font-semibold" style={{ color: "var(--lb-text)" }}>{e.location.name}</span>
-                  <span>· {CATEGORY_LABEL[e.category]}</span>
-                  <span>· {e.department}</span>
-                  {e.itemTag && <span className="rounded px-1.5 py-0.5" style={{ background: "var(--lb-surface-2)" }}>{e.itemTag}</span>}
-                  {e.aiRiskLevel && <span style={{ color: RISK_COLOR[e.aiRiskLevel] }}>● {e.aiRiskLevel}</span>}
-                </div>
-                <p className="mt-1" style={{ color: "var(--lb-text)" }}>{e.body}</p>
-                <div className="mt-1 text-[11px]" style={{ color: "var(--lb-text-soft)" }}>
-                  {e.author.name} · {new Date(e.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                </div>
+            <div key={e.id} className="px-5 py-3 text-sm transition-colors hover:bg-[#faf8fa]">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#A19BA2]">
+                <span className="font-semibold text-[#140516]">{e.location.name}</span>
+                <span>· {CATEGORY_LABEL[e.category]}</span>
+                <span>· {e.department}</span>
+                {e.itemTag && <span className="rounded bg-[#F3EEF3] px-1.5 py-0.5 font-medium text-[#726973]">{e.itemTag}</span>}
+                {e.aiRiskLevel && (
+                  <span className="inline-flex items-center gap-1 font-semibold" style={{ color: RISK_COLOR[e.aiRiskLevel] }}>
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: RISK_COLOR[e.aiRiskLevel] }} />{e.aiRiskLevel}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-[#433745]">{e.body}</p>
+              <div className="mt-1 text-[11px] text-[#A19BA2]">
+                {e.author.name} · {new Date(e.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
               </div>
             </div>
           ))}
           {entries.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--lb-text-soft)" }}>
+            <div className="px-5 py-10 text-center text-sm text-[#A19BA2]">
               {busy ? "Loading…" : "No entries found."}
             </div>
           )}
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t px-4 py-2.5 text-xs" style={{ borderColor: "var(--lb-border)", color: "var(--lb-text-soft)" }}>
+          <div className="flex items-center justify-between border-t border-[#f3eef3] px-5 py-3 text-xs text-[#A19BA2]">
             <span>Page {page} of {totalPages} · {total} total</span>
-            <div className="flex gap-2">
-              {page > 1 && <button onClick={() => setPage(page - 1)} className="hover:underline">← Prev</button>}
-              {page < totalPages && <button onClick={() => setPage(page + 1)} className="hover:underline">Next →</button>}
+            <div className="flex gap-3">
+              {page > 1 && <button onClick={() => setPage(page - 1)} className="font-semibold text-[#440E48] hover:underline">← Prev</button>}
+              {page < totalPages && <button onClick={() => setPage(page + 1)} className="font-semibold text-[#440E48] hover:underline">Next →</button>}
             </div>
           </div>
         )}

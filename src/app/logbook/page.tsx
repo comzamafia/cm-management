@@ -7,7 +7,6 @@ import {
   getLogbookLocations,
   getKpiData,
 } from "@/lib/logbook";
-import { LogbookThemeToggle } from "@/components/logbook/LogbookThemeToggle";
 import { LogbookApp } from "@/components/logbook/LogbookApp";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +24,11 @@ export default async function LogbookPage() {
     : [null, 0, null];
 
   return (
-    <LogbookThemeToggle>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[#140516]">Logbook</h1>
+        <p className="mt-0.5 text-sm text-[#726973]">Daily operational log across your locations</p>
+      </div>
       <LogbookApp
         canManage={canManage}
         locations={locations}
@@ -34,6 +37,6 @@ export default async function LogbookPage() {
         initialAttentionCount={attentionCount}
         initialKpi={kpi}
       />
-    </LogbookThemeToggle>
+    </div>
   );
 }

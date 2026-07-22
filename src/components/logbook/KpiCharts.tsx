@@ -5,42 +5,43 @@ import type { getKpiData } from "@/lib/logbook";
 
 type KpiData = Awaited<ReturnType<typeof getKpiData>>;
 
-const DEPT_COLORS = ["var(--lb-accent)", "var(--lb-green)"];
+const DEPT_COLORS = ["#F4A626", "#1DBA87"];
 
 export function KpiCharts({ data }: { data: KpiData }) {
+  const label = "text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]";
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       {/* Entries today */}
-      <div className="rounded-xl border p-4" style={{ background: "var(--lb-surface)", borderColor: "var(--lb-border)" }}>
-        <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Entries Today</div>
-        <div className="text-3xl font-extrabold" style={{ color: "var(--lb-accent)" }}>{data.totalToday}</div>
+      <div className="m-card p-4">
+        <div className={label}>Entries Today</div>
+        <div className="text-3xl font-extrabold text-[#440E48]">{data.totalToday}</div>
         <div className="mt-2 h-14">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data.hourly}>
-              <Area type="monotone" dataKey="count" stroke="var(--lb-accent)" fill="var(--lb-accent)" fillOpacity={0.25} strokeWidth={2} />
+              <Area type="monotone" dataKey="count" stroke="#F4A626" fill="#F4A626" fillOpacity={0.2} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Complaints trend */}
-      <div className="rounded-xl border p-4" style={{ background: "var(--lb-surface)", borderColor: "var(--lb-border)" }}>
-        <div className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Complaints — Last 7 Days</div>
+      <div className="m-card p-4">
+        <div className={`mb-2 ${label}`}>Complaints — Last 7 Days</div>
         <div className="h-24">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data.complaintsByDay}>
-              <XAxis dataKey="date" tick={{ fontSize: 9, fill: "var(--lb-text-soft)" }} tickFormatter={(d: string) => d.slice(5)} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#A19BA2" }} tickFormatter={(d: string) => d.slice(5)} axisLine={false} tickLine={false} />
               <YAxis hide allowDecimals={false} />
-              <Tooltip contentStyle={{ background: "var(--lb-surface-2)", border: "1px solid var(--lb-border)", fontSize: 11 }} />
-              <Line type="monotone" dataKey="count" stroke="var(--lb-red)" strokeWidth={2} dot={{ r: 3 }} />
+              <Tooltip contentStyle={{ background: "#fff", border: "1px solid #E4DDE4", borderRadius: 8, fontSize: 11 }} />
+              <Line type="monotone" dataKey="count" stroke="#e2445c" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* FOH vs BOH */}
-      <div className="rounded-xl border p-4" style={{ background: "var(--lb-surface)", borderColor: "var(--lb-border)" }}>
-        <div className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>FOH vs BOH — Today</div>
+      <div className="m-card p-4">
+        <div className={`mb-2 ${label}`}>FOH vs BOH — Today</div>
         <div className="flex items-center gap-3">
           <div className="h-20 w-20 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -53,7 +54,7 @@ export function KpiCharts({ data }: { data: KpiData }) {
           </div>
           <div className="space-y-1 text-xs">
             {data.byDepartment.map((d, i) => (
-              <div key={d.name} className="flex items-center gap-1.5" style={{ color: "var(--lb-text)" }}>
+              <div key={d.name} className="flex items-center gap-1.5 text-[#433745]">
                 <span className="h-2 w-2 rounded-full" style={{ background: DEPT_COLORS[i % DEPT_COLORS.length] }} />
                 {d.name}: {d.value}
               </div>

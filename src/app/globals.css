@@ -126,39 +126,6 @@ body {
 .m-stripe { width: 6px; border-radius: 6px 0 0 6px; }
 
 /* ─────────────────────────────────────────────────────────────
-   Logbook — scoped theme (dark by default, toggleable). Only ever
-   applied within src/app/logbook/**; never touches --cm-* vars so
-   the rest of the app is unaffected.
-   ───────────────────────────────────────────────────────────── */
-.logbook-dark {
-  --lb-bg: #0a0a0b;
-  --lb-surface: #17171a;
-  --lb-surface-2: #1f1f23;
-  --lb-accent: #F4A626;
-  --lb-text: #EDEDED;
-  --lb-text-soft: #A8A5AB;
-  --lb-border: #2a2a2e;
-  --lb-green: #34D399;
-  --lb-red: #F87171;
-}
-.logbook-light {
-  --lb-bg: #FAF6FA;
-  --lb-surface: #ffffff;
-  --lb-surface-2: #F3EEF3;
-  --lb-accent: #F4A626;
-  --lb-text: #2b2130;
-  --lb-text-soft: #726973;
-  --lb-border: #E4DDE4;
-  --lb-green: #1DBA87;
-  --lb-red: #e2445c;
-}
-.logbook-root {
-  background: var(--lb-bg);
-  color: var(--lb-text);
-  min-height: 100vh;
-}
-
-/* ─────────────────────────────────────────────────────────────
    Reservation dashboard — scoped theme (navy/blue host-dashboard look,
    matches the provided mockup). Only ever applied within
    src/app/reservations/**; never touches --cm-* vars.

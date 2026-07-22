@@ -67,49 +67,48 @@ export function NewEntryForm({
     });
   }
 
-  const inputCls = "w-full rounded-lg border px-3 py-2 text-sm outline-none";
-  const inputStyle = { background: "var(--lb-surface-2)", borderColor: "var(--lb-border)", color: "var(--lb-text)" };
+  const inputCls = "w-full rounded-lg border border-[#E4DDE4] bg-white px-3 py-2 text-sm text-[#140516] outline-none focus:border-[#440E48]";
+  const labelCls = "mb-1 block text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]";
 
   return (
-    <div className="rounded-xl border p-5" style={{ background: "var(--lb-surface)", borderColor: "var(--lb-border)" }}>
+    <div className="m-card p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-bold" style={{ color: "var(--lb-text)" }}>New Log Entry</h3>
+        <h3 className="text-base font-bold text-[#140516]">New log entry</h3>
         {onClose && (
-          <button onClick={onClose} className="text-xs" style={{ color: "var(--lb-text-soft)" }}>Close ✕</button>
+          <button onClick={onClose} className="text-xs font-semibold text-[#A19BA2] hover:text-[#726973]">Close ✕</button>
         )}
       </div>
 
       {error && (
-        <div className="mb-3 rounded-lg border px-3 py-2 text-xs font-medium" style={{ borderColor: "var(--lb-red)", color: "var(--lb-red)", background: "color-mix(in srgb, var(--lb-red) 12%, transparent)" }}>
+        <div className="mb-3 rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2 text-xs font-medium text-[#e2445c]">
           {error}
         </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Location</label>
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={inputCls} style={inputStyle}>
+          <label className={labelCls}>Location</label>
+          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={inputCls}>
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as LogCategory)} className={inputCls} style={inputStyle}>
+          <label className={labelCls}>Category</label>
+          <select value={category} onChange={(e) => setCategory(e.target.value as LogCategory)} className={inputCls}>
             {CATEGORY_OPTS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Department</label>
+          <label className={labelCls}>Department</label>
           <div className="flex gap-2">
             {(["FOH", "BOH"] as const).map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => setDepartment(d)}
-                className="flex-1 rounded-lg border px-3 py-2 text-sm font-semibold"
-                style={department === d
-                  ? { background: "var(--lb-accent)", borderColor: "var(--lb-accent)", color: "#140516" }
-                  : { ...inputStyle }}
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                  department === d ? "border-[#440E48] bg-[#440E48] text-white" : "border-[#E4DDE4] bg-white text-[#726973] hover:bg-[#FAF6FA]"
+                }`}
               >
                 {d}
               </button>
@@ -117,23 +116,21 @@ export function NewEntryForm({
           </div>
         </div>
         <div className="relative">
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Dish / Ingredient (optional)</label>
+          <label className={labelCls}>Dish / Ingredient (optional)</label>
           <input
             value={itemTag}
             onChange={(e) => setItemTag(e.target.value)}
             placeholder="e.g. Pad Kee Mao"
             className={inputCls}
-            style={inputStyle}
           />
           {suggestions.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full rounded-lg border shadow-lg" style={{ background: "var(--lb-surface-2)", borderColor: "var(--lb-border)" }}>
+            <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-[#E4DDE4] bg-white shadow-lg">
               {suggestions.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => { setItemTag(s); setSuggestions([]); }}
-                  className="block w-full px-3 py-1.5 text-left text-xs hover:opacity-80"
-                  style={{ color: "var(--lb-text)" }}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-[#140516] hover:bg-[#FAF6FA]"
                 >
                   {s}
                 </button>
@@ -144,29 +141,27 @@ export function NewEntryForm({
       </div>
 
       <div className="mt-3">
-        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Entry</label>
+        <label className={labelCls}>Entry</label>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={4}
           placeholder="What happened?"
           className={inputCls}
-          style={inputStyle}
         />
       </div>
 
       <div className="mt-3">
-        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--lb-text-soft)" }}>Photos (optional)</label>
+        <label className={labelCls}>Photos (optional)</label>
         <FileDropzone value={photoUrls} onChange={setPhotoUrls} folder="logbook" kind="image" compact />
       </div>
 
       <button
         onClick={submit}
         disabled={busy}
-        className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-bold disabled:opacity-60"
-        style={{ background: "var(--lb-accent)", color: "#140516" }}
+        className="mt-4 w-full rounded-lg bg-[#440E48] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#5a1560] disabled:opacity-60"
       >
-        {busy ? "Saving…" : "Submit Entry"}
+        {busy ? "Saving…" : "Submit entry"}
       </button>
     </div>
   );
