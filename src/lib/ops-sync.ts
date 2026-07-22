@@ -121,3 +121,17 @@ export async function syncOpsData(input?: { start?: string; end?: string }): Pro
   revalidatePath("/performance-overview");
   return { ok: true, fetched: rows.length, created, updated, from, to };
 }
+
+// Clear (or re-open) a follow-up item from the attention queue. Stored locally on
+// the row, so it persists across re-syncs.
+export async function resolveOpsItem(id: string, resolved: boolean): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  if (!atLeast(user.role, Role.STORE_MANAGER)) return { ok: false, error: "Manager access required" };
+  await prisma.opsLogPost.update({
+    where: { id },
+    data: resolved ? { resolvedAt: new Date(), resolvedById: user.id } : { resolvedAt: null, resolvedById: null },
+  });
+  revalidatePath("/performance-overview");
+  return { ok: true };
+}

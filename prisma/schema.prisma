@@ -760,11 +760,17 @@ model OpsLogPost {
   aiFollowUpRequired  Boolean   @default(false)
   aiRaw               Json?
 
+  // Local follow-up tracking — a manager can clear an item from the attention
+  // queue. Never sent by the external API, so it survives re-syncs (upsert only
+  // inserts new rows / refreshes AI on unanalysed ones; it never rewrites these).
+  resolvedAt          DateTime?
+  resolvedById        String?
+
   syncedAt            DateTime  @default(now()) @updatedAt
 
   @@index([date])
   @@index([locationExtId, date])
-  @@index([aiFollowUpRequired])
+  @@index([aiFollowUpRequired, resolvedAt])
 }
 
 // Daily reservation-book upload (host manually exports a CSV from the

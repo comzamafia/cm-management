@@ -17,6 +17,16 @@ export type OpsListItem = {
 const isValidDay = (s?: string) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const mean = (nums: number[]) => (nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0);
 const HIGH = new Set(["High", "Critical", "Severe"]);
+const SEV_RANK: Record<string, number> = { Critical: 4, Severe: 4, High: 3, Medium: 2, Low: 1 };
+
+function mode(values: string[]): { name: string; count: number } | null {
+  if (values.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: { name: string; count: number } | null = null;
+  for (const [name, count] of counts) if (!best || count > best.count) best = { name, count };
+  return best;
+}
 
 export async function getOpsOverview(filters: OpsFilters) {
   const to = isValidDay(filters.to) ? filters.to! : localDateISO();
@@ -67,11 +77,23 @@ export async function getOpsOverview(filters: OpsFilters) {
     postedAt: r.postedAt.toISOString(),
   });
 
-  const attention = [...rows]
-    .filter((r) => r.aiFollowUpRequired)
-    .sort((a, b) => (b.aiRiskScore ?? 0) - (a.aiRiskScore ?? 0))
-    .slice(0, 12)
+  // Open follow-ups only (a manager can resolve items out of the queue), ordered
+  // by severity then risk so the most urgent surface first.
+  const open = rows.filter((r) => r.aiFollowUpRequired && r.resolvedAt == null);
+  const attention = [...open]
+    .sort((a, b) => (SEV_RANK[b.aiSeverity ?? ""] ?? 0) - (SEV_RANK[a.aiSeverity ?? ""] ?? 0) || (b.aiRiskScore ?? 0) - (a.aiRiskScore ?? 0))
+    .slice(0, 15)
     .map(toItem);
+
+  const attentionStats = {
+    total: open.length,
+    high: open.filter((r) => r.aiSeverity && HIGH.has(r.aiSeverity)).length,
+    medium: open.filter((r) => r.aiSeverity === "Medium").length,
+    low: open.filter((r) => r.aiSeverity === "Low").length,
+    resolved: rows.filter((r) => r.aiFollowUpRequired && r.resolvedAt != null).length,
+    topLocation: mode(open.map((r) => r.locationName)),
+    topCategory: mode(open.map((r) => r.aiCategory ?? r.category)),
+  };
 
   return {
     period: { from, to },
@@ -81,11 +103,12 @@ export async function getOpsOverview(filters: OpsFilters) {
       analyzed: analyzed.length,
       avgRisk: mean(riskVals),
       avgSentiment: mean(sentVals), // -100..100
-      followUps: rows.filter((r) => r.aiFollowUpRequired).length,
+      followUps: open.length,
       highSeverity: rows.filter((r) => r.aiSeverity && HIGH.has(r.aiSeverity)).length,
     },
     perLocation,
     attention,
+    attentionStats,
     recent: rows.slice(0, 12).map(toItem),
     categories: categoryGroups.map((c) => c.category),
     locations: locationGroups.map((l) => ({ id: l.locationExtId, name: l.locationName })),

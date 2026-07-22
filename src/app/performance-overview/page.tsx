@@ -6,6 +6,7 @@ import { getOpsOverview, type OpsListItem } from "@/lib/ops-overview";
 import { formatDateTime } from "@/lib/labels";
 import { OpsFilters } from "@/components/OpsFilters";
 import { OpsSyncButton } from "@/components/OpsSyncButton";
+import { OpsAttentionQueue } from "@/components/OpsAttentionQueue";
 
 export const dynamic = "force-dynamic";
 
@@ -114,14 +115,8 @@ export default async function PerformanceOverviewPage({ searchParams }: { search
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="m-card p-5">
-          <h2 className="mb-3 text-base font-bold text-[#140516]">Attention queue <span className="text-sm font-normal text-[#A19BA2]">· {data.attention.length}</span></h2>
-          <div className="space-y-2">
-            {data.attention.map((e) => <OpsRow key={e.id} e={e} showAction />)}
-            {data.attention.length === 0 && <Empty>No records currently require follow-up. 🎉</Empty>}
-          </div>
-        </section>
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <OpsAttentionQueue items={data.attention} stats={data.attentionStats} />
 
         <section className="m-card p-5">
           <h2 className="mb-3 text-base font-bold text-[#140516]">Recent activity</h2>
