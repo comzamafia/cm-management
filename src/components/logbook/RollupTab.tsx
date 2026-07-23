@@ -38,7 +38,10 @@ export function RollupTab({ initialDay, initialLocations }: { initialDay: string
           <span className="text-sm font-semibold text-[#140516]">{label}{busy ? " …" : ""}</span>
           <button onClick={() => goto(shiftDay(day, 1))} className="rounded-lg border border-[#E4DDE4] px-2.5 py-1.5 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">Next →</button>
         </div>
-        <span className="text-xs text-[#A19BA2]">{totalRecords} record{totalRecords !== 1 ? "s" : ""} · {locations.length} location{locations.length !== 1 ? "s" : ""}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-[#A19BA2]">{totalRecords} record{totalRecords !== 1 ? "s" : ""} · {locations.length} location{locations.length !== 1 ? "s" : ""}</span>
+          <a href={`/logbook/pdf?date=${day}`} className="rounded-lg border border-[#440E48] px-3 py-1.5 text-xs font-semibold text-[#440E48] hover:bg-[#FAF6FA]">↓ Export PDF</a>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
