@@ -29,7 +29,7 @@ type ExtPost = {
   message: string; category: string; attachments: unknown[]; ai: ExtAi;
 };
 
-export type SyncResult = { ok: boolean; error?: string; fetched?: number; created?: number; updated?: number; from?: string; to?: string };
+export type SyncResult = { ok: boolean; error?: string; fetched?: number; created?: number; updated?: number; purged?: number; from?: string; to?: string };
 
 export async function syncOpsData(input?: { start?: string; end?: string }): Promise<SyncResult> {
   const user = await getCurrentUser();
@@ -118,8 +118,13 @@ export async function syncOpsData(input?: { start?: string; end?: string }): Pro
     }
   }
 
+  // 5. Retention: drop anything older than the 30-day window we keep, so the
+  //    table never grows unbounded (and stale posts leave the feed/queue).
+  const purgedRes = await prisma.opsLogPost.deleteMany({ where: { date: { lt: from } } });
+
   revalidatePath("/performance-overview");
-  return { ok: true, fetched: rows.length, created, updated, from, to };
+  revalidatePath("/logbook");
+  return { ok: true, fetched: rows.length, created, updated, purged: purgedRes.count, from, to };
 }
 
 const OPS_PER_PAGE = 30;
@@ -168,6 +173,32 @@ export async function getOpsPosts(filters: {
     categories: cats.map((c) => c.category),
     locations: locs.map((l) => ({ id: l.locationExtId, name: l.locationName })),
   };
+}
+
+export type SyncedDayPost = {
+  id: string; message: string; category: string; writerName: string; postedAt: string;
+  severity: string | null; riskScore: number | null; sentiment: string | null; followUp: boolean;
+};
+export type SyncedDayLocation = { name: string; posts: SyncedDayPost[] };
+
+// Synced ops posts for a single day, grouped by location — merged into the
+// logbook's Daily Rollup so it sits next to the internal per-location rollup.
+export async function getSyncedDay(day: string): Promise<SyncedDayLocation[]> {
+  const user = await getCurrentUser();
+  if (!user || !atLeast(user.role, Role.STORE_MANAGER)) return [];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+
+  const rows = await prisma.opsLogPost.findMany({ where: { date: day }, orderBy: { postedAt: "asc" } });
+  const map = new Map<string, SyncedDayLocation>();
+  for (const r of rows) {
+    const g = map.get(r.locationName) ?? { name: r.locationName, posts: [] };
+    g.posts.push({
+      id: r.id, message: r.message, category: r.category, writerName: r.writerName, postedAt: r.postedAt.toISOString(),
+      severity: r.aiSeverity, riskScore: r.aiRiskScore, sentiment: r.aiSentiment, followUp: r.aiFollowUpRequired && r.resolvedAt == null,
+    });
+    map.set(r.locationName, g);
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Clear (or re-open) a follow-up item from the attention queue. Stored locally on

@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { getTodayRollup, type RollupLocation } from "@/lib/logbook";
+import { getSyncedDay, type SyncedDayLocation } from "@/lib/ops-sync";
+
+const SEV_STYLE: Record<string, string> = {
+  High: "bg-[#e2445c1a] text-[#e2445c]", Critical: "bg-[#e2445c1a] text-[#e2445c]", Severe: "bg-[#e2445c1a] text-[#e2445c]",
+  Medium: "bg-[#F4A6261a] text-[#B45309]", Low: "bg-[#1DBA871a] text-[#1DBA87]",
+};
 
 const CATS: { key: keyof Pick<RollupLocation, "operations" | "salesMetrics" | "complaints" | "actionNeeded">; label: string; color: string }[] = [
   { key: "operations", label: "Operations", color: "#5B8DD9" },
@@ -19,13 +25,22 @@ function shiftDay(day: string, delta: number): string {
 export function RollupTab({ initialDay, initialLocations }: { initialDay: string; initialLocations: RollupLocation[] }) {
   const [day, setDay] = useState(initialDay);
   const [locations, setLocations] = useState(initialLocations);
+  const [synced, setSynced] = useState<SyncedDayLocation[]>([]);
   const [busy, startTransition] = useTransition();
+
+  // Internal rollup arrives from the server; fetch the synced feed for the initial
+  // day on mount, then both together whenever the day changes.
+  useEffect(() => {
+    startTransition(async () => setSynced(await getSyncedDay(initialDay)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function goto(nextDay: string) {
     startTransition(async () => {
-      const res = await getTodayRollup(nextDay);
+      const [res, syncedDay] = await Promise.all([getTodayRollup(nextDay), getSyncedDay(nextDay)]);
       setDay(res.day);
       setLocations(res.locations);
+      setSynced(syncedDay);
     });
   }
 
@@ -90,6 +105,41 @@ export function RollupTab({ initialDay, initialLocations }: { initialDay: string
           <div className="col-span-full rounded-xl border border-dashed border-[#E4DDE4] py-10 text-center text-sm text-[#A19BA2]">No locations in scope.</div>
         )}
       </div>
+
+      {/* Synced feed (7shifts) for the same day, grouped by location */}
+      {synced.length > 0 && (
+        <div>
+          <div className="mb-2 mt-2 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-[#5B8DD9]" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#726973]">Synced feed · 7shifts</h3>
+            <span className="text-xs text-[#A19BA2]">{synced.reduce((n, l) => n + l.posts.length, 0)} posts</span>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {synced.map((loc) => (
+              <div key={loc.name} className="m-card p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-base font-bold text-[#140516]">{loc.name}</h3>
+                  <span className="rounded-full bg-[#F3EEF3] px-2.5 py-0.5 text-[11px] font-semibold text-[#726973]">{loc.posts.length} post{loc.posts.length !== 1 ? "s" : ""}</span>
+                </div>
+                <ul className="space-y-2.5">
+                  {loc.posts.map((p) => (
+                    <li key={p.id} className="text-xs">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[#A19BA2]">
+                        <span className="font-semibold text-[#726973]">{p.category}</span>
+                        {p.severity && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${SEV_STYLE[p.severity] ?? "bg-[#F3EEF3] text-[#726973]"}`}>{p.severity}</span>}
+                        {p.riskScore != null && <span className="font-semibold">risk {p.riskScore}</span>}
+                        {p.followUp && <span className="rounded-full bg-[#e2445c1a] px-1.5 py-0.5 text-[10px] font-bold text-[#e2445c]">follow-up</span>}
+                      </div>
+                      <div className="mt-0.5 text-[#433745]">{p.message}</div>
+                      <div className="mt-0.5 text-[10px] text-[#C9C4C9]">{p.writerName}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

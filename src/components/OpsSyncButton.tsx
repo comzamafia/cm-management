@@ -16,7 +16,7 @@ export function OpsSyncButton() {
     startTransition(async () => {
       const res = await syncOpsData();
       if (!res.ok) { setErr(true); setMsg(res.error ?? "Sync failed"); return; }
-      setMsg(`Synced ${res.fetched} · ${res.created} new, ${res.updated} updated`);
+      setMsg(`Synced ${res.fetched} · ${res.created} new, ${res.updated} updated${res.purged ? `, ${res.purged} old removed` : ""}`);
       router.refresh();
     });
   };
