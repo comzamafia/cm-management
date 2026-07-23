@@ -8,6 +8,7 @@ import { sendDailyDigest } from "@/lib/digest";
 import { pruneOldNotifications } from "@/lib/notifications";
 import { runLoginReport } from "@/lib/login-report";
 import { archiveOldTasks } from "@/lib/tasks";
+import { runOpsSync } from "@/lib/ops-sync-core";
 import { checkCronAuth } from "@/lib/cron-auth";
 
 // GET /api/cron/run-all
@@ -52,6 +53,11 @@ export async function GET(req: Request) {
   // that have sat open 15+ days — keeps /tasks and the board fast.
   const archived = await archiveOldTasks(now, 30, 15);
 
+  // 10. Once a day, pull the external ops logbook into OpsLogPost (+ 30-day
+  // retention purge). run-all is polled hourly by the GitHub workflow, so gate to
+  // ~23:00 UTC to match the Vercel daily cron and avoid hammering the ops API.
+  const ops = now.getUTCHours() === 23 ? await runOpsSync() : { skipped: true };
+
   return NextResponse.json({
     ok: true,
     ranAt: now.toISOString(),
@@ -64,5 +70,6 @@ export async function GET(req: Request) {
     loginReport,
     pruned: pruned.deleted,
     archived,
+    ops,
   });
 }
