@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { RollupLocation, getKpiData } from "@/lib/logbook";
+import type { getKpiData } from "@/lib/logbook";
+import type { SyncedRollupLocation } from "@/lib/ops-sync";
 import { NewEntryForm } from "./NewEntryForm";
 import { RollupTab } from "./RollupTab";
 import { HistoryTab } from "./HistoryTab";
@@ -23,7 +24,7 @@ export function LogbookApp({
   canManage: boolean;
   locations: LocationOpt[];
   defaultLocationId: string | null;
-  initialRollup: { day: string; locations: RollupLocation[] } | null;
+  initialRollup: { day: string; locations: SyncedRollupLocation[] } | null;
   initialAttentionCount: number;
   initialKpi: Awaited<ReturnType<typeof getKpiData>> | null;
 }) {

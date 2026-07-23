@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma, Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { getCurrentUser, atLeast } from "./auth";
+import { localDateISO } from "./time";
 import { runOpsSync, type SyncResult } from "./ops-sync-core";
 
 // Manager-facing "Sync" action — auth check, then the shared core (which the
@@ -67,26 +68,46 @@ export type SyncedDayPost = {
   id: string; message: string; category: string; writerName: string; postedAt: string;
   severity: string | null; riskScore: number | null; sentiment: string | null; followUp: boolean;
 };
-export type SyncedDayLocation = { name: string; posts: SyncedDayPost[] };
+export type SyncedRollupCategory = { name: string; posts: SyncedDayPost[] };
+export type SyncedRollupLocation = { name: string; recordCount: number; followUps: number; categories: SyncedRollupCategory[] };
 
-// Synced ops posts for a single day, grouped by location — merged into the
-// logbook's Daily Rollup so it sits next to the internal per-location rollup.
-export async function getSyncedDay(day: string): Promise<SyncedDayLocation[]> {
+// The real daily rollup, built from the synced ops logbook (7shifts): each
+// location's actual records for the day, grouped by category. Powers the
+// logbook's Daily Rollup tab.
+export async function getSyncedRollup(day?: string): Promise<{ day: string; locations: SyncedRollupLocation[] }> {
+  const d = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : localDateISO();
   const user = await getCurrentUser();
-  if (!user || !atLeast(user.role, Role.STORE_MANAGER)) return [];
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+  if (!user || !atLeast(user.role, Role.STORE_MANAGER)) return { day: d, locations: [] };
 
-  const rows = await prisma.opsLogPost.findMany({ where: { date: day }, orderBy: { postedAt: "asc" } });
-  const map = new Map<string, SyncedDayLocation>();
+  const rows = await prisma.opsLogPost.findMany({
+    where: { date: d },
+    orderBy: [{ locationName: "asc" }, { category: "asc" }, { postedAt: "asc" }],
+  });
+
+  const locMap = new Map<string, Map<string, SyncedDayPost[]>>();
+  const followUpByLoc = new Map<string, number>();
   for (const r of rows) {
-    const g = map.get(r.locationName) ?? { name: r.locationName, posts: [] };
-    g.posts.push({
+    const cats = locMap.get(r.locationName) ?? new Map<string, SyncedDayPost[]>();
+    const arr = cats.get(r.category) ?? [];
+    arr.push({
       id: r.id, message: r.message, category: r.category, writerName: r.writerName, postedAt: r.postedAt.toISOString(),
       severity: r.aiSeverity, riskScore: r.aiRiskScore, sentiment: r.aiSentiment, followUp: r.aiFollowUpRequired && r.resolvedAt == null,
     });
-    map.set(r.locationName, g);
+    cats.set(r.category, arr);
+    locMap.set(r.locationName, cats);
+    if (r.aiFollowUpRequired && r.resolvedAt == null) followUpByLoc.set(r.locationName, (followUpByLoc.get(r.locationName) ?? 0) + 1);
   }
-  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  const locations: SyncedRollupLocation[] = [...locMap.entries()]
+    .map(([name, cats]) => ({
+      name,
+      recordCount: [...cats.values()].reduce((n, a) => n + a.length, 0),
+      followUps: followUpByLoc.get(name) ?? 0,
+      categories: [...cats.entries()].map(([cn, posts]) => ({ name: cn, posts })).sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return { day: d, locations };
 }
 
 // Clear (or re-open) a follow-up item from the attention queue. Stored locally on

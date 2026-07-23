@@ -2,11 +2,11 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, atLeast } from "@/lib/auth";
 import { Role } from "@prisma/client";
 import {
-  getTodayRollup,
   getAttentionQueueCount,
   getLogbookLocations,
   getKpiData,
 } from "@/lib/logbook";
+import { getSyncedRollup } from "@/lib/ops-sync";
 import { LogbookApp } from "@/components/logbook/LogbookApp";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function LogbookPage() {
   const locations = await getLogbookLocations();
 
   const [rollup, attentionCount, kpi] = canManage
-    ? await Promise.all([getTodayRollup(), getAttentionQueueCount(), getKpiData()])
+    ? await Promise.all([getSyncedRollup(), getAttentionQueueCount(), getKpiData()])
     : [null, 0, null];
 
   return (
