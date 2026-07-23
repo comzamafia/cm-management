@@ -7,9 +7,10 @@ import { RollupTab } from "./RollupTab";
 import { HistoryTab } from "./HistoryTab";
 import { KpiCharts } from "./KpiCharts";
 import { AttentionBanner } from "./AttentionBanner";
+import { SyncedLogTab } from "./SyncedLogTab";
 
 type LocationOpt = { id: string; name: string };
-type Tab = "rollup" | "history";
+type Tab = "rollup" | "history" | "synced";
 
 export function LogbookApp({
   canManage,
@@ -52,8 +53,8 @@ export function LogbookApp({
       {initialKpi && <KpiCharts data={initialKpi} />}
 
       <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-2">
-          {(["rollup", "history"] as const).map((t) => (
+        <div className="flex flex-wrap gap-2">
+          {(["rollup", "history", "synced"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -61,7 +62,7 @@ export function LogbookApp({
                 tab === t ? "bg-[#440E48] text-white" : "border border-[#E4DDE4] text-[#726973] hover:bg-[#FAF6FA]"
               }`}
             >
-              {t === "rollup" ? "Daily Rollup" : "History"}
+              {t === "rollup" ? "Daily Rollup" : t === "history" ? "History" : "Synced feed"}
             </button>
           ))}
         </div>
@@ -86,6 +87,7 @@ export function LogbookApp({
         <RollupTab key={refreshKey} initialDay={initialRollup.day} initialLocations={initialRollup.locations} />
       )}
       {tab === "history" && <HistoryTab key={refreshKey} locations={locations} />}
+      {tab === "synced" && <SyncedLogTab />}
     </div>
   );
 }
