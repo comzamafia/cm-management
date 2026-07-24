@@ -20,8 +20,7 @@ type Data = {
   byStatus: Record<string, number>; weekDays: { label: string; day: number; iso: string }[]; tasks: Task[];
 };
 
-const TABS = ["Tasks", "Dashboard", "Summary"] as const;
-type Tab = (typeof TABS)[number];
+const EXTRA_TABS = ["Dashboard", "Summary"] as const;
 
 // ── Type grouping ────────────────────────────────────────────────────────────
 // Recurring tasks come titled "[Daily] …" / "[Weekly] …" / "[Monthly] …"; anything
@@ -79,7 +78,9 @@ export function TaskTracker({
 }: {
   name: string; roleLabel: string; locationName: string | null; todayLabel: string; data: Data; editable?: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>("Tasks");
+  const typeTabs = TYPE_ORDER.filter((k) => data.tasks.some((t) => taskType(t.title) === k));
+  const tabs: string[] = [...typeTabs, ...EXTRA_TABS];
+  const [tab, setTab] = useState<string>(typeTabs[0] ?? "Dashboard");
   const [err, setErr] = useState<string | null>(null);
 
   return (
@@ -121,12 +122,16 @@ export function TaskTracker({
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 print:hidden">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${tab === t ? "bg-[#440E48] text-white" : "border border-[#E4DDE4] text-[#726973] hover:bg-[#FAF6FA]"}`}>
-            {t}
-          </button>
-        ))}
+        {tabs.map((t) => {
+          const isType = (TYPE_ORDER as readonly string[]).includes(t);
+          return (
+            <button key={t} onClick={() => setTab(t)}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${tab === t ? "bg-[#440E48] text-white" : "border border-[#E4DDE4] text-[#726973] hover:bg-[#FAF6FA]"}`}>
+              {isType && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: tab === t ? "#ffffff" : TYPE_COLOR[t as TaskType] }} />}
+              {t}
+            </button>
+          );
+        })}
       </div>
 
       {!editable && (
@@ -136,64 +141,50 @@ export function TaskTracker({
       )}
       {err && <div className="rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2 text-xs font-medium text-[#e2445c]">{err}</div>}
 
-      {tab === "Tasks" && <TasksTab data={data} setErr={setErr} editable={editable} />}
+      {typeTabs.includes(tab as TaskType) && <TypeTab type={tab as TaskType} data={data} setErr={setErr} editable={editable} />}
       {tab === "Dashboard" && <DashboardTab data={data} />}
       {tab === "Summary" && <SummaryTab data={data} />}
     </div>
   );
 }
 
-// ── Tasks (grouped by type) ────────────────────────────────────────────────────
+// ── One tab per recurrence type (Daily / Weekly / Monthly / Other) ──────────────
 
-function TasksTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
+function TypeTab({ type, data, setErr, editable }: { type: TaskType; data: Data; setErr: (s: string | null) => void; editable: boolean }) {
   const [hideDone, setHideDone] = useState(true);
   const mut = useTaskMutations(setErr);
 
-  const groups = new Map<TaskType, Task[]>();
-  for (const t of data.tasks) {
-    const k = taskType(t.title);
-    (groups.get(k) ?? groups.set(k, []).get(k)!).push(t);
-  }
   const rank = (t: Task) => (isDone(t) ? 2 : t.derived === "OVERDUE" ? 0 : 1);
-  const sortTasks = (arr: Task[]) =>
-    [...arr].sort((a, b) => rank(a) - rank(b) || (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
-
-  const visibleGroups = TYPE_ORDER.filter((k) => (groups.get(k)?.length ?? 0) > 0);
+  const all = [...data.tasks.filter((t) => taskType(t.title) === type)]
+    .sort((a, b) => rank(a) - rank(b) || (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
+  const done = all.filter(isDone).length;
+  const shown = hideDone ? all.filter((t) => !isDone(t)) : all;
+  const pct = all.length ? Math.round((done / all.length) * 100) : 0;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-[#A19BA2]">{data.tasks.length} task{data.tasks.length === 1 ? "" : "s"} · grouped by type</span>
-        <button onClick={() => setHideDone((v) => !v)} className="rounded-lg border border-[#E4DDE4] px-3 py-1.5 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">
-          {hideDone ? "Show completed" : "Hide completed"}
-        </button>
+    <section className="m-card p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TYPE_COLOR[type] }} />
+          <h2 className="text-base font-bold text-[#140516]">{type} tasks</h2>
+          <span className="text-xs font-medium text-[#A19BA2]">{done}/{all.length} done · {pct}%</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EEEAEE]">
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: TYPE_COLOR[type] }} />
+          </div>
+          <button onClick={() => setHideDone((v) => !v)} className="rounded-lg border border-[#E4DDE4] px-3 py-1.5 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">
+            {hideDone ? "Show completed" : "Hide completed"}
+          </button>
+        </div>
       </div>
-
-      {visibleGroups.map((k) => {
-        const all = sortTasks(groups.get(k)!);
-        const done = all.filter(isDone).length;
-        const shown = hideDone ? all.filter((t) => !isDone(t)) : all;
-        return (
-          <section key={k} className="m-card p-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TYPE_COLOR[k] }} />
-                <h2 className="text-base font-bold text-[#140516]">{k}</h2>
-                <span className="text-xs font-medium text-[#A19BA2]">{done}/{all.length} done</span>
-              </div>
-              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EEEAEE]">
-                <div className="h-full rounded-full" style={{ width: `${all.length ? Math.round((done / all.length) * 100) : 0}%`, backgroundColor: TYPE_COLOR[k] }} />
-              </div>
-            </div>
-            <div className="space-y-2">
-              {shown.map((t) => <TaskRow key={t.id} t={t} editable={editable} mut={mut} />)}
-              {shown.length === 0 && <div className="rounded-lg border border-dashed border-[#E4DDE4] py-4 text-center text-xs text-[#A19BA2]">All done 🎉</div>}
-            </div>
-          </section>
-        );
-      })}
-      {visibleGroups.length === 0 && <Empty>No tasks assigned.</Empty>}
-    </div>
+      <div className="space-y-2">
+        {shown.map((t) => <TaskRow key={t.id} t={t} editable={editable} mut={mut} />)}
+        {shown.length === 0 && (
+          <div className="rounded-lg border border-dashed border-[#E4DDE4] py-6 text-center text-sm text-[#A19BA2]">{all.length === 0 ? "No tasks." : "All done 🎉"}</div>
+        )}
+      </div>
+    </section>
   );
 }
 
