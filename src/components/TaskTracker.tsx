@@ -5,8 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Priority, TaskStatus } from "@prisma/client";
 import { changeTaskStatus, setTaskDue } from "@/lib/tasks";
-import { TRANSITIONS } from "@/lib/rules";
-import { STATUS_LABEL, STATUS_STYLE, PRIORITY_LABEL, PRIORITY_STYLE } from "@/lib/labels";
+import { STATUS_LABEL, STATUS_STYLE } from "@/lib/labels";
 
 type Cat = { name: string; color: string; total: number; done: number; pct: number };
 type Loc = { name: string; total: number; done: number; pct: number };
@@ -21,7 +20,32 @@ type Data = {
   byStatus: Record<string, number>; weekDays: { label: string; day: number; iso: string }[]; tasks: Task[];
 };
 
-// Shared status/date mutations for the editable tabs.
+const TABS = ["Tasks", "Dashboard", "Summary"] as const;
+type Tab = (typeof TABS)[number];
+
+// ── Type grouping ────────────────────────────────────────────────────────────
+// Recurring tasks come titled "[Daily] …" / "[Weekly] …" / "[Monthly] …"; anything
+// else is a one-off, grouped under "Other".
+const TYPE_ORDER = ["Daily", "Weekly", "Monthly", "Other"] as const;
+type TaskType = (typeof TYPE_ORDER)[number];
+const TYPE_COLOR: Record<TaskType, string> = { Daily: "#5B8DD9", Weekly: "#440E48", Monthly: "#F4A626", Other: "#726973" };
+
+function taskType(title: string): TaskType {
+  const m = title.match(/^\[(Daily|Weekly|Monthly)\]/);
+  return (m ? (m[1] as TaskType) : "Other");
+}
+function stripType(title: string): string {
+  return title.replace(/^\[(Daily|Weekly|Monthly)\]\s*/, "");
+}
+const isDone = (t: Task) => t.status === "DONE" || t.status === "VERIFIED";
+
+function dueBadge(t: Task): { text: string; cls: string } {
+  if (!t.dueAt) return { text: "No date", cls: "text-[#C9C4C9]" };
+  const text = new Date(t.dueAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  if (t.derived === "OVERDUE") return { text: `${text} · overdue`, cls: "font-semibold text-[#e2445c]" };
+  return { text, cls: "text-[#726973]" };
+}
+
 function useTaskMutations(setErr: (s: string | null) => void) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -38,7 +62,6 @@ function useTaskMutations(setErr: (s: string | null) => void) {
     });
   };
 
-  const isDone = (t: Task) => t.status === "DONE" || t.status === "VERIFIED";
   const toggleDone = (t: Task) => {
     if (!isDone(t) && t.proofRequired) {
       setErr(`"${t.title}" needs photo proof — open the task to complete it.`);
@@ -46,24 +69,9 @@ function useTaskMutations(setErr: (s: string | null) => void) {
     }
     call(t.id, () => changeTaskStatus(t.id, isDone(t) ? "IN_PROGRESS" : "DONE"));
   };
-  const setStatus = (t: Task, next: TaskStatus) => {
-    if (next === "DONE" && t.proofRequired) {
-      setErr(`"${t.title}" needs photo proof — open the task to complete it.`);
-      return;
-    }
-    call(t.id, () => changeTaskStatus(t.id, next));
-  };
   const moveDue = (t: Task, iso: string | null) => call(t.id, () => setTaskDue(t.id, iso));
 
-  return { busyId, toggleDone, setStatus, moveDue };
-}
-
-const TABS = ["Dashboard", "Weekly", "Monthly", "All Tasks", "Summary"] as const;
-type Tab = (typeof TABS)[number];
-
-function dueLabel(iso: string | null): string {
-  if (!iso) return "No due date";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return { busyId, toggleDone, moveDue };
 }
 
 export function TaskTracker({
@@ -71,7 +79,7 @@ export function TaskTracker({
 }: {
   name: string; roleLabel: string; locationName: string | null; todayLabel: string; data: Data; editable?: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>("Dashboard");
+  const [tab, setTab] = useState<Tab>("Tasks");
   const [err, setErr] = useState<string | null>(null);
 
   return (
@@ -128,16 +136,102 @@ export function TaskTracker({
       )}
       {err && <div className="rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2 text-xs font-medium text-[#e2445c]">{err}</div>}
 
+      {tab === "Tasks" && <TasksTab data={data} setErr={setErr} editable={editable} />}
       {tab === "Dashboard" && <DashboardTab data={data} />}
-      {tab === "Weekly" && <WeeklyTab data={data} setErr={setErr} editable={editable} />}
-      {tab === "Monthly" && <MonthlyTab data={data} setErr={setErr} editable={editable} />}
-      {tab === "All Tasks" && <AllTasksTab data={data} setErr={setErr} editable={editable} />}
       {tab === "Summary" && <SummaryTab data={data} />}
     </div>
   );
 }
 
-// ── Tabs ─────────────────────────────────────────────────────────────────────
+// ── Tasks (grouped by type) ────────────────────────────────────────────────────
+
+function TasksTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
+  const [hideDone, setHideDone] = useState(true);
+  const mut = useTaskMutations(setErr);
+
+  const groups = new Map<TaskType, Task[]>();
+  for (const t of data.tasks) {
+    const k = taskType(t.title);
+    (groups.get(k) ?? groups.set(k, []).get(k)!).push(t);
+  }
+  const rank = (t: Task) => (isDone(t) ? 2 : t.derived === "OVERDUE" ? 0 : 1);
+  const sortTasks = (arr: Task[]) =>
+    [...arr].sort((a, b) => rank(a) - rank(b) || (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"));
+
+  const visibleGroups = TYPE_ORDER.filter((k) => (groups.get(k)?.length ?? 0) > 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-[#A19BA2]">{data.tasks.length} task{data.tasks.length === 1 ? "" : "s"} · grouped by type</span>
+        <button onClick={() => setHideDone((v) => !v)} className="rounded-lg border border-[#E4DDE4] px-3 py-1.5 text-xs font-semibold text-[#726973] hover:bg-[#FAF6FA]">
+          {hideDone ? "Show completed" : "Hide completed"}
+        </button>
+      </div>
+
+      {visibleGroups.map((k) => {
+        const all = sortTasks(groups.get(k)!);
+        const done = all.filter(isDone).length;
+        const shown = hideDone ? all.filter((t) => !isDone(t)) : all;
+        return (
+          <section key={k} className="m-card p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TYPE_COLOR[k] }} />
+                <h2 className="text-base font-bold text-[#140516]">{k}</h2>
+                <span className="text-xs font-medium text-[#A19BA2]">{done}/{all.length} done</span>
+              </div>
+              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EEEAEE]">
+                <div className="h-full rounded-full" style={{ width: `${all.length ? Math.round((done / all.length) * 100) : 0}%`, backgroundColor: TYPE_COLOR[k] }} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {shown.map((t) => <TaskRow key={t.id} t={t} editable={editable} mut={mut} />)}
+              {shown.length === 0 && <div className="rounded-lg border border-dashed border-[#E4DDE4] py-4 text-center text-xs text-[#A19BA2]">All done 🎉</div>}
+            </div>
+          </section>
+        );
+      })}
+      {visibleGroups.length === 0 && <Empty>No tasks assigned.</Empty>}
+    </div>
+  );
+}
+
+function TaskRow({ t, editable, mut }: { t: Task; editable: boolean; mut: ReturnType<typeof useTaskMutations> }) {
+  const done = isDone(t);
+  const due = dueBadge(t);
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-[#EEEAEE] px-3 py-2.5">
+      {editable ? (
+        <button onClick={() => mut.toggleDone(t)} disabled={mut.busyId === t.id} title={done ? "Reopen" : "Mark done"}
+          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </button>
+      ) : (
+        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent"}`}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <Link href={`/tasks/${t.id}`} className={`truncate text-sm font-medium hover:text-[#440E48] ${done ? "text-[#A19BA2] line-through" : "text-[#140516]"}`}>{stripType(t.title)}</Link>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+          {t.categoryName && <span className="inline-flex rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>}
+          <span className="text-[#A19BA2]">{t.locationName}</span>
+          <span className={due.cls}>· {due.text}</span>
+        </div>
+      </div>
+      {editable ? (
+        <input type="date" value={t.dueAt ? t.dueAt.slice(0, 10) : ""} disabled={mut.busyId === t.id}
+          onChange={(e) => mut.moveDue(t, e.target.value ? `${e.target.value}T12:00:00` : null)}
+          className="hidden shrink-0 rounded-md border border-[#E4DDE4] bg-white px-2 py-1 text-xs text-[#726973] outline-none focus:border-[#440E48] sm:block" />
+      ) : (
+        <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 sm:inline-flex ${STATUS_STYLE[t.derived]}`}>{STATUS_LABEL[t.derived]}</span>
+      )}
+    </div>
+  );
+}
+
+// ── Dashboard + Summary (analytics) ────────────────────────────────────────────
 
 function DashboardTab({ data }: { data: Data }) {
   return (
@@ -182,149 +276,6 @@ function DashboardTab({ data }: { data: Data }) {
   );
 }
 
-function WeeklyTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
-  const { busyId, toggleDone, moveDue } = useTaskMutations(setErr);
-  // This week's tasks + any unscheduled task (so it can be dropped onto a day).
-  const rows = data.tasks.filter((t) => t.weekCol !== null || t.dueAt === null);
-
-  return (
-    <section className="m-card p-5">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-base font-bold text-[#140516]">This Week&apos;s Tasks</h2>
-        <span className="text-xs text-[#A19BA2]">{rows.length} task{rows.length === 1 ? "" : "s"}</span>
-      </div>
-      <p className="mb-3 text-xs text-[#A19BA2]">{editable ? "Click a day to schedule or move a task · click its own day again to mark done." : "Each task's scheduled day is highlighted; green means done."}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-[#eee] text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]">
-              <th className="py-2 text-left">Task</th>
-              {data.weekDays.map((d) => (
-                <th key={d.label} className="w-14 py-2 text-center">{d.label}<div className="text-[#C9C4C9]">{d.day}</div></th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#f3eef3]">
-            {rows.map((t) => {
-              const done = t.status === "DONE" || t.status === "VERIFIED";
-              return (
-                <tr key={t.id}>
-                  <td className="py-2.5 pr-3">
-                    <Link href={`/tasks/${t.id}`} className="text-sm font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
-                      {t.categoryName && <span className="inline-flex rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>}
-                      <span>{t.locationName}</span>
-                      {t.dueAt === null && <span className="italic text-[#C9C4C9]">· unscheduled</span>}
-                    </div>
-                  </td>
-                  {data.weekDays.map((d, col) => (
-                    <td key={col} className="py-2.5 text-center">
-                      <DayCell
-                        scheduled={t.weekCol === col}
-                        done={done}
-                        busy={busyId === t.id}
-                        editable={editable}
-                        onClick={() => (t.weekCol === col ? toggleDone(t) : moveDue(t, d.iso))}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr><td colSpan={8} className="py-8 text-center text-sm text-[#A19BA2]">No tasks this week.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function DayCell({ scheduled, done, busy, editable, onClick }: { scheduled: boolean; done: boolean; busy: boolean; editable: boolean; onClick: () => void }) {
-  const mark = scheduled
-    ? (done
-        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-        : <span className="h-2 w-2 rounded-sm bg-white" />)
-    : null;
-  const base = scheduled
-    ? done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#440E48] bg-[#440E48] text-white"
-    : "border-[#E4DDE4] text-transparent";
-
-  // Read-only: render a static box (no hover, no click).
-  if (!editable) {
-    return <span className={`inline-grid h-6 w-6 place-items-center rounded-md border-2 ${base}`}>{mark}</span>;
-  }
-  const hover = scheduled ? "" : "hover:border-[#440E48] hover:bg-[#FAF6FA]";
-  return (
-    <button onClick={onClick} disabled={busy} title={scheduled ? (done ? "Mark not done" : "Mark done") : "Move to this day"}
-      className={`grid h-6 w-6 place-items-center rounded-md border-2 transition-colors disabled:opacity-40 ${base} ${hover}`}>
-      {mark}
-    </button>
-  );
-}
-
-function MonthlyTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
-  const { busyId, toggleDone, moveDue } = useTaskMutations(setErr);
-  // This month's tasks + any unscheduled task (so it can be given a date).
-  const rows = data.tasks.filter((t) => t.inMonth || t.dueAt === null);
-
-  return (
-    <section className="m-card p-5">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-base font-bold text-[#140516]">This Month&apos;s Tasks</h2>
-        <span className="text-xs text-[#A19BA2]">{rows.length} task{rows.length === 1 ? "" : "s"}</span>
-      </div>
-      <p className="mb-3 text-xs text-[#A19BA2]">{editable ? "Pick or change each task's date · click the circle to complete." : "Each task's date and completion, read-only."}</p>
-      <div className="space-y-2">
-        {rows.map((t) => {
-          const done = t.status === "DONE" || t.status === "VERIFIED";
-          return (
-            <div key={t.id} className="flex items-center gap-3 rounded-lg border border-[#EEEAEE] px-3 py-2.5">
-              {editable ? (
-                <button onClick={() => toggleDone(t)} disabled={busyId === t.id} title={done ? "Reopen" : "Mark done"}
-                  className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                </button>
-              ) : (
-                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent"}`}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                </span>
-              )}
-              <div className="min-w-0 flex-1">
-                <Link href={`/tasks/${t.id}`} className="truncate text-sm font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
-                  {t.categoryName && <span className="inline-flex rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>}
-                  <span>{t.locationName}</span>
-                </div>
-              </div>
-              <input type="date" value={t.dueAt ? t.dueAt.slice(0, 10) : ""} disabled={!editable || busyId === t.id}
-                onChange={(e) => moveDue(t, e.target.value ? `${e.target.value}T12:00:00` : null)}
-                className="shrink-0 rounded-md border border-[#E4DDE4] bg-white px-2 py-1 text-xs text-[#726973] outline-none focus:border-[#440E48] disabled:opacity-60" />
-            </div>
-          );
-        })}
-        {rows.length === 0 && <Empty>No tasks this month.</Empty>}
-      </div>
-    </section>
-  );
-}
-
-function AllTasksTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
-  return (
-    <section className="m-card p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-bold text-[#140516]">All Tasks</h2>
-        <span className="text-xs text-[#A19BA2]">{data.tasks.length} total</span>
-      </div>
-      <div className="space-y-2">
-        {data.tasks.map((t) => <TaskRow key={t.id} t={t} showDue editable={editable} setErr={setErr} />)}
-        {data.tasks.length === 0 && <Empty>No tasks assigned.</Empty>}
-      </div>
-    </section>
-  );
-}
-
 function SummaryTab({ data }: { data: Data }) {
   const statusOrder: TaskStatus[] = ["PENDING", "IN_PROGRESS", "OVERDUE", "DONE", "VERIFIED"];
   return (
@@ -355,74 +306,6 @@ function SummaryTab({ data }: { data: Data }) {
           </tbody>
         </table>
       </section>
-    </div>
-  );
-}
-
-// ── Shared bits ──────────────────────────────────────────────────────────────
-
-function TaskRow({ t, showDue, editable = true, setErr }: { t: Task; showDue?: boolean; editable?: boolean; setErr: (s: string | null) => void }) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-  const [busy, setBusy] = useState(false);
-  const done = t.status === "DONE" || t.status === "VERIFIED";
-
-  const run = (next: TaskStatus) => {
-    if (next === "DONE" && t.proofRequired) {
-      setErr(`"${t.title}" needs photo proof — open the task to complete it.`);
-      return;
-    }
-    setErr(null);
-    setBusy(true);
-    startTransition(async () => {
-      const res = await changeTaskStatus(t.id, next);
-      setBusy(false);
-      if (!res.ok) setErr(res.error ?? "Could not update the task.");
-      else router.refresh();
-    });
-  };
-
-  // Valid onward moves for the owner (verification stays a manager action elsewhere).
-  const nexts = (TRANSITIONS[t.derived] ?? []).filter((s) => s !== "VERIFIED");
-  const options = [t.derived, ...nexts];
-
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-[#EEEAEE] px-3 py-2.5">
-      {editable ? (
-        <button
-          onClick={() => run(done ? "IN_PROGRESS" : "DONE")}
-          disabled={busy}
-          title={done ? "Reopen" : "Mark done"}
-          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors disabled:opacity-50 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent hover:border-[#1DBA87] hover:text-[#1DBA87]"}`}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-        </button>
-      ) : (
-        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#D0CDD0] text-transparent"}`}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        <Link href={`/tasks/${t.id}`} className="truncate text-sm font-medium text-[#140516] hover:text-[#440E48]">{t.title}</Link>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[#A19BA2]">
-          {t.categoryName && <span className="inline-flex rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>}
-          <span>{t.locationName}</span>
-          {showDue && <span>· {dueLabel(t.dueAt)}</span>}
-        </div>
-      </div>
-      <span className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 sm:inline-flex ${PRIORITY_STYLE[t.priority]}`}>{PRIORITY_LABEL[t.priority]}</span>
-      {editable ? (
-        <select
-          value={t.derived}
-          disabled={busy}
-          onChange={(e) => { const v = e.target.value as TaskStatus; if (v !== t.derived) run(v); }}
-          className="shrink-0 rounded-md border border-[#E4DDE4] bg-white py-1 pl-2 pr-1 text-xs font-semibold text-[#726973] outline-none focus:border-[#440E48]"
-        >
-          {options.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-        </select>
-      ) : (
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${STATUS_STYLE[t.derived]}`}>{STATUS_LABEL[t.derived]}</span>
-      )}
     </div>
   );
 }
