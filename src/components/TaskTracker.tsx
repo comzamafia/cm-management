@@ -141,7 +141,8 @@ export function TaskTracker({
       )}
       {err && <div className="rounded-lg border border-[#f3d3d8] bg-[#fdf2f3] px-3 py-2 text-xs font-medium text-[#e2445c]">{err}</div>}
 
-      {typeTabs.includes(tab as TaskType) && <TypeTab type={tab as TaskType} data={data} setErr={setErr} editable={editable} />}
+      {tab === "Weekly" && <WeeklyGridTab data={data} setErr={setErr} editable={editable} />}
+      {typeTabs.includes(tab as TaskType) && tab !== "Weekly" && <TypeTab type={tab as TaskType} data={data} setErr={setErr} editable={editable} />}
       {tab === "Dashboard" && <DashboardTab data={data} />}
       {tab === "Summary" && <SummaryTab data={data} />}
     </div>
@@ -185,6 +186,88 @@ function TypeTab({ type, data, setErr, editable }: { type: TaskType; data: Data;
         )}
       </div>
     </section>
+  );
+}
+
+// ── Weekly tab as a Monday–Sunday grid (task × weekday) ─────────────────────────
+
+function WeeklyGridTab({ data, setErr, editable }: { data: Data; setErr: (s: string | null) => void; editable: boolean }) {
+  const mut = useTaskMutations(setErr);
+  const rows = [...data.tasks.filter((t) => taskType(t.title) === "Weekly")]
+    .sort((a, b) => (a.weekCol ?? 9) - (b.weekCol ?? 9) || stripType(a.title).localeCompare(stripType(b.title)));
+
+  return (
+    <section className="m-card p-5">
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="text-base font-bold text-[#140516]">Weekly tasks</h2>
+        <span className="text-xs text-[#A19BA2]">{rows.length} task{rows.length === 1 ? "" : "s"}</span>
+      </div>
+      <p className="mb-3 text-xs text-[#A19BA2]">{editable ? "Click a day to schedule or move a task · click its own day again to mark done." : "Each task's scheduled day is highlighted; green means done."}</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-[#eee] text-[10px] font-bold uppercase tracking-wider text-[#A19BA2]">
+              <th className="py-2 text-left">Task</th>
+              {data.weekDays.map((d) => (
+                <th key={d.label} className="w-14 py-2 text-center">{d.label}<div className="text-[#C9C4C9]">{d.day}</div></th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#f3eef3]">
+            {rows.map((t) => {
+              const done = isDone(t);
+              return (
+                <tr key={t.id}>
+                  <td className="py-2.5 pr-3">
+                    <Link href={`/tasks/${t.id}`} className={`text-sm font-medium hover:text-[#440E48] ${done ? "text-[#A19BA2] line-through" : "text-[#140516]"}`}>{stripType(t.title)}</Link>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-[#A19BA2]">
+                      {t.categoryName && <span className="inline-flex rounded px-1.5 py-0.5 font-semibold" style={{ backgroundColor: `${t.categoryColor ?? "#440E48"}1a`, color: t.categoryColor ?? "#440E48" }}>{t.categoryName}</span>}
+                      <span>{t.locationName}</span>
+                      {t.weekCol === null && <span className="italic text-[#C9C4C9]">· unscheduled</span>}
+                    </div>
+                  </td>
+                  {data.weekDays.map((d, col) => (
+                    <td key={col} className="py-2.5 text-center">
+                      <DayCell
+                        scheduled={t.weekCol === col}
+                        done={done}
+                        unscheduled={t.weekCol === null}
+                        busy={mut.busyId === t.id}
+                        editable={editable}
+                        onClick={() => (t.weekCol === col ? mut.toggleDone(t) : mut.moveDue(t, d.iso))}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+            {rows.length === 0 && <tr><td colSpan={8} className="py-8 text-center text-sm text-[#A19BA2]">No weekly tasks.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function DayCell({ scheduled, done, unscheduled, busy, editable, onClick }: { scheduled: boolean; done: boolean; unscheduled: boolean; busy: boolean; editable: boolean; onClick: () => void }) {
+  const mark = scheduled
+    ? (done
+        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        : <span className="h-2 w-2 rounded-sm bg-white" />)
+    : null;
+  const base = scheduled
+    ? done ? "border-[#1DBA87] bg-[#1DBA87] text-white" : "border-[#440E48] bg-[#440E48] text-white"
+    : unscheduled ? "border-dashed border-[#D9C9DD] text-transparent" : "border-[#E4DDE4] text-transparent";
+
+  if (!editable) {
+    return <span className={`inline-grid h-6 w-6 place-items-center rounded-md border-2 ${base}`}>{mark}</span>;
+  }
+  const hover = scheduled ? "" : "hover:border-[#440E48] hover:bg-[#FAF6FA]";
+  return (
+    <button onClick={onClick} disabled={busy} title={scheduled ? (done ? "Mark not done" : "Mark done") : "Move to this day"}
+      className={`grid h-6 w-6 place-items-center rounded-md border-2 transition-colors disabled:opacity-40 ${base} ${hover}`}>
+      {mark}
+    </button>
   );
 }
 
